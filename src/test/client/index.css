@@ -24,7 +24,13 @@ main .progress::before{
     transform:translateY(-50%);
 }
 main .progress p{
-    width:10px;
+    width:0;
     height:100%;
     background-color:green;
+}
+main section {
+    display:none;
+}
+main .active {
+    display:block;
 }

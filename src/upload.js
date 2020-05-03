@@ -1,4 +1,4 @@
-import { isArray, isFile, flat, isEmpty, isObject, isFunc, isSymbol, getFileType } from './utils/tool'
+import { isArray, flat, isEmpty, isObject, isFunc, isSymbol, getFileType } from './utils/tool'
 import Validator from './utils/validator'
 import { CACHE_STATUS } from './utils/constant'
 import SparkMd5 from 'spark-md5'
@@ -143,13 +143,14 @@ export default class Upload {
 
     //取消监听(不能取消正在执行的任务)
     cancelEmit(...tasks) {
+        let result = []
         if(!tasks.length) {
+            result = [ ...this.events ]
             this.events = []
-            return []
+            return result
         }else {
             //参数筛选
             let rest = []
-            let result = []
             const { callback, data:newTasks } = this.dealArguments(tasks)()
             this.events.forEach(event => {
                 const { symbol } = event
@@ -200,7 +201,6 @@ export default class Upload {
         }
 
         this.emit(result)
-        return result
     }
 
     //暂停任务(暂停的项目为存在于文件缓存中的内容)
@@ -304,14 +304,20 @@ export default class Upload {
             this.files[symbol]['file']['md5'] = md5
             this.files[symbol]['md5'] = md5
             //将加密后的文件返回
-            return exitDataFn && exitDataFn({
-                filename: name,
-                md5,
-                suffix: getFileType(name),
-                size,
-                chunkSize: this.files[symbol]['chunkSize'],
-                chunksLength: this.files[symbol]['chunks'].length
-            })
+            return (
+                exitDataFn ? 
+                exitDataFn({
+                    filename: name,
+                    md5,
+                    suffix: getFileType(name),
+                    size,
+                    chunkSize: this.files[symbol]['chunkSize'],
+                    chunksLength: this.files[symbol]['chunks'].length
+                })
+                : {
+                    data: []
+                }
+            )
         })
         //分片上传
         .then(res => {
@@ -327,7 +333,7 @@ export default class Upload {
                 if(data) {
                     this.chunkInternalUpload(data, symbol, uploadFn)
                     .then(_ => {
-                        resolve(completeFn({name: symbol, md5: this.files[symbol]['md5']}))
+                        completeFn ? resolve(completeFn({name: symbol, md5: this.files[symbol]['md5']})) : resolve()
                     })
                     .catch(reject)
                 }
