@@ -20,6 +20,8 @@ export const isBlob = is('Blob')
 
 export const isFunc = is('Function')
 
+export const isSymbol = is('Symbol')
+
 //类型判断
 export const isType = (detect, type) => {
   const types = ['String', 'Object', 'Number', 'Array', 'Undefined', 'Fucntion', 'Null', 'Symbol', 'File', 'Blob']
@@ -63,4 +65,23 @@ export const flat = (arr) => {
       }
   })
   return newArray
+}
+
+export const isEmpty = (data) => {
+    if(isType(data, 'string')) {
+        return !!data.length
+      }else if(isType(data, 'null') || isType(data, 'undefined')) {
+        return true
+      }else if(isType(data, 'array')) {
+        return !!data.length
+      }else if(isType(data, 'object')) {
+        return !!Object.keys(data).length
+      }
+      return false
+}
+
+export const getFileType = (filename) => {
+  if(!filename.includes('.')) return ''
+  const split = filename.split('.')
+  return split[split.length - 1]
 }
