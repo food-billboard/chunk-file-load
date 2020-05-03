@@ -2,8 +2,9 @@
 
 文件分片上传工具
 
-## cmd执行查看事例
+## cmd分别命令执行查看事例
 `npm start`
+`npm run server`
 * 这里默认认为本机安装了node
 
 ## 调用 new Upload()
