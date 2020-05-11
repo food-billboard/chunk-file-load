@@ -1,5 +1,5 @@
 {
-  "name": "upload",
+  "name": "chunk-file-upload",
   "version": "1.0.0",
   "description": "文件分片上传",
   "main": "index.js",
@@ -8,8 +8,13 @@
     "start": "webpack-dev-server --open",
     "server": "nodemon ./src/test/index.js"
   },
-  "author": "",
+  "keywords": ["chunk", "upload"],
+  "author": "glf",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/food-billboard/chunk-file-load"
+  },
   "dependencies": {
     "@koa/router": "^8.0.8",
     "koa": "^2.11.0",
