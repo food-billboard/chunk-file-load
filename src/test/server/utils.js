@@ -23,13 +23,13 @@ function getUploadFileFolder(filename, folderPath='upload') {
 
 //生成blob文件保存本地
 function mkBlob(file, filename, index, folderPath='upload') {
-    const uploadPath = path.join(__dirname, folderPath, filename, '\\')
+    const uploadPath = path.join(__dirname, folderPath, filename, '/')
     const readPath = file
     const writePath = uploadPath + filename + '-' + index
     //创建读写流
     const readStream = fs.createReadStream(readPath)
     const writeStream = fs.createWriteStream(writePath)
-    //创建文件并将其保存在指定目录下
+    // 创建文件并将其保存在指定目录下
     readStream.pipe(writeStream)
     return new Promise((resolve, _) => {
         readStream.on('end', function(err, res) {
@@ -57,13 +57,13 @@ function mergeChunk(filename, store, folderPath="upload") {
     const type = store[filename]['suffix']
     
     //创建集合文件
-    fs.writeFileSync(file + '\\' + filename, '')
+    fs.writeFileSync(file + '/' + filename, '')
 
     chunkList.forEach(chunk => {
-        fs.appendFileSync(file + '\\' + filename, fs.readFileSync(file + '\\' + chunk))
-        fs.unlinkSync(file + '\\' + chunk)
+        fs.appendFileSync(file + '/' + filename, fs.readFileSync(file + '/' + chunk))
+        fs.unlinkSync(file + '/' + chunk)
     })
-    fs.renameSync(file + '\\' + filename, file + '\\' + filename + `.${type}`)
+    fs.renameSync(file + '/' + filename, file + '/' + filename + `.${type}`)
     store[filename]['status'] = 'complete'
 }
 

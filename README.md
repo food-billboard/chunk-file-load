@@ -28,6 +28,21 @@ let names = upload.upload({
     callback    //回调函数(可选)
 })
 ```
+* about exitDataFn 因为无法得知服务端的数据返回格式, 可以进行相应的定义来适应数据格式
+* like this
+```js
+exitDataFn: function(...someparams) {
+    //得到相应的数据
+    const data = {  }
+
+    //返回格式(如果服务端指定为全部上传完成，格式为false)
+    return {
+        data: [/*索引*/] || false
+    }
+}
+```
+* about callback 第一参数为error, 第二参数为completeFn或是在秒传时exitDataFn除data外的其余数据
+like this `callback(null, data)`
 
 ## 调用 upload.on(...args) 加入上传文件队列
 
@@ -65,6 +80,11 @@ upload.emit(name)
 ```
 
 ## API
+
+### init
+
+* 重置或初始化
+* 将待执行任务全部清除
 
 ### start
 

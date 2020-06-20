@@ -106,16 +106,15 @@ function exitDataFn(data) {
 
 //上传
 function uploadFn(data) {
-    // console.log(upload.watch()[0]['progress'] * 100 + '%')
-    if(threeFiles.length) {
+    if(threeFiles && threeFiles.length) {
         progressContent.style.width = upload.watch()[0]['progress'] * 100 + '%'
     }
     return ajax('/api/load', 'post', data)
 } 
 
 //回调
-function callback(err) {
-    console.log('完成了', err)
+function callback(err, rest) {
+    console.log('完成了', err, rest)
     oneFiles = []
     twoFiles = []
     threeFiles = []

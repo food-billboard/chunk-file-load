@@ -3,6 +3,22 @@ const webpack = require('webpack')
 const ExtractTextPlugin = require("extract-text-webpack-plugin")
 var HtmlWebpackPlugin = require('html-webpack-plugin')
 const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const os = require('os')
+
+function getIp() {
+    const ifaces = os.networkInterfaces()
+    let ip = '', result = []
+    for(var dev in ifaces) {
+        ifaces[dev].forEach(function(details) {
+            if(ip === '' && details.family === 'IPv4' && !details.internal) {
+                ip = details.address
+                return;
+            }
+        })
+    }
+
+    return ip || '127.0.0.1'
+}
 
 module.exports = {
     entry: './src/test/client/index.js',
@@ -43,7 +59,7 @@ module.exports = {
     ],
     devServer: {
         proxy: {
-            '/api': 'http://192.168.1.3:3000'
+            '/api': `http://${getIp()}:3000`
         },
         contentBase: path.join(__dirname, "src/test/dist"),
         compress: true,

@@ -1,14 +1,17 @@
 {
   "name": "chunk-file-upload",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "文件分片上传",
-  "main": "index.js",
+  "main": "./src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "webpack-dev-server --open",
     "server": "nodemon ./src/test/index.js"
   },
-  "keywords": ["chunk", "upload"],
+  "keywords": [
+    "chunk",
+    "upload"
+  ],
   "author": "glf",
   "license": "ISC",
   "repository": {
@@ -16,13 +19,13 @@
     "url": "git+https://github.com/food-billboard/chunk-file-load"
   },
   "dependencies": {
+    "spark-md5": "^3.0.1"
+  },
+  "devDependencies": {
     "@koa/router": "^8.0.8",
     "koa": "^2.11.0",
     "koa-cors": "0.0.16",
     "koa2-multiparty": "^1.0.1",
-    "spark-md5": "^3.0.1"
-  },
-  "devDependencies": {
     "@babel/core": "^7.9.6",
     "@babel/plugin-proposal-class-properties": "^7.8.3",
     "@babel/plugin-transform-runtime": "^7.9.6",
