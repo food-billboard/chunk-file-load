@@ -22,9 +22,11 @@ export const isFunc = is('Function')
 
 export const isSymbol = is('Symbol')
 
+export const isArrayBuffer = is('ArrayBuffer')
+
 //类型判断
 export const isType = (detect, type) => {
-  const types = ['String', 'Object', 'Number', 'Array', 'Undefined', 'Fucntion', 'Null', 'Symbol', 'File', 'Blob']
+  const types = ['String', 'Object', 'Number', 'Array', 'Undefined', 'Fucntion', 'Null', 'Symbol', 'File', 'Blob', 'ArrayBuffer']
   const prototype = Object.prototype.toString.call(detect)
   if(!prototype) return false
   const detectType = prototype.replace(/^\[object\s([A-Za-z]+)\]$/, '$1')
@@ -78,10 +80,4 @@ export const isEmpty = (data) => {
         return !!Object.keys(data).length
       }
       return false
-}
-
-export const getFileType = (filename) => {
-  if(!filename.includes('.')) return ''
-  const split = filename.split('.')
-  return split[split.length - 1]
 }

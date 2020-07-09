@@ -1,4 +1,4 @@
-import { isFile, isFunc } from './tool'
+import { isFile, isFunc, isBlob, isArrayBuffer, isObject } from './tool'
 //策略模式
 const NESS_Argument = ['file', 'uploadFn']
 
@@ -14,15 +14,19 @@ LoadConfig.prototype.findIndexAndDelete = function(name) {
 LoadConfig.prototype.restArguments = function() { return !this.args.length }
 LoadConfig.prototype.file = function(value) {
   this.findIndexAndDelete('file')
-  return isFile(value)
+  return isFile(value) || isArrayBuffer(value) || isBlob(value)
 }
-LoadConfig.prototype.exitDataFn = function(value) { return isFunc(value) && value.length == 1 }
+LoadConfig.prototype.mime = function(value, acc) { 
+  return value ? typeof value === 'string' : ( acc ? ( isFile(acc['file']) )  : false ) 
+}
+LoadConfig.prototype.exitDataFn = function(value) { return value ? isFunc(value) : true }
 LoadConfig.prototype.uploadFn = function(value) { 
   this.findIndexAndDelete('uploadFn')
   return isFunc(value) && value.length == 1
 }
-LoadConfig.prototype.completeFn = function(value) { return isFunc(value) }
-LoadConfig.prototype.callback = function(value) { return isFunc(value) }
+LoadConfig.prototype.completeFn = function(value) { return value ? isFunc(value) : true }
+LoadConfig.prototype.callback = function(value) { return value ? isFunc(value) : true }
+LoadConfig.prototype.config = function(value) { return value ? isObject(value) : true }
 
 function Validator() { this.init() }
 Validator.prototype.cache = []
@@ -30,9 +34,9 @@ Validator.prototype.init = function() {
   this.cache = [] 
   this.loadConfig = new LoadConfig()
 }
-Validator.prototype.add = function(value, method) {
+Validator.prototype.add = function(value, method, acc) {
   this.cache.push(() => {
-    return this.loadConfig[method] && this.loadConfig[method](value)
+    return this.loadConfig[method] && this.loadConfig[method](value, acc)
   })
 }
 Validator.prototype.validate = function() {

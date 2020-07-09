@@ -134,7 +134,11 @@ SingleFile.onchange = function(e) {
         exitDataFn,
         uploadFn,
         completeFn,
-        callback
+        callback,
+        config: {
+            retry: true,
+            retryTimes: 3
+        }
     })
     oneFiles = [..._files]
 }

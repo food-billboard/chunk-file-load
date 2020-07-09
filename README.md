@@ -21,12 +21,42 @@
 ``` js
 const upload = new Upload()
 let names = upload.upload({
-    file,   //文件
+    file,   //文件 支持file blob arraybuffer格式的文件, 需要指定mime类型
+    mime, //mime类型
     exitDataFn, //验证后端是否存在文件的方法(可选，不传则每一次上传都会全部重新上传)
     uploadFn,   //上传方法
     completeFn, //完成上传后通知后端的方法(可选，如果后端有自己的验证方式则无需传递)
-    callback    //回调函数(可选)
+    callback,    //回调函数(可选)
+    config: {   //相关配置(可选)
+        retry, //是否错误重试 默认不重试
+        retryTimes, //重试次数, 默认1
+        chunkSize //分片大小 默认5m
+    }
 })
+* 相关回调参数
+```js
+exitDatFn({
+    filename: '文件名称',
+    md5: '加密文件名称',
+    suffix: '文件后缀名称',
+    size: '文件大小',
+    chunkSize: '文件单分片大小',
+    chunksLength: '文件总分片数量'
+})
+uploadFn(data/*
+包含文件的formData
+{
+    file: '分片文件',
+    md5: '加密文件名称',
+    index: '当前文件分片索引'
+}
+*/)
+completeFn({
+    name: '上传队列中的文件唯一索引',
+    md5: '加密文件名称'
+})
+callback(err/*任务错误信息, 没有则为null*/, res/*不为null则表示任务成功*/)
+```
 ```
 * about exitDataFn 因为无法得知服务端的数据返回格式, 可以进行相应的定义来适应数据格式
 * like this
@@ -73,7 +103,7 @@ let names = upload.on([{/*同上参数*/}, {/*同上参数*/}], {/*同上参数*
 
 * 参数为绑定上传任务时返回的给定任务文件名称
 * 支持传入多个参数
-* 返回所有状态的任务(rejected fulfilled cancel stopping)
+* 返回所有状态的任务(rejected fulfilled cancel stopping retry)
 
 ```js
 upload.emit(name)
@@ -129,16 +159,19 @@ upload.cancelEmit(names)    //不传则取消所有任务
 * 返回指定任务的上传进度集合
 
 ```js
+//return { name, progress, retry?:{ times } }
 upload.watch(names) //不传则返回所有进度
 ```
-
-### setChunkSize
-
-* 设置每一分片的大小(默认5M)
-* 对于已经初始过的任务，其大小则被固定，无法再次修改
-* 尽量不要修改分片大小，这可能会导致执行断点续传时前后传递的数据不一致导致全部重新上传
-
 
 ## 总结
 
 文件分片上传是为了能在后端限制上传文件大小的情况下，也为了能有更好的用户体验，将体积大的文件分成等体积的小文件进行分别上传，也保证了当用户在不明情况下中断上传可以继续上传。
+
+
+config: {
+    retry: boolean, 是否错误重试
+    retryTimes: number 重试次数
+    chunkSize: number 分片大小
+    
+}
+删除setChunkSize方法，添加到配置中

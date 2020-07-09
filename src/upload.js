@@ -1,4 +1,4 @@
-import { isArray, flat, isEmpty, isObject, isFunc, isSymbol, getFileType } from './utils/tool'
+import { isArray, flat, isEmpty, isObject, isFunc, isArrayBuffer, isFile, isBlob, isSymbol } from './utils/tool'
 import Validator from './utils/validator'
 import { CACHE_STATUS } from './utils/constant'
 import SparkMd5 from 'spark-md5'
@@ -9,22 +9,59 @@ const DEAL_ARGUMENTS = Symbol('DEAL_ARGUMENTS')
 const CHUNK_INTERNAL_UPLOAD = Symbol('CHUNK_INTERNAL_UPLOAD')
 const DEAL_UPLOAD_CHUNK = Symbol('DEAL_UPLOAD_CHUNK')
 const GET_FILE_MD5 = Symbol('GET_FILE_MD5')
+const GET_BUFFER_MD5 = Symbol('GET_BUFFER_MD5')
+const FILE_TYPE = Symbol('FILE_TYPE')
+
+const DEFAULT_CONFIG = {
+    retry: false,
+    retyrTimes: 1,
+    chunkSize: 1024 * 1024 * 5
+}
 
 function Upload() {
     this.init()
 }
+Upload.prototype[FILE_TYPE] = function(file) {
+    if(isBlob(file)) {
+        const { size } = file
+        return {
+            size,
+            name: null,
+            file,
+            action: this[GET_FILE_MD5]
+        }
+    }else if(isFile(file)) {
+        const { size, name } = file
+        return {
+            size,
+            name,
+            file,
+            action: this[GET_FILE_MD5]
+        }
+    }else if(isArrayBuffer(file)) {
+        const len = file.byteLength
+        return {
+            size: len,
+            name: null,
+            file,
+            action: this[GET_BUFFER_MD5]
+        }
+    }
+}
+Upload.prototype[FILES] = {}
+Upload.prototype[EVENTS] = []
 Upload.prototype.init = function() {
     //文件缓存
     this[FILES] = {}
     //事件队列
     this[EVENTS] = []
-    this.MIN_CHUNK = 1024 * 1024 * 5
 }
 Upload.prototype.on = function(...tasks) {
     if(isEmpty(tasks)) return []
     let _callback
     let symbolList = []
     let result = []
+    const that = this
     //参数验证
     this[DEAL_ARGUMENTS](tasks)(function({data, callback}) {
         _callback = callback
@@ -32,10 +69,19 @@ Upload.prototype.on = function(...tasks) {
         result = data.reduce((acc, d) => {
             if(isObject(d)) {
                 Object.keys(d).forEach(t => {
-                    validate.add(d[t], t)
+                    validate.add(d[t], t, d)
                 })
                 if(validate.validate()) {
-                    acc.push(d)
+                    const { config={}, file, mime, ...nextD } = d
+                    acc.push({
+                        ...nextD,
+                        mime: (file.type && file.type.length > 0) ? file.type : mime,
+                        file: that[FILE_TYPE](file),
+                        config: {
+                            ...DEFAULT_CONFIG,
+                            ...config,
+                        }
+                    })
                 }
             }
             return acc
@@ -85,45 +131,54 @@ Upload.prototype.emit = function(...tasks) {
         let fulfilled = []
         let stopping = []
         let cancel = []
-
+        let retry = []
+        let retryRejected = []
         res.forEach((result, index) => {
-            const { status, reason, value } = result
+            const { value } = result
+            const { name, err } = value
             let task = activeEmit[index]
-            let name = task.symbol
             let fileCache = this[FILES][name]
+            const { status } = fileCache
 
-            //记录失败项
-            if(status === 'rejected' || (value && value.err)) {
-                let fileStatus = fileCache.status
-                switch(fileStatus) {
-                    case CACHE_STATUS.rejected: 
-                    rejected.push({
-                        reason,
-                        data: task
-                    })
-                    break
-                    case CACHE_STATUS.stopping:
-                    stopping.push({
-                        reason: 'stopping',
-                        data: task
-                    })
-                    break
-                    case CACHE_STATUS.cancel:
-                    cancel.push({
-                        reason: 'cancel',
+            switch(status) {
+                case CACHE_STATUS.rejected: 
+                const { config = {} } = task
+                const { retry:isRetry, retryTimes } = config
+                if(isRetry && retryTimes > 0) {
+                    const newTask = {
+                        ...task,
+                        retry: true,
+                        config: {
+                            ...config,
+                            retry: retryTimes - 1 > 0,
+                            retryTimes: retryTimes - 1
+                        }
+                    }
+                    this[EVENTS].push(newTask)
+                    retry.push(newTask)
+                    retryRejected.push({
+                        reason: 'retry',
                         data: task
                     })
                 }
-
-                //将暂停项重新添加至事件队列中, 其余失败项需要重新手动添加至事件队列中
-                if(fileStatus === CACHE_STATUS.stopping) {
-                    this[EVENTS].push(task)
-                }
-
-            }
-            //记录成功项
-            else {
-                fulfilled.push({
+                rejected.push({
+                    reason: err,
+                    data: task
+                })
+                break
+                case CACHE_STATUS.stopping:
+                stopping.push({
+                    reason: 'stopping',
+                    data: task
+                })
+                this[EVENTS].push(task)
+                break
+                case CACHE_STATUS.cancel:
+                cancel.push({
+                    reason: 'cancel',
+                    data: task
+                })
+                default: fulfilled.push({
                     value,
                     data: task
                 })
@@ -135,12 +190,17 @@ Upload.prototype.emit = function(...tasks) {
         })
 
         activeEmit = null
+        //重试
+        if(!!retry.length) {
+            this.emit(...retry)
+        }
 
         return {
+            retry: retryRejected,
             rejected,
             fulfilled,
             stopping,
-            cancel
+            cancel,
         }
     })
 
@@ -247,23 +307,16 @@ Upload.prototype.watch = function(...names) {
         newNames = flat(names).filter(name => isSymbol(name) && originNames.includes(name))
     }
     return newNames.map(name => {
-        const file = this[FILES][name]
+        const { chunks, completeChunks, retry: retrying, config: { retry, retryTimes } = {} } = this[FILES][name]
         return {
-            progress: Number(file.completeChunks.length) / Number(file.chunks.length),
-            name
+            progress: Number(completeChunks.length) / Number(chunks.length),
+            name,
+            ...((retry && retrying) ? { retry: {
+                times: retryTimes
+            } } : {})
         }
     })
 } 
-
-//设置分片大小(只能影响到还未分配分片大小的任务)
-Upload.prototype.setChunkSize = function(size) {
-    size = Number(size)
-    if(typeof size == 'number') {
-        this.MIN_CHUNK = size
-        return size
-    }
-    return this.MIN_CHUNK
-}
 
 //上传
 /**
@@ -282,9 +335,10 @@ Upload.prototype.upload = function(...tasks) {
     return symbol
 }
 
-  //处理上传文件分片
-  Upload.prototype[DEAL_UPLOAD_CHUNK] = function({file, exitDataFn, uploadFn, completeFn, callback, symbol}) {
-    const { name, size } = file
+//处理上传文件分片
+Upload.prototype[DEAL_UPLOAD_CHUNK] = function(task) {
+    const { file:wrapperFile, mime, exitDataFn, uploadFn, completeFn, callback, symbol, config: { chunkSize, retry, retyrTimes } } = task
+    const { name, size, file, action } = wrapperFile
     //添加记录至文件缓存中
     if(!this[FILES][symbol]) {
         this[FILES][symbol] = {
@@ -294,16 +348,17 @@ Upload.prototype.upload = function(...tasks) {
             completeChunks: [],
             watch: false,
             md5: null,
-            chunkSize: this.MIN_CHUNK,
-            status: CACHE_STATUS.pending
+            chunkSize,
+            status: CACHE_STATUS.pending,
+            retry,
+            retyrTimes
         }
     }
     this[FILES][symbol]['status'] = CACHE_STATUS.doing
-
     //md5加密
-    return this[GET_FILE_MD5](symbol)
+    return action.call(this, symbol)
     //向后端保存文件的相关信息为后面分片上传做验证准备
-    .then(md5 => {
+    .then(async (md5) => {
         this[FILES][symbol]['file']['md5'] = md5
         this[FILES][symbol]['md5'] = md5
         //将加密后的文件返回
@@ -312,7 +367,7 @@ Upload.prototype.upload = function(...tasks) {
             isFunc(exitDataFn) && exitDataFn({
                 filename: name,
                 md5,
-                suffix: getFileType(name),
+                suffix: mime,
                 size,
                 chunkSize: this[FILES][symbol]['chunkSize'],
                 chunksLength: this[FILES][symbol]['chunks'].length
@@ -397,6 +452,25 @@ Upload.prototype[CHUNK_INTERNAL_UPLOAD] = async function (unUploadList, name, up
         }
     }
     return Promise.resolve()
+}
+
+Upload.prototype[GET_BUFFER_MD5] = function(name) {
+    const { file, chunkSize } = this[FILES][name]
+    const { byteLength:size } = file
+    let currentChunk = 0,
+        totalChunks = Math.ceil(size / chunkSize),
+        spark = new SparkMd5.ArrayBuffer(),
+        bufferSlice = ArrayBuffer.prototype.slice
+    while(currentChunk < totalChunks) {
+        let start = currentChunk * chunkSize,
+            end = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize
+            console.log(start, end)
+        const chunks = bufferSlice.call(file, start, end)
+        this[FILES][name]['chunks'].push(new Blob([chunks]))
+        currentChunk ++
+        spark.append(chunks)
+    }
+    return Promise.resolve(spark.end())
 }
 
 //获取md5
