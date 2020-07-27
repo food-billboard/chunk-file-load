@@ -12,7 +12,7 @@ const router = new Router()
 const cache = {}
 
 router.get('/api/check', async(ctx) => {
-
+    
     const query = ctx.request.query
     const {
         md5
@@ -89,7 +89,6 @@ router.get('/api/complete', async(ctx) => {
     }else {
         const file = cache[md5]
         const { completeChunks, chunksLength } = file
-        console.log(completeChunks, chunksLength)
         if(completeChunks == chunksLength) {
             ctx.body = JSON.stringify({
                 success: true,

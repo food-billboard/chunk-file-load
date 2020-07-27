@@ -1,4 +1,4 @@
-import { isArray, flat, isEmpty, isObject, isFunc, isArrayBuffer, isFile, isBlob, isSymbol } from './utils/tool'
+import { isArray, flat, isEmpty, isObject, isFunc, isArrayBuffer, isFile, isBlob, isSymbol, allSettled } from './utils/tool'
 import Validator from './utils/validator'
 import { CACHE_STATUS } from './utils/constant'
 import SparkMd5 from 'spark-md5'
@@ -123,7 +123,7 @@ Upload.prototype.emit = function(...tasks) {
     }
 
     //处理任务
-    return Promise.allSettled(activeEmit.map(task => {
+    return allSettled(activeEmit.map(task => {
         return this[DEAL_UPLOAD_CHUNK](task)
     }))
     .then(res => {
@@ -464,7 +464,6 @@ Upload.prototype[GET_BUFFER_MD5] = function(name) {
     while(currentChunk < totalChunks) {
         let start = currentChunk * chunkSize,
             end = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize
-            console.log(start, end)
         const chunks = bufferSlice.call(file, start, end)
         this[FILES][name]['chunks'].push(new Blob([chunks]))
         currentChunk ++

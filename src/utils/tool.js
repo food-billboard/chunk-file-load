@@ -81,3 +81,35 @@ export const isEmpty = (data) => {
       }
       return false
 }
+
+//allSettled
+export function allSettled(promises) {
+  if(!promises) return Promise.reject('params is not array')
+  if(Promise.allSettled) return Promise.allSettled(promises)
+  return new Promise((resolve, reject) => {
+    const length = promises.length
+    let completeCounter = 0
+    let values = []
+    for(let i = 0; i < length; i ++) {
+      Promise.resolve(promises[i])
+      .then(
+        function(value) {
+          completeCounter ++
+          values.push({
+            status: 'fulfilled',
+            value
+          })
+          if(completeCounter == length) return resolve(values)
+        },
+        function(reason) {
+          completeCounter ++
+          values.push({
+            status: 'rejected',
+            reason
+          })
+          if(completeCounter == length) return resolve(values)
+        }
+      )
+    }
+  })
+}

@@ -57,13 +57,14 @@ function mergeChunk(filename, store, folderPath="upload") {
     const type = store[filename]['suffix']
     
     //创建集合文件
-    fs.writeFileSync(file + '/' + filename, '')
+    fs.writeFileSync(path.resolve(file, filename), '')
 
     chunkList.forEach(chunk => {
-        fs.appendFileSync(file + '/' + filename, fs.readFileSync(file + '/' + chunk))
-        fs.unlinkSync(file + '/' + chunk)
+        fs.appendFileSync(path.resolve(file, filename), fs.readFileSync(file + '/' + chunk))
+        fs.unlinkSync(path.resolve(file, chunk))
     })
-    fs.renameSync(file + '/' + filename, file + '/' + filename + `.${type}`)
+    console.log(type)
+    fs.renameSync(path.resolve(file, filename), path.resolve(file, `${filename}.${type.includes('/') ? type.split('/')[1] : type}`))
     store[filename]['status'] = 'complete'
 }
 

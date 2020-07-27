@@ -163,15 +163,10 @@ upload.cancelEmit(names)    //不传则取消所有任务
 upload.watch(names) //不传则返回所有进度
 ```
 
+## ps 
+
+因为小程序方面不能使用fileReader、Blob等API，所以暂时不能使用本工具
+
 ## 总结
 
 文件分片上传是为了能在后端限制上传文件大小的情况下，也为了能有更好的用户体验，将体积大的文件分成等体积的小文件进行分别上传，也保证了当用户在不明情况下中断上传可以继续上传。
-
-
-config: {
-    retry: boolean, 是否错误重试
-    retryTimes: number 重试次数
-    chunkSize: number 分片大小
-    
-}
-删除setChunkSize方法，添加到配置中
