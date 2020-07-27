@@ -1,6 +1,6 @@
 {
   "name": "chunk-file-upload",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "文件分片上传",
   "main": "./src/index.js",
   "scripts": {
