@@ -1,4 +1,4 @@
-import { isFile, isFunc, isBlob, isArrayBuffer, isObject } from './tool'
+import { isFile, isFunc, isBlob, isArrayBuffer, isObject, isBase64 } from './tool'
 //策略模式
 const NESS_Argument = ['file', 'uploadFn']
 
@@ -12,12 +12,13 @@ LoadConfig.prototype.findIndexAndDelete = function(name) {
   }
 }
 LoadConfig.prototype.restArguments = function() { return !this.args.length }
-LoadConfig.prototype.file = function(value) {
+LoadConfig.prototype.file = function(value, acc) {
   this.findIndexAndDelete('file')
-  return isFile(value) || isArrayBuffer(value) || isBlob(value)
+  const { _cp_ } = acc
+  return !!_cp_ ? true : isFile(value) || isArrayBuffer(value) || isBlob(value) || isBase64(value)
 }
 LoadConfig.prototype.mime = function(value, acc) { 
-  return value ? typeof value === 'string' : ( acc ? ( isFile(acc['file']) )  : false ) 
+  return value ? typeof value === 'string' && /[a-zA-Z]{1,20}\/[a-zA-Z]{1-20}/.test(value) : ( acc ? ( isFile(acc['file']) || isBase64([acc['file']]) )  : false ) 
 }
 LoadConfig.prototype.exitDataFn = function(value) { return value ? isFunc(value) : true }
 LoadConfig.prototype.uploadFn = function(value) { 
@@ -27,6 +28,10 @@ LoadConfig.prototype.uploadFn = function(value) {
 LoadConfig.prototype.completeFn = function(value) { return value ? isFunc(value) : true }
 LoadConfig.prototype.callback = function(value) { return value ? isFunc(value) : true }
 LoadConfig.prototype.config = function(value) { return value ? isObject(value) : true }
+LoadConfig.prototype.chunks = function(value, acc) {
+  const { _cp_ } = acc
+  return !!_cp_ ? Array.isArray(value) && !!value.length && value.every(v => isFile(v) || isArrayBuffer(v) || isBlob(v) || isBase64(v)) : true
+}
 
 function Validator() { this.init() }
 Validator.prototype.cache = []
@@ -36,7 +41,7 @@ Validator.prototype.init = function() {
 }
 Validator.prototype.add = function(value, method, acc) {
   this.cache.push(() => {
-    return this.loadConfig[method] && this.loadConfig[method](value, acc)
+    return isFunc(this.loadConfig[method]) ? this.loadConfig[method](value, acc) : true
   })
 }
 Validator.prototype.validate = function() {

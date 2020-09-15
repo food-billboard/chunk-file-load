@@ -3,6 +3,8 @@ const webpack = require('webpack')
 const ExtractTextPlugin = require("extract-text-webpack-plugin")
 var HtmlWebpackPlugin = require('html-webpack-plugin')
 const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const commonConfig = require('./webpack.common.config')
+const { merge } = require('webpack-merge')
 const os = require('os')
 
 function getIp() {
@@ -20,10 +22,10 @@ function getIp() {
     return ip || '127.0.0.1'
 }
 
-module.exports = {
-    entry: './src/test/client/index.js',
+module.exports = merge(commonConfig, {
+    entry: path.resolve(__dirname, './src/test/client/index.js'),
     output: {
-        path: path.resolve(__dirname, 'src/test/dist'),
+        path: path.resolve(__dirname, './src/test/dist'),
         filename: '[name].bundle.[hash].js'
     },
     mode: 'development',
@@ -36,15 +38,6 @@ module.exports = {
                     fallback: "style-loader",
                     use: "css-loader"
                 })
-            },
-            {
-                test: /\.(png|jpg|gif)$/,
-                loader: ['file-loader']
-            },
-            { 
-                test: /\.js$/, 
-                exclude: /node_modules/, 
-                loader: "babel-loader" 
             }
         ]
     },
@@ -52,7 +45,7 @@ module.exports = {
         new ExtractTextPlugin("styles.css"),
         new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
-            template: './src/test/client/index.html'
+            template: path.resolve(__dirname, './src/test/client/index.html')
         }),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NamedModulesPlugin(),
@@ -65,4 +58,4 @@ module.exports = {
         compress: true,
         port: 8000
     }
-}
+})

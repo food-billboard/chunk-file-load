@@ -63,7 +63,6 @@ function mergeChunk(filename, store, folderPath="upload") {
         fs.appendFileSync(path.resolve(file, filename), fs.readFileSync(file + '/' + chunk))
         fs.unlinkSync(path.resolve(file, chunk))
     })
-    console.log(type)
     fs.renameSync(path.resolve(file, filename), path.resolve(file, `${filename}.${type.includes('/') ? type.split('/')[1] : type}`))
     store[filename]['status'] = 'complete'
 }

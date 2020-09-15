@@ -21,8 +21,8 @@
 ``` js
 const upload = new Upload()
 let names = upload.upload({
-    file,   //文件 支持file blob arraybuffer格式的文件, 需要指定mime类型
-    mime, //mime类型
+    file,   //文件 支持file blob arraybuffer 以及base64格式的文件, 除了file外，其他格式文件如果没有内置mime类型，尽量传递mime类型，否则无法上传
+    mime, //mime类型(/.+\/.+/)
     exitDataFn, //验证后端是否存在文件的方法(可选，不传则每一次上传都会全部重新上传)
     uploadFn,   //上传方法
     completeFn, //完成上传后通知后端的方法(可选，如果后端有自己的验证方式则无需传递)
@@ -50,7 +50,7 @@ uploadFn(data/*
     md5: '加密文件名称',
     index: '当前文件分片索引'
 }
-*/)
+*如果不支持formData则为普通对象/)
 completeFn({
     name: '上传队列中的文件唯一索引',
     md5: '加密文件名称'
@@ -67,7 +67,7 @@ exitDataFn: function(...someparams) {
 
     //返回格式(如果服务端指定为全部上传完成，格式为false)
     return {
-        data: [/*索引*/] || false
+        data: [/*数字或字符串数字索引*/] || false
     }
 }
 ```
@@ -156,7 +156,7 @@ upload.cancelEmit(names)    //不传则取消所有任务
 ### watch
 
 * 查看上传进度
-* 返回指定任务的上传进度集合
+* 返回指定任务的上传进度集合，包括重试次数
 
 ```js
 //return { name, progress, retry?:{ times } }

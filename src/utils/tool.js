@@ -24,6 +24,18 @@ export const isSymbol = is('Symbol')
 
 export const isArrayBuffer = is('ArrayBuffer')
 
+export const isBase64 = file => /^\s*data:([a-z]+\/[a-z0-9-+.]+(;[a-z-]+=[a-z0-9-]+)?)?(;base64)?,([a-z0-9!$&',()*+;=\-._~:@\/?%\s]*?)\s*$/i.test(file)
+
+export const base64Size = (base64) => {
+  let body = base64.split(",")[1]
+  const equalIndex = body.indexOf('=')
+  if(body.indexOf('=') > 0) {
+    body = body.substring(0, equalIndex)
+  }
+  const length = body.length
+  return parseInt( length - ( length / 8 ) * 2 )
+}
+
 //类型判断
 export const isType = (detect, type) => {
   const types = ['String', 'Object', 'Number', 'Array', 'Undefined', 'Fucntion', 'Null', 'Symbol', 'File', 'Blob', 'ArrayBuffer']
@@ -71,15 +83,15 @@ export const flat = (arr) => {
 
 export const isEmpty = (data) => {
     if(isType(data, 'string')) {
-        return !!data.length
-      }else if(isType(data, 'null') || isType(data, 'undefined')) {
-        return true
-      }else if(isType(data, 'array')) {
-        return !!data.length
-      }else if(isType(data, 'object')) {
-        return !!Object.keys(data).length
-      }
-      return false
+      return !!!data.length
+    }else if(isType(data, 'null') || isType(data, 'undefined')) {
+      return true
+    }else if(isType(data, 'array')) {
+      return !!!data.length
+    }else if(isType(data, 'object')) {
+      return !!!Object.keys(data).length
+    }
+    return false
 }
 
 //allSettled
@@ -112,4 +124,20 @@ export function allSettled(promises) {
       )
     }
   })
+}
+
+export const base64ToArrayBuffer = (base64) => {
+  if(isBase64(base64)) throw new Error('the params is not a base64 type')
+  const padding = '='.repeat((4 - base64.length % 4) % 4);
+  const base64Data = (base64 + padding)
+  .replace(/\-/g, '+')
+  .replace(/_/g, '/')
+
+  const rawData = window.atob(base64Data);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
 }

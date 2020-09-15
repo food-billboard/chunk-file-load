@@ -18,8 +18,19 @@ const CACHE_TEMPLATE = {
   status: CACHE_STATUS.pending
 }
 
+const DEFAULT_CONFIG = {
+  retry: false,
+  retyrTimes: 1,
+  chunkSize: MIN_CHUNK
+}
+
+Object.seal(CACHE_STATUS)
+Object.seal(CACHE_TEMPLATE)
+Object.seal(DEFAULT_CONFIG)
+
 export {
   MIN_CHUNK,
   CACHE_STATUS,
-  CACHE_TEMPLATE
+  CACHE_TEMPLATE,
+  DEFAULT_CONFIG
 }
