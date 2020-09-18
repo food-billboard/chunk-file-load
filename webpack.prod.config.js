@@ -9,7 +9,7 @@ const webpack = require('webpack')
 
 module.exports = merge(commonConfig, {
   mode: 'production',
-  entry: path.resolve(__dirname, 'src/index.js'),
+  entry: path.resolve(__dirname, 'src/index.ts'),
   output: {
     path: path.resolve(__dirname, './lib'),
     filename: 'index.js',
@@ -84,24 +84,24 @@ module.exports = merge(commonConfig, {
       }
     }
   },
-  // externals: {
-  //   react: {
-  //     root: "React",
-  //     commonjs2: "react",
-  //     commonjs: "react",
-  //     amd: "react"
-  //   },
-  //   "react-dom": {
-  //     root: "ReactDOM",
-  //     commonjs2: "react-dom",
-  //     commonjs: "react",
-  //     amd: "react-dom"
-  //   },
-  //   lodash: {
-  //     root: '_',
-  //     commonjs2: 'lodash',
-  //     commonjs: 'lodash',
-  //     amd: 'lodash'
-  //   }
-  // }
+  externals: {
+    react: {
+      root: "React",
+      commonjs2: "react",
+      commonjs: "react",
+      amd: "react"
+    },
+    "react-dom": {
+      root: "ReactDOM",
+      commonjs2: "react-dom",
+      commonjs: "react",
+      amd: "react-dom"
+    },
+    lodash: {
+      root: '_',
+      commonjs2: 'lodash',
+      commonjs: 'lodash',
+      amd: 'lodash'
+    }
+  }
 })

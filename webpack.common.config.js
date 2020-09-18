@@ -8,16 +8,24 @@ module.exports = {
         loader: ['file-loader']
       },
       { 
-          test: /\.js$/, 
+          test: /\.[jt]s$/, 
           exclude: /node_modules/, 
-          loader: "babel-loader",
+          use: [
+            {
+              loader: 'babel-loader'
+            },
+            {
+              loader: 'ts-loader'
+            }
+          ],
           include: /src/
       }
     ]
   },
   resolve: {
     alias: {
-      "@":path.resolve(__dirname, "src")
+      "~":path.resolve(__dirname, "src"),
+      '@': path.resolve(__dirname, 'test')
     },
     extensions: [".ts", ".tsx", ".js"]
   },

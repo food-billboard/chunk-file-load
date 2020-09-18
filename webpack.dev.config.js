@@ -11,21 +11,23 @@ function getIp() {
     const ifaces = os.networkInterfaces()
     let ip = '', result = []
     for(var dev in ifaces) {
-        ifaces[dev].forEach(function(details) {
-            if(ip === '' && details.family === 'IPv4' && !details.internal) {
-                ip = details.address
-                return;
-            }
-        })
+        if(!!ifaces[dev]) {
+            ifaces[dev].forEach(function(details) {
+                if(ip === '' && details.family === 'IPv4' && !details.internal) {
+                    ip = details.address
+                    return;
+                }
+            })
+        }
     }
 
     return ip || '127.0.0.1'
 }
 
 module.exports = merge(commonConfig, {
-    entry: path.resolve(__dirname, './src/test/client/index.js'),
+    entry: path.resolve(__dirname, './test/client/index.js'),
     output: {
-        path: path.resolve(__dirname, './src/test/dist'),
+        path: path.resolve(__dirname, './test/dist'),
         filename: '[name].bundle.[hash].js'
     },
     mode: 'development',
@@ -45,7 +47,7 @@ module.exports = merge(commonConfig, {
         new ExtractTextPlugin("styles.css"),
         new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
-            template: path.resolve(__dirname, './src/test/client/index.html')
+            template: path.resolve(__dirname, './test/client/index.html')
         }),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NamedModulesPlugin(),
@@ -54,7 +56,7 @@ module.exports = merge(commonConfig, {
         proxy: {
             '/api': `http://${getIp()}:3000`
         },
-        contentBase: path.join(__dirname, "src/test/dist"),
+        contentBase: path.join(__dirname, "test/dist"),
         compress: true,
         port: 8000
     }
