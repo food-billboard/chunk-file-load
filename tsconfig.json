@@ -4,10 +4,11 @@
     "allowJs": true,
     // "checkJs": true,
     "declaration": true,
-    "noEmit": true,
+    "noEmit": false,
     "importHelpers": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -19,9 +20,9 @@
     "noUnusedParameters": true,
     "moduleResolution": "node",
     "baseUrl": ".",
-    "paths": {
-      "~*":["src/*"]
-    },
+    // "paths": {
+    //   "~*":["src/*"]
+    // },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "preserveConstEnums": true,

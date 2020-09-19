@@ -27,7 +27,7 @@ function getIp() {
 module.exports = merge(commonConfig, {
     entry: path.resolve(__dirname, './test/client/index.js'),
     output: {
-        path: path.resolve(__dirname, './test/dist'),
+        path: path.resolve(__dirname, './test/client/dist'),
         filename: '[name].bundle.[hash].js'
     },
     mode: 'development',
@@ -35,11 +35,11 @@ module.exports = merge(commonConfig, {
     module: {
         rules: [
             {
-                test: /\.css$/,
-                use: ExtractTextPlugin.extract({
-                    fallback: "style-loader",
-                    use: "css-loader"
-                })
+              test: /\.css$/,
+              use: ExtractTextPlugin.extract({
+                  fallback: "style-loader",
+                  use: "css-loader"
+              })
             }
         ]
     },
@@ -51,6 +51,7 @@ module.exports = merge(commonConfig, {
         }),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NamedModulesPlugin(),
+        // new webpack.optimize.NamedModulesPlugin()
     ],
     devServer: {
         proxy: {
@@ -59,5 +60,25 @@ module.exports = merge(commonConfig, {
         contentBase: path.join(__dirname, "test/dist"),
         compress: true,
         port: 8000
+    },
+    externals: {
+      react: {
+        root: "React",
+        commonjs2: "react",
+        commonjs: "react",
+        amd: "react"
+      },
+      "react-dom": {
+        root: "ReactDOM",
+        commonjs2: "react-dom",
+        commonjs: "react",
+        amd: "react-dom"
+      },
+      // lodash: {
+      //   root: '_',
+      //   commonjs2: 'lodash',
+      //   commonjs: 'lodash',
+      //   amd: 'lodash'
+      // }
     }
 })

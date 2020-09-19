@@ -8,18 +8,18 @@ module.exports = {
         loader: ['file-loader']
       },
       { 
-          test: /\.[jt]s$/, 
-          exclude: /node_modules/, 
-          use: [
-            {
-              loader: 'babel-loader'
-            },
-            {
-              loader: 'ts-loader'
-            }
-          ],
-          include: /src/
-      }
+        test: /\.[jt]sx?$/, 
+        exclude: /node_modules/, 
+        use: [
+          {
+            loader: 'babel-loader'
+          },
+          // {
+          //   loader: 'ts-loader'
+          // }
+        ],
+        include:/test/
+    },
     ]
   },
   resolve: {
@@ -27,6 +27,6 @@ module.exports = {
       "~":path.resolve(__dirname, "src"),
       '@': path.resolve(__dirname, 'test')
     },
-    extensions: [".ts", ".tsx", ".js"]
+    // extensions: [".ts", ".tsx", ".js", 'jsx']
   },
 }

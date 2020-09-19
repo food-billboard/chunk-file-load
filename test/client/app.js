@@ -1,7 +1,8 @@
 import React, { Component } from 'react'
-import { Upload } from '~'
-import { base64ToArrayBuffer, arrayBufferToBase64 } from '~/utils/tool'
+import { Upload } from '../../src/index'
+import { base64ToArrayBuffer, arrayBufferToBase64 } from '../../src/utils/tool'
 import Axios from 'axios'
+import './index.css'
 
 function File({ onClick, ...nextProps }) {
   return (
