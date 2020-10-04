@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Upload } from '../../src/index'
+import { Upload } from '../../src'
 import { base64ToArrayBuffer, arrayBufferToBase64 } from '../../src/utils/tool'
 import Axios from 'axios'
 import './index.css'

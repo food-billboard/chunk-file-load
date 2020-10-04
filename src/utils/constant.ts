@@ -10,8 +10,6 @@ enum ECACHE_STATUS {
 }
 
 const DEFAULT_CONFIG = {
-  retry: false,
-  retyrTimes: 1,
   chunkSize: MIN_CHUNK
 }
 

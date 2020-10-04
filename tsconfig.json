@@ -16,7 +16,7 @@
     "alwaysStrict": true,
     "removeComments": false,
     "sourceMap": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noUnusedParameters": true,
     "moduleResolution": "node",
     "baseUrl": ".",
@@ -28,7 +28,7 @@
     "preserveConstEnums": true,
     "outDir": "lib",
     "rootDir": ".",
-    "target":"ESNext",
+    "target":"ES2019",
     "typeRoots": [
       "node_modules/@types",
       "global.d.ts"

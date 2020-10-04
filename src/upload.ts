@@ -37,7 +37,7 @@ type TEmitReturnType = {
     retry: TFailEmitReturnType[]
 }
 
-type TFiles<T=(TFileType | null)> = Pick<TEvents<T>, 'mime' | 'file' | 'name' | 'symbol' | '_cp_'> & {
+type TFiles<T=(TFileType | null)> = Pick<TEvents<T>, 'mime' | 'file' | 'name' | 'symbol' | '_cp_' | 'lifecycle'> & {
     name: string | null
     size: number
     chunks: Array<File | Blob | string>
@@ -46,8 +46,9 @@ type TFiles<T=(TFileType | null)> = Pick<TEvents<T>, 'mime' | 'file' | 'name' | 
     md5: string
     chunkSize: number
     status: ECACHE_STATUS
-    retry: boolean
-    retryTimes: number
+    retry: {
+        times: number 
+    } | false
 }
 
 type TFileType = ArrayBuffer | string | Blob | File
@@ -65,12 +66,33 @@ type TUploadFormData = {
 
 type TUploadFn = (data: FormData | TUploadFormData) => any
 
+type TLifecycle = {
+    //MD5序列化后，检查请求前
+    beforeCheck?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
+    //检查请求响应后
+    afterCheck?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
+    //分片上传前(多次执行，可以在这里执行stop或cancel，任务会立即停止, 或者直接return false表示暂停)
+    beforeUpload?: (params: { name: Symbol, task: TFiles | null, index?: number }) => boolean | Promise<boolean>
+    //分片上传后(多次执行)
+    afterUpload?: (params: { name: Symbol,  task: TFiles | null, index?: number, success?: boolean }) => any
+    //触发暂停响应后
+    afterStop?: (params: { name: Symbol, task: TFiles | null }) => any
+    //完成请求前
+    beforeComplete?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
+    //完成请求后
+    afterComplete?: (params: { name: Symbol, task: TFiles | null, success?: boolean }) => any
+    //触发重试任务执行
+    retry?: (params: { name: Symbol, task: TFiles | null }) => any
+}
+
 type Ttask<T> = {
     config: {
-        retry?: boolean
-        retryTimes?: number
+        retry?: {
+            times: number
+        }
         chunkSize?: number
     }
+    lifecycle: TLifecycle,
     md5?: string | null
     mime?: string
     file: T
@@ -124,20 +146,25 @@ class Upload {
 
     #Atob: boolean | Function = false
 
-    constructor({
-        base64ToArrayBuffer,
-        arrayBufferToBase64
-    }: {
-        base64ToArrayBuffer?: (data: string) => ArrayBuffer
-        arrayBufferToBase64?: (data: ArrayBuffer) => string
-    }) {
-        this.init()
-        this.SUPPORT_CHECK({ base64ToArrayBuffer, arrayBufferToBase64 })
-    }
+    #lifecycle:TLifecycle = {}
 
     #FILES:TFiles[] = []
 
     #EVENTS: Array<TEvents> = []
+
+    constructor({
+        base64ToArrayBuffer,
+        arrayBufferToBase64,
+        lifecycle
+    }: {
+        base64ToArrayBuffer?: (data: string) => ArrayBuffer
+        arrayBufferToBase64?: (data: ArrayBuffer) => string
+        lifecycle?: TLifecycle
+    }) {
+        this.init()
+        this.SUPPORT_CHECK({ base64ToArrayBuffer, arrayBufferToBase64 })
+        this.#lifecycle = lifecycle || {}
+    }
 
     private SUPPORT_CHECK({ base64ToArrayBuffer, arrayBufferToBase64 }: {
         base64ToArrayBuffer?: (data: string) => ArrayBuffer
@@ -179,16 +206,13 @@ class Upload {
     }
 
     public init(): void {
-        //文件缓存
-        this.#FILES = []
-        //事件队列
-        this.#EVENTS = []
-
+        this.cancelEmit()
+        this.cancel()
     }
 
+    //获取文件信息
     private FILE_TYPE(file: any): TWraperFile {
         if(isBlob(file)) {
-
             return {
                 size: file?.size || 0,
                 name: null,
@@ -321,6 +345,28 @@ class Upload {
 
     }
 
+    //执行声明周期
+    private LIFECYCLE_EMIT = async (lifecycle: keyof TLifecycle, params: {
+        name: Symbol
+        [key: string]: any
+    }): Promise<any> => {
+        let returnValue
+        const [file] = this.GET_TARGET_FILE(name)
+        if(!file) return
+        const globalLifecycle = this.#lifecycle[lifecycle]
+        const templateLifecycle = file.lifecycle[lifecycle]
+        if(typeof globalLifecycle === 'function') returnValue = await globalLifecycle({
+            ...params,
+            task: file
+        })
+        if(typeof templateLifecycle === 'function') returnValue = await templateLifecycle({
+            ...params,
+            task: file
+        })
+
+        return returnValue
+    }
+
     //获取指定任务
     private GET_TARGET_FILE(name: Symbol):[TFiles | false, number | null] {
         const index = this.#FILES.findIndex((file: TFiles) => {
@@ -345,7 +391,7 @@ class Upload {
             let retry: Symbol[] = []
             let retryRejected: TFailEmitReturnType[] = []
 
-            res.forEach((result: any, index: number) => {
+            res.forEach(async (result: any, index: number) => {
                 const { value } = result
                 const { name, err } = value
                 let task: TEvents = tasks[index]
@@ -357,16 +403,16 @@ class Upload {
                     switch(status) {
                         case ECACHE_STATUS.rejected: 
                             const { config = {}, symbol } = task
-                            const { retry:isRetry, retryTimes } = config
+                            const { retry:retfyConfig } = config
 
-                            if(isRetry && !!retryTimes && retryTimes > 0) {
+                            if(!!retfyConfig && retfyConfig.times > 0) {
+                                const times = retfyConfig.times - 1
                                 const newTask: TEvents = {
                                     ...task,
                                     // retry: true,
                                     config: {
                                         ...config,
-                                        retry: retryTimes - 1 > 0,
-                                        retryTimes: retryTimes - 1
+                                        ...(times > 0 ? { retry: { times } } : {})
                                     }
                                 }
                                 this.#EVENTS.push(newTask)
@@ -374,6 +420,10 @@ class Upload {
                                 retryRejected.push({
                                     reason: 'retry',
                                     data: task
+                                })
+
+                                await this.LIFECYCLE_EMIT('retry', {
+                                    name
                                 })
                             }
                             rejected.push({
@@ -453,27 +503,6 @@ class Upload {
 
     }
 
-    // //剩余参数处理
-    // private DEAL_ARGUMENTS(args: any[], callbackLast: boolean=true): Function {
-    //     let _args: any[] = [...args]
-    //     _args = flat(_args)
-    //     let callback: Function | null
-    //     if(callbackLast) {
-    //         let last: any = _args.slice(_args.length - 1)
-    //         callback = typeof last === 'function' ? last : null
-    //         _args = isFunc(last) ? _args.slice(0, _args.length - 1) : _args
-    //     }else {
-    //         callback = null
-    //     }
-    //     return function(validate?: ({ data, callback }: { data: any[], callback: Function | null }) => any): any {
-    //         if(typeof validate === 'function') {
-    //             return validate({ data: _args, callback })
-    //         }else {
-    //             return { data: _args, callback }
-    //         }
-    //     }
-    // }
-
     //开始任务(需要本身存在于队列中, 对于正在进行上传的任务不产生影响)返回开始上传和下载的数量
     public start(...names: Symbol[]): Promise<TEmitReturnType> {
         let result: Symbol[] = []
@@ -541,13 +570,13 @@ class Upload {
         return newNames.map((name: Symbol) => {
             const [files]: [TFiles | false, number | null] = this.GET_TARGET_FILE(name)
             if(!files) return null
-            const { chunks, completeChunks, retry: retrying, retry, retryTimes } = files
+            const { chunks, completeChunks, retry: retrying, retry } = files
             return {
                 progress: Number(completeChunks.length) / Number(chunks.length),
                 name,
-                ...((retry && retrying) ? { retry: {
-                    times: retryTimes
-                } } : {})
+                // ...((retry && retrying) ? { retry: {
+                //     times: retryTimes
+                // } } : {})
             }
         })
     } 
@@ -582,7 +611,7 @@ class Upload {
 
     //处理上传文件分片
     private DEAL_UPLOAD_CHUNK(task: TEvents<TWraperFile>): Promise<{ err: any, name: Symbol }> {
-        const { file:wrapperFile, mime, chunks, _cp_, exitDataFn, uploadFn, completeFn, callback, symbol, config: { chunkSize=MIN_CHUNK, retry, retryTimes }, md5 } = task
+        const { file:wrapperFile, mime, chunks, _cp_, exitDataFn, uploadFn, completeFn, callback, symbol, config: { chunkSize=MIN_CHUNK, retry }, md5, lifecycle } = task
         const { name, size, file, action } = wrapperFile
         const index = this.#FILES.findIndex((file: TFiles) => file.symbol == symbol)
         //添加记录至文件缓存中
@@ -599,9 +628,9 @@ class Upload {
                 md5: md5 || '',
                 chunkSize,
                 status: ECACHE_STATUS.pending,
-                retry: !!retry,
-                retryTimes: !!retryTimes ? retryTimes : 0,
-                _cp_: !!_cp_
+                retry: !!retry ? retry : false,
+                _cp_: !!_cp_,
+                lifecycle
             })
         }
         this.#FILES[index].status = ECACHE_STATUS.doing
@@ -610,6 +639,14 @@ class Upload {
         //向后端保存文件的相关信息为后面分片上传做验证准备
         .then(async (md5: string): Promise<{ data: Array<string | number>, [key: string]: any }> => {
             this.#FILES[index].md5 = md5
+            
+            const returnValue = await this.LIFECYCLE_EMIT('beforeCheck', { name: symbol })
+
+            if(typeof returnValue === 'boolean' && !returnValue) {
+                this.stop(symbol)
+                return Promise.reject()
+            }
+
             //将加密后的文件返回
             return (
                 typeof exitDataFn === 'function' 
@@ -628,7 +665,7 @@ class Upload {
             )
         })
         //分片上传
-        .then((res: { data: Array<string | number>, [key: string]: any }): any => {
+        .then(async (res: { data: Array<string | number>, [key: string]: any }) => {
             /**
              * 列表展示为未上传的部分
              * data: {
@@ -636,36 +673,44 @@ class Upload {
              * }
              */
             const { data, ...nextRes } = res
-            return new Promise((resolve) => {
-                //后台不存在当前文件的情况下上传
-                if(Array.isArray(data) && data.length !== 0) {
-                    this.CHUNK_INTERNAL_UPLOAD(data, symbol, uploadFn)
-                    .then(_ => {
-                        const { md5 } = this.#FILES[index]
-                        return typeof completeFn === 'function' ? resolve(completeFn({name: symbol, md5 })) : resolve(nextRes)
-                    })
-                }
-                //文件存在则直接回调
-                else {
-                    resolve(nextRes)
-                }
-            })
+
+            const isExists = Array.isArray(data) && data.length !== 0
+
+            await this.LIFECYCLE_EMIT('afterCheck', { name: symbol, isExists: !isExists })
+
+            //后台不存在当前文件的情况下上传
+            if(isExists) {
+                return this.CHUNK_INTERNAL_UPLOAD(data, symbol, uploadFn)
+                .then(async (_) => {
+                    const { md5 } = this.#FILES[index]
+                    await this.LIFECYCLE_EMIT('beforeComplete', {name: symbol, isExists: false})
+                    return typeof completeFn === 'function' ? completeFn({name: symbol, md5 }) : nextRes
+                })
+            }
+            //文件存在则直接回调
+            else {
+                await this.LIFECYCLE_EMIT('beforeComplete', {name: symbol, isExists: true})
+                return nextRes
+            }
+            
         })
-        .then(data => {
+        .then(async (data) => {
             typeof callback === 'function' && callback(null, data)
             this.#FILES[index].status = ECACHE_STATUS.fulfilled
+            await this.LIFECYCLE_EMIT('afterComplete',{name: symbol, success: false})
             return {
                 err: null,
                 name: symbol
             }
         })
-        .catch(err => {
+        .catch(async (err) => {
             typeof callback === 'function' && callback(err, null)
             const { status } = this.#FILES[index]
             //非人为主动错误
             if(status !== ECACHE_STATUS.stopping && status !== ECACHE_STATUS.cancel ) {
                 this.#FILES[index].status = ECACHE_STATUS.rejected
             }
+            await this.LIFECYCLE_EMIT('afterComplete', { name: symbol, success: false })
             return {
                 err,
                 name: symbol
@@ -678,36 +723,49 @@ class Upload {
         if(!Array.isArray(unUploadList)) unUploadList = []
         //将已上传的记录存至缓存中
         const [, fileIndex]: [TFiles | false, number | null] = this.GET_TARGET_FILE(name)
-        if(fileIndex == null) return Promise.reject('file not found')
 
-        this.#FILES[fileIndex].completeChunks = unUploadList.map(item => Number(item)).filter(item => !Number.isNaN(item) && item >= 0)
+        const returnValue = await this.LIFECYCLE_EMIT('beforeUpload', { name, index: fileIndex == null ? -1 : fileIndex })
 
-        for(let i = 0; i < this.#FILES[fileIndex].chunks.length; i ++) {
-            //处理用户的取消或暂停
-            if(this.#FILES[fileIndex].status === ECACHE_STATUS.stopping || this.#FILES[fileIndex].status === ECACHE_STATUS.cancel) return Promise.reject('stop or cancel')
+        if(typeof returnValue === 'boolean' && !returnValue) this.stop(name)
 
-            //只上传未上传过的内容
-            if(!unUploadList.some(item => item == i)) {
-                const params: TUploadFormData = {
-                    file: this.#FILES[fileIndex].chunks[i],
-                    md5: this.#FILES[fileIndex].md5,
-                    index: i,
+        if(fileIndex == null) {
+            await this.LIFECYCLE_EMIT('afterUpload', { name, index: -1, success: false })
+            return Promise.reject('file not found')
+        }else {
+            this.#FILES[fileIndex].completeChunks = unUploadList.map(item => Number(item)).filter(item => !Number.isNaN(item) && item >= 0)
+
+            for(let i = 0; i < this.#FILES[fileIndex].chunks.length; i ++) {
+                //处理用户的取消或暂停
+                if(this.#FILES[fileIndex].status === ECACHE_STATUS.stopping || this.#FILES[fileIndex].status === ECACHE_STATUS.cancel) {
+                    await this.LIFECYCLE_EMIT('afterStop', { name, index: fileIndex })
+                    await this.LIFECYCLE_EMIT('afterUpload', { name, index: fileIndex, success: false })
+                    return Promise.reject('stop or cancel')
                 }
-                let formData: any
-                if(window && window.FormData) {
-                    formData = new FormData()
-                    Object.keys(params).forEach((key: string) => {
-                        formData.append(key, params[key])
-                    })
-                }else {
-                    formData = params
+    
+                //只上传未上传过的内容
+                if(!unUploadList.some(item => item == i)) {
+                    const params: TUploadFormData = {
+                        file: this.#FILES[fileIndex].chunks[i],
+                        md5: this.#FILES[fileIndex].md5,
+                        index: i,
+                    }
+                    let formData: any
+                    if(window && window.FormData) {
+                        formData = new FormData()
+                        Object.keys(params).forEach((key: string) => {
+                            formData.append(key, params[key])
+                        })
+                    }else {
+                        formData = params
+                    }
+    
+                    this.#FILES[fileIndex].completeChunks.push(i)
+                    await upload(formData)
                 }
-
-                this.#FILES[fileIndex].completeChunks.push(i)
-                await upload(formData)
             }
+            await this.LIFECYCLE_EMIT('afterUpload', { name, index: fileIndex, success: true })
+            return Promise.resolve()
         }
-        return Promise.resolve()
     }
 
     //获取MD5(分片已预先完成)

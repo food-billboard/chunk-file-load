@@ -99,7 +99,7 @@ export const isEmpty = (data: any): boolean => {
 //allSettled
 export function allSettled(promises: Array<any>): Promise<any> {
   if(!promises) return Promise.reject('params is not array')
-  if(Promise.allSettled) return Promise.allSettled(promises)
+  // if(Promise.allSettled) return Promise.allSettled(promises)
   return new Promise((resolve) => {
     const length = promises.length
     let completeCounter = 0

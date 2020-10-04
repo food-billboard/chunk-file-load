@@ -8,7 +8,7 @@ module.exports = {
         loader: ['file-loader']
       },
       { 
-        test: /\.[jt]sx?$/, 
+        test: /\.jsx?$/, 
         exclude: /node_modules/, 
         use: [
           {
@@ -18,7 +18,6 @@ module.exports = {
           //   loader: 'ts-loader'
           // }
         ],
-        include:/test/
     },
     ]
   },
@@ -27,6 +26,11 @@ module.exports = {
       "~":path.resolve(__dirname, "src"),
       '@': path.resolve(__dirname, 'test')
     },
-    // extensions: [".ts", ".tsx", ".js", 'jsx']
+    extensions: [".ts", ".tsx", ".js", 'jsx']
+  },
+  optimization: {
+    splitChunks: {
+      chunks: 'all'
+    }
   },
 }
