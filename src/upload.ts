@@ -12,7 +12,7 @@ import {
     arrayBufferToBase64 as internalArrayBufferToBase64
 } from './utils/tool'
 import Validator from './utils/validator'
-import { ECACHE_STATUS, DEFAULT_CONFIG, MIN_CHUNK } from './utils/constant'
+import { ECACHE_STATUS, DEFAULT_CONFIG, MAX_FILE_CHUNK } from './utils/constant'
 
 type TFailEmitReturnType = {
     reason: any
@@ -42,7 +42,7 @@ type TFiles<T=(TFileType | null)> = Pick<TEvents<T>, 'mime' | 'file' | 'name' | 
     size: number
     chunks: Array<File | Blob | string>
     completeChunks: Array<string | number>
-    watch: boolean
+    watch: () => null | { progress: number, name: Symbol }
     md5: string
     chunkSize: number
     status: ECACHE_STATUS
@@ -51,7 +51,7 @@ type TFiles<T=(TFileType | null)> = Pick<TEvents<T>, 'mime' | 'file' | 'name' | 
     } | false
 }
 
-type TFileType = ArrayBuffer | string | Blob | File
+export type TFileType = ArrayBuffer | string | Blob | File
 
 type TEvents<T=TWraperFile> = Ttask<T> & {
     symbol: Symbol
@@ -67,16 +67,22 @@ type TUploadFormData = {
 type TUploadFn = (data: FormData | TUploadFormData) => any
 
 type TLifecycle = {
+    //序列化前
+    beforeRead?: (params: { name: Symbol, task: TFiles }) => any
+    //序列化中
+    reading?: (params: { name: Symbol, task: TFiles, start?: number, end?: number }) => boolean | Promise<boolean>
     //MD5序列化后，检查请求前
     beforeCheck?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
     //检查请求响应后
     afterCheck?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
-    //分片上传前(多次执行，可以在这里执行stop或cancel，任务会立即停止, 或者直接return false表示暂停)
-    beforeUpload?: (params: { name: Symbol, task: TFiles | null, index?: number }) => boolean | Promise<boolean>
+    //分片上传前(可以在这里执行stop或cancel，任务会立即停止, 或者直接return false表示暂停)
+    beforeUpload?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
     //分片上传后(多次执行)
     afterUpload?: (params: { name: Symbol,  task: TFiles | null, index?: number, success?: boolean }) => any
     //触发暂停响应后
-    afterStop?: (params: { name: Symbol, task: TFiles | null }) => any
+    afterStop?: (params: { name: Symbol, task: TFiles | null, index?: number }) => any
+    //触发取消响应后
+    afterCancel?: (params: { name: Symbol, task: TFiles | null, index?: number }) => any
     //完成请求前
     beforeComplete?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
     //完成请求后
@@ -85,13 +91,15 @@ type TLifecycle = {
     retry?: (params: { name: Symbol, task: TFiles | null }) => any
 }
 
-type Ttask<T> = {
-    config: {
-        retry?: {
-            times: number
-        }
-        chunkSize?: number
+export type TConfig = {
+    retry?: {
+        times: number
     }
+    chunkSize?: number
+}
+
+export type Ttask<T> = {
+    config: TConfig
     lifecycle: TLifecycle,
     md5?: string | null
     mime?: string
@@ -199,7 +207,7 @@ class Upload {
                 notSupport.push('atob')
             }
 
-            if(this.#ArrayBuffer) throw new Error('this tool must be support for the ArrayBuffer')
+            if(!this.#ArrayBuffer) throw new Error('this tool must be support for the ArrayBuffer')
             
             if(!!notSupport.length) console.warn('these api is not support: ', notSupport.join(',').slice(0, -1))
         })
@@ -284,13 +292,15 @@ class Upload {
         let validate = new Validator()
         result = flat(tasks).reduce((acc: Array<Ttask<TWraperFile>>, d: Ttask<TFileType>) => {
             if(isObject(d)) {
-                Object.keys(d).forEach((t: any ) => {
-                    validate.add(d[t], t, d)
-                })
+                // Object.keys(d).forEach((t: any ) => {
+                //     validate.add(d[t], t, d)
+                // })
+                validate.add(d)
                 if(validate.validate()) {
-                    const { config={}, file, mime, ...nextD } = d
+                    const { config={}, file, mime, lifecycle, ...nextD } = d
                     acc.push({
                         ...nextD,
+                        lifecycle: lifecycle || {},
                         mime: mime ? mime : (typeof file === 'string' || file instanceof ArrayBuffer ? undefined : file?.type),
                         file: that.FILE_TYPE(file),
                         config: {
@@ -351,6 +361,7 @@ class Upload {
         [key: string]: any
     }): Promise<any> => {
         let returnValue
+        const { name } = params
         const [file] = this.GET_TARGET_FILE(name)
         if(!file) return
         const globalLifecycle = this.#lifecycle[lifecycle]
@@ -371,6 +382,7 @@ class Upload {
     private GET_TARGET_FILE(name: Symbol):[TFiles | false, number | null] {
         const index = this.#FILES.findIndex((file: TFiles) => {
             const { symbol } = file
+            // console.log('name: ', name, 'symbol: ', symbol)
             return name === symbol
         })
         if(!~index) return [false, null]
@@ -559,7 +571,7 @@ class Upload {
     }
 
     //监听文件load进度
-    public watch(...names: Symbol[]): Array<{ progress: number, name: Symbol, retry?: { times: number } } | null> {
+    public watch(...names: Symbol[]): Array<{ progress: number, name: Symbol } | null> {
         let newNames:Symbol[] = []
         const originNames: Symbol[] = this.#FILES.map((file: TFiles) => file.symbol)
         if(!names.length) {
@@ -611,9 +623,9 @@ class Upload {
 
     //处理上传文件分片
     private DEAL_UPLOAD_CHUNK(task: TEvents<TWraperFile>): Promise<{ err: any, name: Symbol }> {
-        const { file:wrapperFile, mime, chunks, _cp_, exitDataFn, uploadFn, completeFn, callback, symbol, config: { chunkSize=MIN_CHUNK, retry }, md5, lifecycle } = task
+        const { file:wrapperFile, mime, chunks, _cp_, exitDataFn, uploadFn, completeFn, callback, symbol, config: { chunkSize, retry }, md5, lifecycle } = task
         const { name, size, file, action } = wrapperFile
-        const index = this.#FILES.findIndex((file: TFiles) => file.symbol == symbol)
+        let index:number = this.#FILES.findIndex((file: TFiles) => file.symbol == symbol)
         //添加记录至文件缓存中
         if(!~index) {
             this.#FILES.push({
@@ -624,16 +636,22 @@ class Upload {
                 symbol,
                 chunks: chunks || [],
                 completeChunks: [],
-                watch: false,
+                watch: () => {
+                    return (this.watch(symbol) || [])[0]
+                },
                 md5: md5 || '',
-                chunkSize,
+                chunkSize: chunkSize || MAX_FILE_CHUNK,
                 status: ECACHE_STATUS.pending,
                 retry: !!retry ? retry : false,
                 _cp_: !!_cp_,
                 lifecycle
             })
+            index = this.#FILES.length - 1
         }
         this.#FILES[index].status = ECACHE_STATUS.doing
+
+        this.LIFECYCLE_EMIT('beforeRead', { name: symbol })
+
         //md5加密
         return action.call(this, symbol)
         //向后端保存文件的相关信息为后面分片上传做验证准备
@@ -644,6 +662,7 @@ class Upload {
 
             if(typeof returnValue === 'boolean' && !returnValue) {
                 this.stop(symbol)
+                console.log('beforeCheck stop')
                 return Promise.reject()
             }
 
@@ -665,7 +684,7 @@ class Upload {
             )
         })
         //分片上传
-        .then(async (res: { data: Array<string | number>, [key: string]: any }) => {
+        .then(async (res: { data: Array<string | number> | false, [key: string]: any }) => {
             /**
              * 列表展示为未上传的部分
              * data: {
@@ -674,13 +693,13 @@ class Upload {
              */
             const { data, ...nextRes } = res
 
-            const isExists = Array.isArray(data) && data.length !== 0
+            const isExists = (Array.isArray(data) && data.length === 0) || data === false
 
-            await this.LIFECYCLE_EMIT('afterCheck', { name: symbol, isExists: !isExists })
+            await this.LIFECYCLE_EMIT('afterCheck', { name: symbol, isExists })
 
             //后台不存在当前文件的情况下上传
-            if(isExists) {
-                return this.CHUNK_INTERNAL_UPLOAD(data, symbol, uploadFn)
+            if(!isExists) {
+                return this.CHUNK_INTERNAL_UPLOAD(data || [], symbol, uploadFn)
                 .then(async (_) => {
                     const { md5 } = this.#FILES[index]
                     await this.LIFECYCLE_EMIT('beforeComplete', {name: symbol, isExists: false})
@@ -697,13 +716,14 @@ class Upload {
         .then(async (data) => {
             typeof callback === 'function' && callback(null, data)
             this.#FILES[index].status = ECACHE_STATUS.fulfilled
-            await this.LIFECYCLE_EMIT('afterComplete',{name: symbol, success: false})
+            await this.LIFECYCLE_EMIT('afterComplete',{ name: symbol, success: true })
             return {
                 err: null,
                 name: symbol
             }
         })
         .catch(async (err) => {
+            console.log('afterComplete fail', err)
             typeof callback === 'function' && callback(err, null)
             const { status } = this.#FILES[index]
             //非人为主动错误
@@ -724,11 +744,12 @@ class Upload {
         //将已上传的记录存至缓存中
         const [, fileIndex]: [TFiles | false, number | null] = this.GET_TARGET_FILE(name)
 
-        const returnValue = await this.LIFECYCLE_EMIT('beforeUpload', { name, index: fileIndex == null ? -1 : fileIndex })
+        const returnValue = await this.LIFECYCLE_EMIT('beforeUpload', { name })
 
         if(typeof returnValue === 'boolean' && !returnValue) this.stop(name)
 
         if(fileIndex == null) {
+            console.log('chunk upload fail')
             await this.LIFECYCLE_EMIT('afterUpload', { name, index: -1, success: false })
             return Promise.reject('file not found')
         }else {
@@ -738,7 +759,9 @@ class Upload {
                 //处理用户的取消或暂停
                 if(this.#FILES[fileIndex].status === ECACHE_STATUS.stopping || this.#FILES[fileIndex].status === ECACHE_STATUS.cancel) {
                     await this.LIFECYCLE_EMIT('afterStop', { name, index: fileIndex })
+                    await this.LIFECYCLE_EMIT('afterCancel', { name, index: fileIndex })
                     await this.LIFECYCLE_EMIT('afterUpload', { name, index: fileIndex, success: false })
+                    console.log('stop or cancel')
                     return Promise.reject('stop or cancel')
                 }
     
@@ -761,15 +784,15 @@ class Upload {
     
                     this.#FILES[fileIndex].completeChunks.push(i)
                     await upload(formData)
+                    await this.LIFECYCLE_EMIT('afterUpload', { name, index: i, success: true })
                 }
             }
-            await this.LIFECYCLE_EMIT('afterUpload', { name, index: fileIndex, success: true })
             return Promise.resolve()
         }
     }
 
     //获取MD5(分片已预先完成)
-    private GET_MD5(name: Symbol): Promise<string> {
+    private async GET_MD5(name: Symbol): Promise<string> {
 
         const [, index]:[TFiles | false, number | null] = this.GET_TARGET_FILE(name)
 
@@ -778,11 +801,13 @@ class Upload {
         const { chunks, chunkSize, md5 } = this.#FILES[index]
 
         let newChunks = []
-        let sizeVerify: boolean = true
+        let singleChunkVerify: boolean = true
         let fileReader:FileReader
         let verify:boolean = true
         let spark: any
         let existsMdt = !!md5.length
+        let stop:boolean = false
+        let completeChunks:number = 0
 
         const append = (data: ArrayBuffer) => {
             if(existsMdt) return
@@ -792,18 +817,13 @@ class Upload {
 
         // blob -> file -> base64
 
-        verify = chunks.every((chunk: TFileType) => {
-            //保证每片分片大小相同
-            if(!sizeVerify) return false
-            let size: number
+        verify = chunks.every(async (chunk: TFileType) => {
+            let size!: number
             let data: any
             if(typeof chunk === 'string') {
-                if(base64Size(chunk) > chunkSize) {
-                    sizeVerify = false
-                    return sizeVerify
-                }
                 try {
-                    data = typeof this.#Btoa !== 'boolean' && this.#Btoa(chunk)
+                    size = base64Size(chunk)
+                    data = typeof this.#Atob !== 'boolean' && this.#Atob(chunk)
                     append(data)
                     if(this.#Blob) {
                         data = new Blob([data])
@@ -812,65 +832,70 @@ class Upload {
                     }
                 }finally {
                     newChunks.push(data)
-                    return !!data
+                    singleChunkVerify = !!data
                 }
             }else if(chunk instanceof ArrayBuffer) {
-                if(chunk.byteLength > chunkSize) {
-                    sizeVerify = false
-                    return sizeVerify
-                }
                 try {
+                    size = chunk.byteLength
                     append(chunk)
                     if(this.#Blob) {
                         data = new Blob([data])
                     }else if(this.#File) {
                         data = new File([data], 'chunk')
-                    }else if(typeof this.#Atob !== 'boolean') {
-                        data = this.#Atob(data)
+                    }else if(typeof this.#Btoa !== 'boolean') {
+                        data = this.#Btoa(data)
                     }else {
                         data = false
                     }
                 }finally {
                     newChunks.push(data)
-                    return !!data
+                    singleChunkVerify = !!data
                 }
             }else {
                 try {
                     if(!fileReader) fileReader = new FileReader()
                     if(chunk instanceof File || chunk instanceof Blob) {
                         size = chunk.size
-                        if(size > chunkSize) {
-                            sizeVerify = false
-                            return sizeVerify
-                        }
                         fileReader.readAsArrayBuffer(chunk)
                         data = chunk
+                        await new Promise((resolve, _) => {
+                            fileReader.onload = function(e: any) {
+                                append(e.target.result)
+                                resolve()
+                            }
+                        })
                     }else {
                         data = false
                     }
-
-                    fileReader.onload = function(e: any) {
-                        append(e.target.result)
-                    }
-
                 }catch(_) {
                     data = false
                 }finally {
                     newChunks.push(data)
-                    return !!data
+                    singleChunkVerify = !!data
                 }
             }
+
+            const returnValue = await this.LIFECYCLE_EMIT('reading', { name, start: completeChunks, end: completeChunks += (Number.isNaN(size) ? 0 : size) })
+            if(typeof returnValue === 'boolean' && !returnValue && singleChunkVerify) {
+                this.stop(name)
+                stop = true
+                console.log('reading111111')
+                return false
+            } 
+
+            return singleChunkVerify
         })
 
+        if(stop) return Promise.reject('stop')
         //分片格式是否正确
-        if(!sizeVerify) return Promise.reject("every chunk's size must be equal")
+        // if(!singleChunkVerify) return Promise.reject("every chunk's size must be equal")
         if(!verify) return Promise.reject('chunk list have some not verify chunk')
 
         return Promise.resolve(spark.end())
     }
 
     //获取base64的MD5
-    private GET_BASE64_MD5(name: Symbol): Promise<string> {
+    private async GET_BASE64_MD5(name: Symbol): Promise<string> {
 
         const [, index]:[TFiles | false, number | null] = this.GET_TARGET_FILE(name)
 
@@ -899,6 +924,12 @@ class Upload {
             }
             currentChunk ++
             spark.append(chunks)
+            
+            const returnValue = await this.LIFECYCLE_EMIT('reading', { name, start, end })
+            if(typeof returnValue === 'boolean' && !returnValue) {
+                this.stop(name)
+                return Promise.reject('stop')
+            }
         }
 
         return Promise.resolve(spark.end())
@@ -906,7 +937,7 @@ class Upload {
     }
 
     //获取arraybuffer类型md5
-    private GET_BUFFER_MD5(name: Symbol): Promise<string> {
+    private async GET_BUFFER_MD5(name: Symbol): Promise<string> {
 
         const [, index]:[TFiles | false, number | null] = this.GET_TARGET_FILE(name)
 
@@ -935,13 +966,19 @@ class Upload {
 
             currentChunk ++
             spark.append(chunks)
+
+            const returnValue = await this.LIFECYCLE_EMIT('reading', { name, start, end })
+            if(typeof returnValue === 'boolean' && !returnValue) {
+                this.stop(name)
+                return Promise.reject('stop')
+            }
         }
 
         return Promise.resolve(spark.end())
     }
 
     //获取文件md5
-    private GET_FILE_MD5(name: Symbol): Promise<string> {
+    private async GET_FILE_MD5(name: Symbol): Promise<string> {
 
         const [, index]:[TFiles | false, number | null] = this.GET_TARGET_FILE(name)
 
@@ -957,16 +994,16 @@ class Upload {
             spark = new SparkMd5.ArrayBuffer(),
             fileSlice: (start: number, end: number) => Blob = File.prototype.slice
 
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
 
-            fileReader.onload = (e: any) => {
+            fileReader.onload = async (e: any) => {
                 if(!e.target || error) return reject('读取错误')
                 //添加读取的内容
                 spark.append(e.target.result)
                 currentChunk ++
                 //继续读取
                 if(currentChunk < totalChunks) {
-                    loadNext()
+                    await loadNext()
                 }
                 //读取完毕
                 else {
@@ -978,7 +1015,7 @@ class Upload {
             fileReader.onerror = reject
 
             //文件内容读取
-            function loadNext() {
+            async function loadNext() {
                 let start: number = currentChunk * chunkSize,
                     end: number = currentChunk + 1 === totalChunks ? size : (currentChunk + 1) * chunkSize
                 const chunks: Blob = fileSlice.call(file, start, end)
@@ -988,9 +1025,13 @@ class Upload {
                 }
                 that.#FILES[index].chunks.push(chunks)
                 fileReader.readAsArrayBuffer(chunks)
+                const returnValue = await that.LIFECYCLE_EMIT('reading', { name, start, end })
+                if(typeof returnValue === 'boolean' && !returnValue) {
+                    reject('stop')
+                }
             }
 
-            loadNext()
+            await loadNext()
 
         })
 

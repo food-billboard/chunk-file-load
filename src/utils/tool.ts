@@ -130,13 +130,13 @@ export function allSettled(promises: Array<any>): Promise<any> {
 
 export const base64ToArrayBuffer = (base64: string): Uint8Array => {
   if(isBase64(base64)) throw new Error('the params is not a base64 type')
-  const padding = '='.repeat((4 - base64.length % 4) % 4);
+  const padding = '='.repeat((4 - base64.length % 4) % 4)
   const base64Data = (base64 + padding)
-  .replace(/\-/g, '+')
+  .replace(/-/g, '+')
   .replace(/_/g, '/')
 
-  const rawData = window.atob(base64Data);
-  const outputArray = new Uint8Array(rawData.length);
+  const rawData = atob(base64Data)
+  const outputArray = new Uint8Array(rawData.length)
 
   for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i)
@@ -149,6 +149,9 @@ export const arrayBufferToBase64 = (arraybuffer: ArrayBuffer): string => {
   let binary: string = ''
   let bytes = new Uint8Array(arraybuffer)
   const len = bytes.length
+  if(len > 1024 * 500) {
+    throw new Error('buffer is too large')
+  }
   for(let i = 0; i < len; i ++) {
     binary += String.fromCharCode(bytes[i])
   }

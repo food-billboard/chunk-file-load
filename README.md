@@ -9,6 +9,10 @@
 
 * 工具可以使上传文件变为可控，包括多任务同时上传、暂停任务、取消任务以及查看上传进度、断点续传，但是中间相关细节需要后端进行配合
 
+## cmd执行下面命令进行测试
+`npm run test`
+* 需要安装`jest`
+
 ## 简单介绍
 
 ### 调用 new Upload()
@@ -34,11 +38,12 @@
 ``` typescript
 const upload = new Upload()
 let config: {
-    file: File | Blob | ArrayBuffer | string
+    file: File | Blob | ArrayBuffer | base64
     md5?: string
     config: {
-        retry?: boolean
-        retryTimes?: number
+        retry?: {
+            times: number
+        }
         chunkSize?: number
     }
     mime?: string
@@ -67,7 +72,7 @@ let config: {
     completeFn?: ({ name, md5 } : { name: Symbol, md5: string }) => any
     callback?: (err: any, data: any) => any
 } = {
-    file,   //文件 支持file blob arraybuffer 以及base64格式的文件, 除了file外，其他格式文件如果没有内置mime类型，尽量传递mime类型，否则无法上传
+    file,   //文件 支持file blob arraybuffer 以及base64格式的文件, 并且尽量传递mime类型，否则后台对文件合并时无法获取文件mime类型
     md5, //加密后的名称，用于跳过加密过程，配合chunks使用，单独传递无效
     mime, //mime类型(/.+\/.+/)
     exitDataFn, //验证后端是否存在文件的方法(可选，不传则每一次上传都会全部重新上传)
@@ -75,16 +80,15 @@ let config: {
     completeFn, //完成上传后通知后端的方法(可选，如果后端有自己的验证方式则无需传递)
     callback,    //回调函数(可选)
     config: {   //相关配置(可选)
-        retry, //是否错误重试 默认不重试
-        retryTimes, //重试次数, 默认1
+        retry: { //是否错误重试 默认不重试
+            times
+        },
         chunkSize //分片大小 默认500k
     },
     chunks //事先完成的分片，用于跳过分片过程，具体参照下面的 uploading 方法
 }
 let names = upload.upload(config)
 ```
-
-*
 
 * 相关回调参数
 ```js
@@ -212,6 +216,65 @@ upload.uploading({
 })
 ```
 
+### 搭配生命周期更细粒度的控制上传过程
+```typescript
+//序列化前
+beforeRead?: (params: { name: Symbol, task: TFiles }) => any
+//序列化中
+reading?: (params: { name: Symbol, task: TFiles, start?: number, end?: number }) => boolean | Promise<boolean>
+//MD5序列化后，检查请求前
+beforeCheck?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
+//检查请求响应后
+afterCheck?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
+//分片上传前(可以在这里执行stop或cancel，任务会立即停止, 或者直接return false表示暂停)
+beforeUpload?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
+//分片上传后(多次执行)
+afterUpload?: (params: { name: Symbol,  task: TFiles | null, index?: number, success?: boolean }) => any
+//触发暂停响应后
+afterStop?: (params: { name: Symbol, task: TFiles | null, index?: index }) => any
+//触发取消响应后
+afterCancel?: (params: { name: Symbol, task: TFiles | null, index?: index }) => any
+//完成请求前
+beforeComplete?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
+//完成请求后
+afterComplete?: (params: { name: Symbol, task: TFiles | null, success?: boolean }) => any
+//触发重试任务执行
+retry?: (params: { name: Symbol, task: TFiles | null }) => any
+```
+
+生命周期包括全局和单一任务生命周期  
+- 全局  
+```js
+const upload = new Upload({
+    lifecycle: {
+        beforeCheck: () => {
+            //在文件检查前停止上传(相当于stop)
+            return false
+        }
+    }
+})
+```
+- 局部
+```js
+    const upload = new Upload()
+    upload.on({
+        /*其他配置*/
+        lifecycle: {
+            beforeUpload: ({ name, task }) => {
+                //暂停
+                this.stop(name)
+                //查看进度
+                console.log(task.watch(), this.watch(name))
+                //取消
+                this.cancel(name)
+            }
+        }
+    })
+```
+
+**全局的生命周期执行在局部之前**  
+**如果希望能使用this来获取实例属性方法等，请不要使用箭头函数**
+
 ## API
 
 ### init
@@ -261,7 +324,8 @@ upload.cancelEmit(...names)    //不传则取消所有任务
 ### watch
 
 * 查看上传进度
-* 返回指定任务的上传进度集合，包括重试次数
+* 返回指定任务的上传进度集合
+* 你也可以在任务中的`watch`属性方法来获取对应的任务进度。
 
 ```js
 //return { name, progress, retry?:{ times } }
@@ -270,7 +334,8 @@ upload.watch(...names) //不传则返回所有进度
 
 ## ps 
 
-小程序方面的限制虽然得到了解决，但是因为`base64`的转换使得原本的分片体积增大，这可能会导致相关的性能问题，所以尽量不要设置太大的文件分片
+小程序方面的限制虽然得到了解决，但是因为`base64`的转换使得原本的分片体积增大，这可能会导致转换时出现相关的性能问题，所以尽量不要设置太大的文件分片。当前设置的上限分片大小为**500k**。
+并且对于`base64`的文件，因为转换性能较差所以没有办法传递较大文件，对`base64`类型文件最大为**500k**。
 
 ## 总结
 

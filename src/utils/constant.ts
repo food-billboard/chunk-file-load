@@ -1,4 +1,4 @@
-const MIN_CHUNK = 1024 * 1024 * 5
+const MAX_FILE_CHUNK = 1024 * 500
 
 enum ECACHE_STATUS {
   pending ='pending',
@@ -10,13 +10,13 @@ enum ECACHE_STATUS {
 }
 
 const DEFAULT_CONFIG = {
-  chunkSize: MIN_CHUNK
+  chunkSize: MAX_FILE_CHUNK
 }
 
 Object.seal(DEFAULT_CONFIG)
 
 export {
-  MIN_CHUNK,
+  MAX_FILE_CHUNK,
   ECACHE_STATUS,
   DEFAULT_CONFIG
 }
