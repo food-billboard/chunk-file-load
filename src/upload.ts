@@ -34,7 +34,6 @@ type TEmitReturnType = {
     fulfilled: TSuccessReturnType[]
     stopping: TFailEmitReturnType[]
     cancel: TFailEmitReturnType[]
-    retry: TFailEmitReturnType[]
 }
 
 type TFiles<T=(TFileType | null)> = Pick<TEvents<T>, 'mime' | 'file' | 'name' | 'symbol' | '_cp_' | 'lifecycle'> & {
@@ -168,7 +167,7 @@ class Upload {
         base64ToArrayBuffer?: (data: string) => ArrayBuffer
         arrayBufferToBase64?: (data: ArrayBuffer) => string
         lifecycle?: TLifecycle
-    }) {
+    }={}) {
         this.init()
         this.SUPPORT_CHECK({ base64ToArrayBuffer, arrayBufferToBase64 })
         this.#lifecycle = lifecycle || {}
@@ -290,7 +289,16 @@ class Upload {
         const that = this
         //参数验证
         let validate = new Validator()
-        result = flat(tasks).reduce((acc: Array<Ttask<TWraperFile>>, d: Ttask<TFileType>) => {
+        result = flat(tasks).map((item: Ttask<TFileType>) => {
+            const { chunks } = item
+            if(!!chunks) {
+                return {
+                    ...item,
+                    _cp_: true
+                }
+            }
+            return item
+        }).reduce((acc: Array<Ttask<TWraperFile>>, d: Ttask<TFileType>) => {
             if(isObject(d)) {
                 // Object.keys(d).forEach((t: any ) => {
                 //     validate.add(d[t], t, d)
@@ -309,7 +317,7 @@ class Upload {
                         }
                     })
                 }else {
-                    console.warn(d, 'the params is not verify')
+                    console.warn( 'the params is not verify')
                 }
             }
             return acc
@@ -360,20 +368,34 @@ class Upload {
         name: Symbol
         [key: string]: any
     }): Promise<any> => {
-        let returnValue
+        let returnValue: any
         const { name } = params
         const [file] = this.GET_TARGET_FILE(name)
         if(!file) return
         const globalLifecycle = this.#lifecycle[lifecycle]
         const templateLifecycle = file.lifecycle[lifecycle]
-        if(typeof globalLifecycle === 'function') returnValue = await globalLifecycle({
-            ...params,
-            task: file
-        })
-        if(typeof templateLifecycle === 'function') returnValue = await templateLifecycle({
-            ...params,
-            task: file
-        })
+        if(typeof globalLifecycle === 'function') {
+            try {
+                returnValue = await globalLifecycle.bind(this)({
+                    ...params,
+                    task: file
+                })
+            }catch(err) {
+                console.error(err)
+            }
+        }
+        if(typeof templateLifecycle === 'function') {
+            try {
+                returnValue = await templateLifecycle.bind(this)(
+                    {
+                        ...params,
+                        task: file
+                    }
+                )
+            }catch(err) {
+                console.error(err)
+            }
+        }
 
         return returnValue
     }
@@ -382,7 +404,6 @@ class Upload {
     private GET_TARGET_FILE(name: Symbol):[TFiles | false, number | null] {
         const index = this.#FILES.findIndex((file: TFiles) => {
             const { symbol } = file
-            // console.log('name: ', name, 'symbol: ', symbol)
             return name === symbol
         })
         if(!~index) return [false, null]
@@ -395,13 +416,13 @@ class Upload {
         return allSettled(tasks.map((task: TEvents) => {
             return this.DEAL_UPLOAD_CHUNK(task)
         }))
-        .then(res => {
+        .then(async (res) => {
             let rejected: TRejectEmitReturnType[] = []
             let fulfilled: TSuccessReturnType[] = []
             let stopping: TFailEmitReturnType[] = []
             let cancel: TFailEmitReturnType[] = []
             let retry: Symbol[] = []
-            let retryRejected: TFailEmitReturnType[] = []
+            let history: Partial<TEmitReturnType> = {}
 
             res.forEach(async (result: any, index: number) => {
                 const { value } = result
@@ -415,33 +436,28 @@ class Upload {
                     switch(status) {
                         case ECACHE_STATUS.rejected: 
                             const { config = {}, symbol } = task
-                            const { retry:retfyConfig } = config
-
+                            const { retry:retfyConfig, ...nextConfig } = config
                             if(!!retfyConfig && retfyConfig.times > 0) {
                                 const times = retfyConfig.times - 1
                                 const newTask: TEvents = {
                                     ...task,
                                     // retry: true,
                                     config: {
-                                        ...config,
+                                        ...nextConfig,
                                         ...(times > 0 ? { retry: { times } } : {})
                                     }
                                 }
                                 this.#EVENTS.push(newTask)
                                 retry.push(symbol)
-                                retryRejected.push({
-                                    reason: 'retry',
-                                    data: task
-                                })
-
                                 await this.LIFECYCLE_EMIT('retry', {
                                     name
                                 })
+                            }else {
+                                rejected.push({
+                                    reason: `${err} and retry times is empty`,
+                                    data: task
+                                })
                             }
-                            rejected.push({
-                                reason: err,
-                                data: task
-                            })
                             break
                         case ECACHE_STATUS.stopping:
                             stopping.push({
@@ -475,17 +491,46 @@ class Upload {
 
             //重试
             if(!!retry.length) {
-                this.emit(...retry)
+                history = await this.emit(...retry)
             }
 
             return {
-                retry: retryRejected,
-                rejected,
-                fulfilled,
-                stopping,
-                cancel,
+                rejected: [
+                    ...rejected,
+                    ...(history.rejected || []).filter((item: TRejectEmitReturnType) => {
+                        return !rejected.some((reject: TRejectEmitReturnType) => reject.data?.symbol == item.data?.symbol)
+                    })
+                ],
+                fulfilled: [
+                    ...fulfilled,
+                    ...(history.fulfilled || []).filter((item: TSuccessReturnType) => {
+                        return !fulfilled.some((fulfill: TSuccessReturnType) => fulfill.data?.symbol == item.data?.symbol)
+                    })
+                ],
+                stopping: [
+                    ...stopping,
+                    ...(history.stopping || []).filter((item: TFailEmitReturnType) => {
+                        return !stopping.some((stop: TFailEmitReturnType) => stop.data?.symbol == item.data?.symbol)
+                    })
+                ],
+                cancel: [
+                    ...cancel,
+                    ...(history.cancel || []).filter((item: TFailEmitReturnType) => {
+                        return !cancel.some((canc: TFailEmitReturnType) => canc.data?.symbol == item.data?.symbol)
+                    })
+                ],
             }
         })
+        .catch(err => {
+            console.error(err)
+            return {
+                fulfilled: [],
+                stopping: [],
+                cancel: [],
+                rejected: []
+            }
+        })
+
     }
 
     //取消监听(不能取消正在执行的任务)
@@ -622,7 +667,7 @@ class Upload {
     }
 
     //处理上传文件分片
-    private DEAL_UPLOAD_CHUNK(task: TEvents<TWraperFile>): Promise<{ err: any, name: Symbol }> {
+    private async DEAL_UPLOAD_CHUNK(task: TEvents<TWraperFile>): Promise<{ err: any, name: Symbol }> {
         const { file:wrapperFile, mime, chunks, _cp_, exitDataFn, uploadFn, completeFn, callback, symbol, config: { chunkSize, retry }, md5, lifecycle } = task
         const { name, size, file, action } = wrapperFile
         let index:number = this.#FILES.findIndex((file: TFiles) => file.symbol == symbol)
@@ -650,7 +695,7 @@ class Upload {
         }
         this.#FILES[index].status = ECACHE_STATUS.doing
 
-        this.LIFECYCLE_EMIT('beforeRead', { name: symbol })
+        await this.LIFECYCLE_EMIT('beforeRead', { name: symbol })
 
         //md5加密
         return action.call(this, symbol)
@@ -662,8 +707,7 @@ class Upload {
 
             if(typeof returnValue === 'boolean' && !returnValue) {
                 this.stop(symbol)
-                console.log('beforeCheck stop')
-                return Promise.reject()
+                return Promise.reject('before check stop')
             }
 
             //将加密后的文件返回
@@ -691,15 +735,15 @@ class Upload {
              *  list: [每一分片的索引]
              * }
              */
-            const { data, ...nextRes } = res
+            const { data, ...nextRes } = res || {}
 
-            const isExists = (Array.isArray(data) && data.length === 0) || data === false
+            const isExists = data === false
 
             await this.LIFECYCLE_EMIT('afterCheck', { name: symbol, isExists })
 
             //后台不存在当前文件的情况下上传
             if(!isExists) {
-                return this.CHUNK_INTERNAL_UPLOAD(data || [], symbol, uploadFn)
+                return this.CHUNK_INTERNAL_UPLOAD(Array.isArray(data) ? data : [], symbol, uploadFn)
                 .then(async (_) => {
                     const { md5 } = this.#FILES[index]
                     await this.LIFECYCLE_EMIT('beforeComplete', {name: symbol, isExists: false})
@@ -723,14 +767,13 @@ class Upload {
             }
         })
         .catch(async (err) => {
-            console.log('afterComplete fail', err)
             typeof callback === 'function' && callback(err, null)
-            const { status } = this.#FILES[index]
+            const { status, symbol } = this.#FILES[index]
             //非人为主动错误
             if(status !== ECACHE_STATUS.stopping && status !== ECACHE_STATUS.cancel ) {
                 this.#FILES[index].status = ECACHE_STATUS.rejected
             }
-            await this.LIFECYCLE_EMIT('afterComplete', { name: symbol, success: false })
+            await this.LIFECYCLE_EMIT('afterComplete',{ name: symbol, success: false })
             return {
                 err,
                 name: symbol
@@ -749,19 +792,16 @@ class Upload {
         if(typeof returnValue === 'boolean' && !returnValue) this.stop(name)
 
         if(fileIndex == null) {
-            console.log('chunk upload fail')
             await this.LIFECYCLE_EMIT('afterUpload', { name, index: -1, success: false })
             return Promise.reject('file not found')
         }else {
             this.#FILES[fileIndex].completeChunks = unUploadList.map(item => Number(item)).filter(item => !Number.isNaN(item) && item >= 0)
-
             for(let i = 0; i < this.#FILES[fileIndex].chunks.length; i ++) {
                 //处理用户的取消或暂停
                 if(this.#FILES[fileIndex].status === ECACHE_STATUS.stopping || this.#FILES[fileIndex].status === ECACHE_STATUS.cancel) {
-                    await this.LIFECYCLE_EMIT('afterStop', { name, index: fileIndex })
-                    await this.LIFECYCLE_EMIT('afterCancel', { name, index: fileIndex })
+                    if(this.#FILES[fileIndex].status === ECACHE_STATUS.stopping) await this.LIFECYCLE_EMIT('afterStop', { name, index: fileIndex })
+                    if(this.#FILES[fileIndex].status === ECACHE_STATUS.cancel) await this.LIFECYCLE_EMIT('afterCancel', { name, index: fileIndex })
                     await this.LIFECYCLE_EMIT('afterUpload', { name, index: fileIndex, success: false })
-                    console.log('stop or cancel')
                     return Promise.reject('stop or cancel')
                 }
     
@@ -783,7 +823,14 @@ class Upload {
                     }
     
                     this.#FILES[fileIndex].completeChunks.push(i)
-                    await upload(formData)
+                    
+                    try {
+                        await upload.call(this, formData) 
+                    }catch(err) {
+                        await this.LIFECYCLE_EMIT('afterUpload', { name, index: i, success: false })
+                        return Promise.reject(err)
+                    }
+                    
                     await this.LIFECYCLE_EMIT('afterUpload', { name, index: i, success: true })
                 }
             }
@@ -804,7 +851,7 @@ class Upload {
         let singleChunkVerify: boolean = true
         let fileReader:FileReader
         let verify:boolean = true
-        let spark: any
+        let spark: any = new SparkMd5.ArrayBuffer()
         let existsMdt = !!md5.length
         let stop:boolean = false
         let completeChunks:number = 0
@@ -830,6 +877,8 @@ class Upload {
                     }else if(this.#File) {
                         data = new File([data], 'chunk')
                     }
+                }catch(err) {
+                    data = false
                 }finally {
                     newChunks.push(data)
                     singleChunkVerify = !!data
@@ -847,6 +896,8 @@ class Upload {
                     }else {
                         data = false
                     }
+                }catch(err) {
+                    data = false
                 }finally {
                     newChunks.push(data)
                     singleChunkVerify = !!data
@@ -874,12 +925,12 @@ class Upload {
                     singleChunkVerify = !!data
                 }
             }
-
+            
             const returnValue = await this.LIFECYCLE_EMIT('reading', { name, start: completeChunks, end: completeChunks += (Number.isNaN(size) ? 0 : size) })
+            
             if(typeof returnValue === 'boolean' && !returnValue && singleChunkVerify) {
                 this.stop(name)
                 stop = true
-                console.log('reading111111')
                 return false
             } 
 
@@ -914,7 +965,7 @@ class Upload {
         while(currentChunk < totalChunks) {
             let start:number = currentChunk * chunkSize,
                 end:number = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize
-            const chunks: ArrayBuffer = bufferSlice.call(bufferFile, start, end)
+            const chunks: ArrayBuffer = bufferFile.slice(start, end)
             //支持blob
             if(this.#Blob) {
                 this.#FILES[index].chunks.push(new Blob([chunks]))
@@ -1024,11 +1075,12 @@ class Upload {
                     return
                 }
                 that.#FILES[index].chunks.push(chunks)
-                fileReader.readAsArrayBuffer(chunks)
                 const returnValue = await that.LIFECYCLE_EMIT('reading', { name, start, end })
                 if(typeof returnValue === 'boolean' && !returnValue) {
-                    reject('stop')
+                    that.stop(name)
+                    return reject('stop')
                 }
+                fileReader.readAsArrayBuffer(chunks)
             }
 
             await loadNext()

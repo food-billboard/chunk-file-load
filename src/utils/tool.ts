@@ -26,10 +26,12 @@ export const isSymbol = is('Symbol')
 
 export const isArrayBuffer = is('ArrayBuffer')
 
-export const isBase64 = (file: any) => typeof file === 'string' && /^\s*data:([a-z]+\/[a-z0-9-+.]+(;[a-z-]+=[a-z0-9-]+)?)?(;base64)?,([a-z0-9!$&',()*+;=\-._~:@\/?%\s]*?)\s*$/i.test(file)
+export const isBase64 = (file: any) => typeof file === 'string' && (/^\s*data:([a-z]+\/[a-z0-9-+.]+(;[a-z-]+=[a-z0-9-]+)?)?(;base64)?,([a-z0-9!$&',()*+;=\-._~:@\/?%\s]*?)\s*$/i.test(file) || /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/.test(file))
 
 export const base64Size = (base64: string): number => {
-  let body = base64.split(",")[1]
+  if(!isBase64(base64)) return 0
+  let body:any = base64.split(",")
+  body = body.length == 1 ? body[0] : body[1]
   const equalIndex = body.indexOf('=')
   if(body.indexOf('=') > 0) {
     body = body.substring(0, equalIndex)
@@ -100,6 +102,7 @@ export const isEmpty = (data: any): boolean => {
 export function allSettled(promises: Array<any>): Promise<any> {
   if(!promises) return Promise.reject('params is not array')
   // if(Promise.allSettled) return Promise.allSettled(promises)
+  if(promises.length == 0) return Promise.resolve(promises)
   return new Promise((resolve) => {
     const length = promises.length
     let completeCounter = 0
@@ -129,7 +132,7 @@ export function allSettled(promises: Array<any>): Promise<any> {
 }
 
 export const base64ToArrayBuffer = (base64: string): Uint8Array => {
-  if(isBase64(base64)) throw new Error('the params is not a base64 type')
+  if(!isBase64(base64)) throw new Error('the params is not a base64 type')
   const padding = '='.repeat((4 - base64.length % 4) % 4)
   const base64Data = (base64 + padding)
   .replace(/-/g, '+')

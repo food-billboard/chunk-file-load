@@ -2,18 +2,21 @@
 
 文件分片上传工具
 
-## cmd分别命令执行查看相关示例
+## 测试
+具体实例及测试请在[github](https://github.com/food-billboard/chunk-file-load)进行`fork`后运行一下命令
+
+1. cmd分别命令执行查看相关示例
 `npm start`
 `npm run server`
 * 这里默认认为本机安装了node和nodemon
 
-* 工具可以使上传文件变为可控，包括多任务同时上传、暂停任务、取消任务以及查看上传进度、断点续传，但是中间相关细节需要后端进行配合
-
-## cmd执行下面命令进行测试
+2. cmd执行下面命令进行测试
 `npm run test`
 * 需要安装`jest`
 
 ## 简单介绍
+
+* 工具可以使上传文件变为可控，包括多任务同时上传、暂停任务、取消任务以及查看上传进度、断点续传，但是中间相关细节需要后端进行配合
 
 ### 调用 new Upload()
 因为小程序端无法使用诸如`Blob`、`File`、`FileRader`等的API，所以为了勉强能在小程序端运行    
@@ -168,7 +171,7 @@ let names = upload.on([{/*同上参数*/}, {/*同上参数*/}], {/*同上参数*
 
 * 参数为绑定上传任务时返回的给定任务文件名称
 * 支持传入多个参数
-* 返回所有状态的任务(rejected fulfilled cancel stopping retry)
+* 返回所有状态的任务(rejected fulfilled cancel stopping)
 
 ```typescript 
 type TEevents //具体参考上面的`upload`方法参数，多了一个唯一名称`symbol`
@@ -189,10 +192,6 @@ const response: {
         reason: any
         data: TEvents
     }[] 
-    retry: {
-        reason: any
-        data: TEvents
-    }[]
 } = await upload.emit(name)
 ```
 
@@ -328,7 +327,7 @@ upload.cancelEmit(...names)    //不传则取消所有任务
 * 你也可以在任务中的`watch`属性方法来获取对应的任务进度。
 
 ```js
-//return { name, progress, retry?:{ times } }
+//return { name, progress }
 upload.watch(...names) //不传则返回所有进度
 ```
 

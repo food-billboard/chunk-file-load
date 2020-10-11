@@ -54,7 +54,7 @@ class LoadConfig implements ILoadConfig {
   }
 
   mime(value:any, acc: Ttask<TFileType>) { 
-    return value !== undefined ? typeof value === 'string' && /[a-zA-Z]{1,20}\/[a-zA-Z]{1-20}/.test(value) : ( acc ? ( isFile(acc.file) || isBase64([acc.file]) )  : false ) 
+    return value !== undefined ? typeof value === 'string' && /[a-zA-Z0-9]{1,20}\/[a-zA-Z0-9]{1,20}/.test(value) : ( acc ? ( isFile(acc.file) || isBase64([acc.file]) )  : false ) 
   }
 
   exitDataFn = function(value: any) {
@@ -69,14 +69,28 @@ class LoadConfig implements ILoadConfig {
   completeFn(value: any) {
     return value !== undefined ? isFunc(value) : true
   }
+
   callback(value: any) { return value === undefined ? isFunc(value) : true }
+
   config(value: TConfig) { 
     const { chunkSize, retry } = value
     return (value !== undefined ? isObject(value) : true) && (!!chunkSize ? chunkSize <= MAX_FILE_CHUNK && chunkSize > 0 : true) && (!!retry ? retry.times > 0 : true)
   }
+
   chunks(value: any, acc: Ttask<TFileType>) {
     const { _cp_, config: { chunkSize=MAX_FILE_CHUNK }={} } = acc
-    return !!_cp_ ? Array.isArray(value) && !!value.length && value.every(v => ((v instanceof File || v instanceof Blob) && v.size < chunkSize) || ( v instanceof ArrayBuffer && v.byteLength < chunkSize) || ( typeof v === 'string' && isBase64(v) && base64Size(v) < chunkSize )) : true
+    return !!_cp_ ? 
+      Array.isArray(value) && 
+      !!value.length && 
+      value.every(v => {
+        return (((!!File && v instanceof File) || (!!Blob && v instanceof Blob)) && v.size <= chunkSize) || ( v instanceof ArrayBuffer && v.byteLength <= chunkSize) || ( typeof v === 'string' && isBase64(v) && base64Size(v) <= chunkSize )
+      })
+    : 
+    true
+  }
+
+  md5(value: any) {
+    return typeof value === 'undefined' ? true : typeof value === 'string'//.test(value)
   }
 
 }
