@@ -287,8 +287,7 @@ class Upload {
         let symbolList: Array<Symbol> = []
         let result: Array<Ttask<TWraperFile>> = []
         const that = this
-        //参数验证
-        let validate = new Validator()
+        let validate
         result = flat(tasks).map((item: Ttask<TFileType>) => {
             const { chunks } = item
             if(!!chunks) {
@@ -300,11 +299,14 @@ class Upload {
             return item
         }).reduce((acc: Array<Ttask<TWraperFile>>, d: Ttask<TFileType>) => {
             if(isObject(d)) {
+                //参数验证
+                validate = new Validator()
                 // Object.keys(d).forEach((t: any ) => {
                 //     validate.add(d[t], t, d)
                 // })
                 validate.add(d)
-                if(validate.validate()) {
+                const valid = validate.validate()
+                if(valid === true) {
                     const { config={}, file, mime, lifecycle, ...nextD } = d
                     acc.push({
                         ...nextD,
@@ -317,7 +319,7 @@ class Upload {
                         }
                     })
                 }else {
-                    console.warn( 'the params is not verify')
+                    console.warn(`the params ${typeof valid == 'string' ? valid : ''} is not verify`)
                 }
             }
             return acc
@@ -823,7 +825,7 @@ class Upload {
                     }
     
                     this.#FILES[fileIndex].completeChunks.push(i)
-                    
+
                     try {
                         await upload.call(this, formData) 
                     }catch(err) {

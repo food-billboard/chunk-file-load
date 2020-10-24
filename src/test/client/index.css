@@ -34,14 +34,14 @@ main {
   white-space: nowrap;
   padding: 10px 5px;
   transition: 0.5s;
-  border: 1px solid black;
+  border: 1px solid rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
 .upload-select-list
   .upload-select-list-content
   .upload-select-item:not(.active-select):hover {
   border-radius: 20%;
-  border-color: rgba(255, 0, 0, 0.5);
+  border-color: rgba(255, 0, 0, 0.2);
   box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
 }
 .active-select {

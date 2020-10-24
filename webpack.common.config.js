@@ -9,28 +9,27 @@ module.exports = {
       },
       { 
         test: /\.jsx?$/, 
-        exclude: /node_modules/, 
+        exclude:/node_modules/, 
         use: [
           {
             loader: 'babel-loader'
-          },
-          // {
-          //   loader: 'ts-loader'
-          // }
+          }
         ],
-    },
+      },
+      {
+        test: /\.ts$/,
+        use: [
+          {
+            loader: 'ts-loader'
+          }
+        ]
+      }
     ]
   },
   resolve: {
     alias: {
-      "~":path.resolve(__dirname, "src"),
-      '@': path.resolve(__dirname, 'test')
+      "~":path.resolve(__dirname, "src")
     },
     extensions: [".ts", ".tsx", ".js", 'jsx']
-  },
-  optimization: {
-    splitChunks: {
-      chunks: 'all'
-    }
-  },
+  }
 }

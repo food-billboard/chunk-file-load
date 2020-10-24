@@ -25,9 +25,9 @@ function getIp() {
 }
 
 module.exports = merge(commonConfig, {
-    entry: path.resolve(__dirname, './test/client/index.js'),
+    entry: path.resolve(__dirname, './src/test-entry.js'),
     output: {
-        path: path.resolve(__dirname, './test/client/dist'),
+        path: path.resolve(__dirname, 'dist'),
         filename: '[name].bundle.[hash].js'
     },
     mode: 'development',
@@ -47,7 +47,7 @@ module.exports = merge(commonConfig, {
         new ExtractTextPlugin("styles.css"),
         new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
-            template: path.resolve(__dirname, './test/client/index.html')
+            template: path.resolve(__dirname, './src/test/client/index.html')
         }),
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NamedModulesPlugin(),
@@ -57,23 +57,28 @@ module.exports = merge(commonConfig, {
         proxy: {
             '/api': `http://${getIp()}:3000`
         },
-        contentBase: path.join(__dirname, "test/dist"),
+        contentBase: path.join(__dirname, "dist"),
         compress: true,
         port: 8000
     },
+    optimization: {
+        splitChunks: {
+            chunks: 'all'
+        }
+    },
     externals: {
-      react: {
-        root: "React",
-        commonjs2: "react",
-        commonjs: "react",
-        amd: "react"
-      },
-      "react-dom": {
-        root: "ReactDOM",
-        commonjs2: "react-dom",
-        commonjs: "react",
-        amd: "react-dom"
-      },
+    //   react: {
+    //     root: "React",
+    //     commonjs2: "react",
+    //     commonjs: "react",
+    //     amd: "react"
+    //   },
+    //   "react-dom": {
+    //     root: "ReactDom",
+    //     commonjs2: "react-dom",
+    //     commonjs: "react",
+    //     amd: "react-dom"
+    //   },
       // lodash: {
       //   root: '_',
       //   commonjs2: 'lodash',

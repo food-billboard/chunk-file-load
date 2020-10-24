@@ -5,7 +5,7 @@ import { TConfig, Ttask, TFileType } from '../upload'
 //策略模式
 const NESS_Argument: string[] = ['file', 'uploadFn', 'mime']
 
-type TConfigFuncType = (value: any, acc: Ttask<TFileType>) => boolean
+type TConfigFuncType = (value: any, acc: Ttask<TFileType>) => boolean | string
 
 interface ILoadConfig {
   args: Array<string>
@@ -50,36 +50,45 @@ class LoadConfig implements ILoadConfig {
   file(value: TFileType, acc: Ttask<TFileType>) {
     this.findIndexAndDelete('file')
     const { _cp_ } = acc
-    return !!_cp_ ? this.chunks(acc.chunks, acc) : (isFile(value) || isArrayBuffer(value) || isBlob(value) || (typeof value === 'string' && isBase64(value) && base64Size(value) <= MAX_FILE_CHUNK))
+    const result = !!_cp_ ? this.chunks(acc.chunks, acc) : (isFile(value) || isArrayBuffer(value) || isBlob(value) || (typeof value === 'string' && isBase64(value) && base64Size(value) <= MAX_FILE_CHUNK))
+    return result ? result : 'file'
   }
 
   mime(value:any, acc: Ttask<TFileType>) { 
-    return value !== undefined ? typeof value === 'string' && /[a-zA-Z0-9]{1,20}\/[a-zA-Z0-9]{1,20}/.test(value) : ( acc ? ( isFile(acc.file) || isBase64([acc.file]) )  : false ) 
+    const result = value !== undefined ? typeof value === 'string' && /[a-zA-Z0-9]{1,20}\/[a-zA-Z0-9]{1,20}/.test(value) : ( acc ? ( isFile(acc.file) || isBase64([acc.file]) )  : false ) 
+    return result ? result : 'mime'
   }
 
   exitDataFn = function(value: any) {
-    return value !== undefined ? isFunc(value) : true
+    const result = value !== undefined ? isFunc(value) : true
+    return result ? result : 'exitDataFn'
   }
 
   uploadFn(value: any) { 
     this.findIndexAndDelete('uploadFn')
-    return isFunc(value) && value.length == 1
+    const result = isFunc(value) && value.length == 1
+    return result ? result : 'uploadFn'
   }
 
   completeFn(value: any) {
-    return value !== undefined ? isFunc(value) : true
+    const result = value !== undefined ? isFunc(value) : true
+    return result ? result : 'completeFn'
   }
 
-  callback(value: any) { return value === undefined ? isFunc(value) : true }
+  callback(value: any) { 
+    const result = value === undefined ? isFunc(value) : true 
+    return result ? result : 'callback'
+  }
 
   config(value: TConfig) { 
     const { chunkSize, retry } = value
-    return (value !== undefined ? isObject(value) : true) && (!!chunkSize ? chunkSize <= MAX_FILE_CHUNK && chunkSize > 0 : true) && (!!retry ? retry.times > 0 : true)
+    const result = (value !== undefined ? isObject(value) : true) && (!!chunkSize ? chunkSize <= MAX_FILE_CHUNK && chunkSize > 0 : true) && (!!retry ? retry.times > 0 : true)
+    return result ? result : 'config'
   }
 
   chunks(value: any, acc: Ttask<TFileType>) {
     const { _cp_, config: { chunkSize=MAX_FILE_CHUNK }={} } = acc
-    return !!_cp_ ? 
+    const result = !!_cp_ ? 
       Array.isArray(value) && 
       !!value.length && 
       value.every(v => {
@@ -87,10 +96,12 @@ class LoadConfig implements ILoadConfig {
       })
     : 
     true
+    return result ? result : 'chunks'
   }
 
   md5(value: any) {
-    return typeof value === 'undefined' ? true : typeof value === 'string'//.test(value)
+    const result = typeof value === 'undefined' ? true : typeof value === 'string'//.test(value)
+    return result ? result : 'md5'
   }
 
 }
@@ -121,9 +132,17 @@ class Validator implements IValidator {
   validate() {
     let cache:Function[] = [...this.cache]
     this.cache = []
-    const result = cache.every(type => typeof type === 'function' ? type() : false) && this.loadConfig.restArguments()
+    let validateResult = undefined
+    const result = cache.every(type => {
+      let valid = typeof type === 'function' ? type() : true
+      if(typeof valid !== 'boolean') {
+        validateResult = valid 
+        valid = false
+      }
+      return valid
+    }) && this.loadConfig.restArguments()
     this.loadConfig.init()
-    return result
+    return validateResult ? validateResult : result
   }
 
 }
