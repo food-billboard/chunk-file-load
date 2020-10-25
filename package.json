@@ -1,12 +1,14 @@
 {
   "name": "chunk-file-upload",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "文件分片上传",
-  "main": "./src/index.js",
+  "private": false,
+  "main": "./lib/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server --open",
-    "server": "nodemon ./src/test/index.js"
+    "test": "jest --config=jest.config.js",
+    "server": "nodemon ./src/test/index.js",
+    "start": "webpack-dev-server --config ./webpack.dev.config.js --open",
+    "build": "webpack --config ./webpack.prod.config.js"
   },
   "keywords": [
     "chunk",
@@ -19,27 +21,46 @@
     "url": "git+https://github.com/food-billboard/chunk-file-load"
   },
   "dependencies": {
-    "spark-md5": "^3.0.1"
+    "spark-md5": "^3.0.1",
+    "@babel/runtime": "^7.9.6"
   },
   "devDependencies": {
-    "@koa/router": "^8.0.8",
-    "koa": "^2.11.0",
-    "koa-cors": "0.0.16",
-    "koa2-multiparty": "^1.0.1",
+    "@babel/cli": "^7.11.6",
     "@babel/core": "^7.9.6",
     "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/plugin-transform-modules-commonjs": "^7.10.4",
     "@babel/plugin-transform-runtime": "^7.9.6",
     "@babel/preset-env": "^7.9.6",
-    "@babel/runtime": "^7.9.6",
+    "@babel/preset-react": "^7.10.4",
+    "@babel/preset-typescript": "^7.10.4",
+    "@koa/router": "^8.0.8",
+    "@types/jest": "^26.0.14",
+    "@types/spark-md5": "^3.0.2",
+    "axios": "^0.20.0",
+    "babel-jest": "^26.3.0",
     "babel-loader": "^8.1.0",
     "clean-webpack-plugin": "^3.0.0",
+    "compression-webpack-plugin": "^6.0.0",
     "css-loader": "^3.5.3",
     "extract-text-webpack-plugin": "^4.0.0-beta.0",
     "file-loader": "^6.0.0",
     "html-webpack-plugin": "^4.3.0",
+    "jest": "^26.4.2",
+    "koa": "^2.11.0",
+    "koa-cors": "0.0.16",
+    "koa2-multiparty": "^1.0.1",
+    "mini-css-extract-plugin": "^0.11.2",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
     "style-loader": "^1.2.1",
+    "terser-webpack-plugin": "^4.2.3",
+    "ts-jest": "^26.4.0",
+    "ts-loader": "^8.0.3",
+    "typescript": "^4.0.2",
     "webpack": "^4.43.0",
+    "webpack-bundle-analyzer": "^3.8.0",
     "webpack-cli": "^3.3.11",
-    "webpack-dev-server": "^3.10.3"
+    "webpack-dev-server": "^3.10.3",
+    "webpack-merge": "^5.1.4"
   }
 }

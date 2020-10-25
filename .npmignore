@@ -1,0 +1,14 @@
+__tests__/
+dist/
+src/
+.babelrc
+deploy_versions/
+.temp/
+.rn_temp/
+node_modules/
+.DS_Store
+jest.config.js
+tsconfig.json
+webpack.common.config.js
+webpack.dev.config.js
+webpack.prod.config.js

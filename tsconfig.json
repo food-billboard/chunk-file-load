@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "module":"CommonJS",
+    "allowJs": true,
+    // "checkJs": true,
+    "declaration": true,
+    "noEmit": false,
+    "importHelpers": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "removeComments": false,
+    "sourceMap": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    // "paths": {
+    //   "~*":["src/*"]
+    // },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "preserveConstEnums": true,
+    "outDir": "lib",
+    "rootDir": ".",
+    "target":"ES2019",
+    "typeRoots": [
+      "node_modules/@types",
+      "global.d.ts"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "dist"
+  ],
+}
