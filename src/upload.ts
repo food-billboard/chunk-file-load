@@ -178,12 +178,24 @@ class Upload {
         arrayBufferToBase64?: (data: ArrayBuffer) => string
     }) {
         allSettled([
-            this.#Blob = !!Blob,
-            this.#FileReader = !!FileReader,
-            this.#ArrayBuffer = !!ArrayBuffer,
-            this.#File = !!File,
-            this.#Btoa = !!btoa && !!!arrayBufferToBase64 ? internalArrayBufferToBase64 : !!arrayBufferToBase64 ? arrayBufferToBase64 : false,
-            this.#Atob = !!atob && !!!base64ToArrayBuffer ? internalBase64ToArrayBuffer : !!base64ToArrayBuffer ? base64ToArrayBuffer : false
+            new Promise((resolve) => {
+                resolve(this.#Blob = !!Blob)
+            }),
+            new Promise((resolve) => {
+                resolve(this.#FileReader = !!FileReader)
+            }),
+            new Promise((resolve) => {
+                resolve(this.#ArrayBuffer = !!ArrayBuffer)
+            }),
+            new Promise((resolve) => {
+                resolve(this.#File = !!File)
+            }),
+            new Promise((resolve) => {
+                resolve(this.#Btoa = !!arrayBufferToBase64 ? arrayBufferToBase64 : (!!btoa ? internalArrayBufferToBase64 : false))
+            }),
+            new Promise((resolve) => {
+                resolve(this.#Atob = !!base64ToArrayBuffer ? base64ToArrayBuffer : (!!atob ? internalBase64ToArrayBuffer : false))
+            })
         ])
         .then(_ => {
             let notSupport:string[] = []
@@ -208,7 +220,7 @@ class Upload {
 
             if(!this.#ArrayBuffer) throw new Error('this tool must be support for the ArrayBuffer')
             
-            if(!!notSupport.length) console.warn('these api is not support: ', notSupport.join(',').slice(0, -1))
+            if(!!notSupport.length) console.warn('these api is not support: ', notSupport.join(','))
         })
     }
 
@@ -252,6 +264,7 @@ class Upload {
                 name: null,
                 file,
                 action: (name: Symbol): Promise<string> => {
+                    console.log(this.#Blob, this.#Btoa)
                     if(!this.#Blob && !this.#Btoa) {
                         console.warn('this environment is not support')
                         return Promise.reject('this environment is not support')
