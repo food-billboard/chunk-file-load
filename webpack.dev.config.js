@@ -28,7 +28,8 @@ module.exports = merge(commonConfig, {
     entry: path.resolve(__dirname, './src/test-entry.js'),
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: '[name].bundle.[hash].js'
+        filename: '[name].bundle.[hash].js',
+        globalObject: 'this'
     },
     mode: 'development',
     devtool: 'inline-source-map',

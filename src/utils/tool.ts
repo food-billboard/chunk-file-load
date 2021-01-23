@@ -26,6 +26,8 @@ export const isSymbol = is('Symbol')
 
 export const isArrayBuffer = is('ArrayBuffer')
 
+export const isMd5 = (str: string) => typeof str === 'string' && /([a-f\d]{32}|[A-F\d]{32})/.test(str)
+
 export const isBase64 = (file: any) => typeof file === 'string' && (/^\s*data:([a-z]+\/[a-z0-9-+.]+(;[a-z-]+=[a-z0-9-]+)?)?(;base64)?,([a-z0-9!$&',()*+;=\-._~:@\/?%\s]*?)\s*$/i.test(file) || /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/.test(file))
 
 export const base64Size = (base64: string): number => {
@@ -52,19 +54,19 @@ export const isType = (detect: any, type: string): boolean => {
 //判断内容是否为空
 export const size = (detect: any):number => {
   if(detect === undefined || detect === null) {
-      return 0
+    return 0
   }
   if(isType(detect, 'Number')) {
-      return detect
+    return detect
   }
   if(isType(detect, 'String')) {
-      return detect.length
+    return detect.length
   }
   if(isType(detect, 'Object')) {
-      return Object.keys(detect).length  
+    return Object.keys(detect).length  
   }
   if(isType(detect, 'Array')) {
-      return detect.length
+    return detect.length
   }
   return 0
 }
@@ -75,27 +77,27 @@ export const flat = (arr: Array<any>): Array<any> => {
   if(arr.flat) return arr.flat(Infinity)
   let newArray: Array<any> = []
   arr.forEach((item: any) => {
-      if(Array.isArray(item)) {
-          let data:Array<any> = flat(item)
-          newArray = [ ...newArray, ...data ]
-      }else {
-          newArray.push(item)
-      }
+    if(Array.isArray(item)) {
+      let data:Array<any> = flat(item)
+      newArray = [ ...newArray, ...data ]
+    }else {
+      newArray.push(item)
+    }
   })
   return newArray
 }
 
 export const isEmpty = (data: any): boolean => {
-    if(isType(data, 'string')) {
-      return !!!data.length
-    }else if(isType(data, 'null') || isType(data, 'undefined')) {
-      return true
-    }else if(isType(data, 'array')) {
-      return !!!data.length
-    }else if(isType(data, 'object')) {
-      return !!!Object.keys(data).length
-    }
-    return false
+  if(isType(data, 'string')) {
+    return !!!data.length
+  }else if(isType(data, 'null') || isType(data, 'undefined')) {
+    return true
+  }else if(isType(data, 'array')) {
+    return !!!data.length
+  }else if(isType(data, 'object')) {
+    return !!!Object.keys(data).length
+  }
+  return false
 }
 
 //allSettled
@@ -131,21 +133,22 @@ export function allSettled(promises: Array<any>): Promise<any> {
   })
 }
 
-export const base64ToArrayBuffer = (base64: string): Uint8Array => {
+export const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
   if(!isBase64(base64)) throw new Error('the params is not a base64 type')
-  const padding = '='.repeat((4 - base64.length % 4) % 4)
-  const base64Data = (base64 + padding)
-  .replace(/-/g, '+')
-  .replace(/_/g, '/')
-
-  const rawData = atob(base64Data)
+  // const padding = '='.repeat((4 - base64.length % 4) % 4)
+  // const base64Data = (base64 + padding)
+  // .replace(/-/g, '+')
+  // .replace(/_/g, '/')
+  const base64Data = base64.replace(/^data:image\/.+;base64,/, '')
+  const rawData = window.atob(base64Data)
   const outputArray = new Uint8Array(rawData.length)
 
   for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i)
+    outputArray[i] = rawData.charCodeAt(i)
   }
-  return outputArray
+  return outputArray.buffer
 }
+
 
 export const arrayBufferToBase64 = (arraybuffer: ArrayBuffer): string => {
 

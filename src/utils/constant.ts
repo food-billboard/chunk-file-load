@@ -1,12 +1,13 @@
-const MAX_FILE_CHUNK = 1024 * 500
+const MAX_FILE_CHUNK = 1024 * 1024 * 5
 
 enum ECACHE_STATUS {
   pending ='pending',
+  waiting = 'waiting',
+  doing = 'doing',
   fulfilled = 'fulfilled',
   rejected = 'rejected',
   cancel = 'cancel',
   stopping = 'stopping',
-  doing = 'doing'
 }
 
 const DEFAULT_CONFIG = {

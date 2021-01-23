@@ -1,8 +1,16 @@
 import React, { Component } from 'react'
-import { Upload } from '~/index.ts'
-import { base64ToArrayBuffer, arrayBufferToBase64 } from '~/utils/tool'
+import { BaseUpload as Upload } from '~/index.ts'
 import Axios from 'axios'
 import './index.css'
+
+import Workers from './test.worker'
+import { wrap, proxy } from 'comlink'
+
+const worker = wrap(new Workers())
+
+new worker().then(data => {
+  console.log(data.compile())
+})
 
 function File({ onClick, ...nextProps }) {
   return (
@@ -50,10 +58,16 @@ export default class extends Component {
 
   //验证存在
   exitDataFn(data) {
+    const size = data.size
     return Axios.get('/api/check', {
       params: {
         ...data
       }
+    })
+    .then(data => {
+      const res = data.data.res
+      if(res.data === false) return { data: size }
+      return res
     })
   }
 
@@ -66,6 +80,7 @@ export default class extends Component {
       })
     }
     return Axios.post('/api/load', data)
+    .then(data => data.data.res)
   } 
 
   //回调
@@ -141,25 +156,125 @@ export default class extends Component {
     if(this.state.single) return
     const { activeSelect } = this.state
     let file = e.target.files[0]
-    this.upload.upload({
-      file,
-      exitDataFn: this.exitDataFn,
-      uploadFn: this.uploadFn,
-      completeFn: (...values) => {
-        this.completeFn(...values)
-      },
-      callback: this.callback
-    })
-    .then(_ => {
-      this.setState({
-        single: null
+    if(activeSelect == '0') {
+      if(file.size > 1024 * 1024 * 5) {
+        alert('不要使用太大的文件用于base64上传')
+        return 
+      }
+      const fileReader = new FileReader()
+      const that = this
+      fileReader.onload = function(e) {
+        that.upload.upload({
+          file: e.target.result,
+          mime: file.type,
+          exitDataFn: that.exitDataFn,
+          uploadFn: that.uploadFn,
+          completeFn: (...values) => {
+            that.completeFn(...values)
+          },
+          callback: that.callback,
+          lifecycle: {
+            reading({ name, task, start, end }) {
+              console.log('loading: ', start, '-', end)
+            }
+          }
+        })
+        .then(_ => {
+          that.setState({
+            single: null
+          })
+        })
+        .catch(_ => {
+          that.setState({
+            single: null
+          })
+        })
+      }
+      fileReader.readAsDataURL(file)
+    }else if(activeSelect == '1') {
+      this.upload.upload({
+        file,
+        exitDataFn: this.exitDataFn,
+        uploadFn: this.uploadFn,
+        completeFn: (...values) => {
+          this.completeFn(...values)
+        },
+        callback: this.callback,
+        lifecycle: {
+          reading({ name, task, start, end }) {
+            console.log('loading: ', start, '-', end)
+          }
+        }
       })
-    })
-    .catch(_ => {
-      this.setState({
-        single: null
+      .then(_ => {
+        this.setState({
+          single: null
+        })
       })
-    })
+      .catch(_ => {
+        this.setState({
+          single: null
+        })
+      })
+    }else if(activeSelect == '2') {
+      this.upload.upload({
+        file: file.slice(0, file.size),
+        mime: file.type,
+        exitDataFn: this.exitDataFn,
+        uploadFn: this.uploadFn,
+        completeFn: (...values) => {
+          this.completeFn(...values)
+        },
+        callback: this.callback,
+        lifecycle: {
+          reading({ name, task, start, end }) {
+            console.log('loading: ', start, '-', end)
+          }
+        }
+      })
+      .then(_ => {
+        this.setState({
+          single: null
+        })
+      })
+      .catch(_ => {
+        this.setState({
+          single: null
+        })
+      })
+    }else {
+      const fileReader = new FileReader()
+      const that = this
+      fileReader.onload = function(e) {
+        that.upload.upload({
+          file: e.target.result,
+          mime: file.type,
+          exitDataFn: that.exitDataFn,
+          uploadFn: that.uploadFn,
+          completeFn: (...values) => {
+            that.completeFn(...values)
+          },
+          callback: that.callback,
+          lifecycle: {
+            reading({ name, task, start, end }) {
+              console.log('loading: ', start, '-', end)
+            }
+          }
+        })
+        .then(_ => {
+          that.setState({
+            single: null
+          })
+        })
+        .catch(_ => {
+          that.setState({
+            single: null
+          })
+        })
+      }
+      fileReader.readAsArrayBuffer(file)
+    }
+    
   }
 
   //多文件上传
@@ -293,7 +408,7 @@ export default class extends Component {
             </div>
           </div>
           <section>
-            <h3>单文件上传</h3>
+            <h3>单文件上传(尝试不用类型文件上传在这里)</h3>
             <div>
               <input ref={ref => this.singleRef = ref} type="file" onChange={this.handleSingleFileUpload} />
               <File onClick={() => this.singleRef.click()}></File>

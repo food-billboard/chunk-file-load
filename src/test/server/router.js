@@ -15,7 +15,8 @@ router.get('/api/check', async(ctx) => {
     
     const query = ctx.request.query
     const {
-        md5
+        md5,
+        chunksLength
     } = query
     
     if(!cache[md5]) cache[md5] = {
@@ -40,10 +41,11 @@ router.get('/api/check', async(ctx) => {
         }else {
             result = getChunkList(md5).map(item => item.split('-')[1])
         }
+
         ctx.body = JSON.stringify({
             success: true,
             res: {
-                data: result
+                data: !!result ? new Array(chunksLength).fill(0).map((_, index) => index).filter((_, index) => !result.includes(index)) : result
             }
         })
     }

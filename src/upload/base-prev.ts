@@ -10,134 +10,23 @@ import {
     allSettled,
     base64ToArrayBuffer as internalBase64ToArrayBuffer, 
     arrayBufferToBase64 as internalArrayBufferToBase64
-} from './utils/tool'
-import Validator from './utils/validator'
-import { ECACHE_STATUS, DEFAULT_CONFIG, MAX_FILE_CHUNK } from './utils/constant'
-
-type TFailEmitReturnType = {
-    reason: any
-    data: TEvents
-}
-
-type TRejectEmitReturnType = {
-    reason: any
-    data: TEvents | null
-}
-
-type TSuccessReturnType = {
-    value: { name: string, err: null }
-    data: TEvents
-}
-
-type TEmitReturnType = {
-    rejected: TRejectEmitReturnType[]
-    fulfilled: TSuccessReturnType[]
-    stopping: TFailEmitReturnType[]
-    cancel: TFailEmitReturnType[]
-}
-
-type TFiles<T=(TFileType | null)> = Pick<TEvents<T>, 'mime' | 'file' | 'name' | 'symbol' | '_cp_' | 'lifecycle'> & {
-    name: string | null
-    size: number
-    chunks: Array<File | Blob | string>
-    completeChunks: Array<string | number>
-    watch: () => null | { progress: number, name: Symbol }
-    md5: string
-    chunkSize: number
-    status: ECACHE_STATUS
-    retry: {
-        times: number 
-    } | false
-}
-
-export type TFileType = ArrayBuffer | string | Blob | File
-
-type TEvents<T=TWraperFile> = Ttask<T> & {
-    symbol: Symbol
-}
-
-type TUploadFormData = {
-    file: File | Blob | string
-    md5: string
-    index: number
-    [key: string]: any
-}
-
-type TUploadFn = (data: FormData | TUploadFormData) => any
-
-type TLifecycle = {
-    //序列化前
-    beforeRead?: (params: { name: Symbol, task: TFiles }) => any
-    //序列化中
-    reading?: (params: { name: Symbol, task: TFiles, start?: number, end?: number }) => boolean | Promise<boolean>
-    //MD5序列化后，检查请求前
-    beforeCheck?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
-    //检查请求响应后
-    afterCheck?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
-    //分片上传前(可以在这里执行stop或cancel，任务会立即停止, 或者直接return false表示暂停)
-    beforeUpload?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
-    //分片上传后(多次执行)
-    afterUpload?: (params: { name: Symbol,  task: TFiles | null, index?: number, success?: boolean }) => any
-    //触发暂停响应后
-    afterStop?: (params: { name: Symbol, task: TFiles | null, index?: number }) => any
-    //触发取消响应后
-    afterCancel?: (params: { name: Symbol, task: TFiles | null, index?: number }) => any
-    //完成请求前
-    beforeComplete?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
-    //完成请求后
-    afterComplete?: (params: { name: Symbol, task: TFiles | null, success?: boolean }) => any
-    //触发重试任务执行
-    retry?: (params: { name: Symbol, task: TFiles | null }) => any
-}
-
-export type TConfig = {
-    retry?: {
-        times: number
-    }
-    chunkSize?: number
-}
-
-export type Ttask<T> = {
-    config: TConfig
-    lifecycle: TLifecycle,
-    md5?: string | null
-    mime?: string
-    file: T
-    chunks?: Array<File | Blob | string>
-    _cp_?: boolean
-    exitDataFn?: ({ 
-        filename,
-        md5,
-        suffix,
-        size,
-        chunkSize,
-        chunksLength
-    }: {
-        filename: string
-        md5: string
-        suffix: string
-        size: number
-        chunkSize: number
-        chunksLength: number
-    }) => Promise<{
-        data: Array<string | number>
-        [key: string]: any
-    }> | {
-        data: Array<string | number>
-        [key: string]: any
-    }
-    uploadFn: TUploadFn
-    completeFn?: ({ name, md5 } : { name: Symbol, md5: string }) => any
-    callback?: (err: any, data: any) => any
-    [key: string]: any
-}
-
-type TWraperFile = {
-    size: number
-    name: string | null
-    file: TFileType | null
-    action: (name: Symbol) => Promise<string> 
-}
+} from '../utils/tool'
+import Validator from '../utils/validator'
+import { ECACHE_STATUS, DEFAULT_CONFIG, MAX_FILE_CHUNK } from '../utils/constant'
+import { 
+    TFailEmitReturnType, 
+    TRejectEmitReturnType, 
+    TSuccessReturnType, 
+    TEmitReturnType,
+    TFiles,
+    TFileType,
+    TEvents,
+    TUploadFormData,
+    TUploadFn,
+    TLifecycle,
+    Ttask,
+    TWraperFile
+} from './index.d'
 
 class Upload {
 
@@ -927,7 +816,7 @@ class Upload {
                         await new Promise((resolve, _) => {
                             fileReader.onload = function(e: any) {
                                 append(e.target.result)
-                                resolve()
+                                resolve(null)
                             }
                         })
                     }else {

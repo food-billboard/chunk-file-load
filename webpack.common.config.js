@@ -7,6 +7,16 @@ module.exports = {
         test: /\.(png|jpg|gif)$/,
         loader: ['file-loader']
       },
+      {
+        test: /\.worker\.(t|j)s$/,
+        exclude:/node_modules/, 
+        use: { 
+          loader: "worker-loader",
+          options: {
+            inline: "fallback",
+          }
+        },
+      },
       { 
         test: /\.jsx?$/, 
         exclude:/node_modules/, 
