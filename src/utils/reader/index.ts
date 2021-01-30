@@ -1,7 +1,8 @@
 import FileParse from './parse'
 import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS } from '../constant'
-import { TProcessLifeCycle, Ttask, TWraperFile, TSetState } from '../../upload/index.d'
+import { isMd5 } from '../tool'
+import { TProcessLifeCycle, TSetState, TWrapperTask } from '../../upload/index.d'
 
 class FileReader {
 
@@ -10,8 +11,8 @@ class FileReader {
     this.setState = setState
   }
 
-  private tasks: string[] = []
-  private emitter!: TProcessLifeCycle
+  protected tasks: string[] = []
+  protected emitter: TProcessLifeCycle
   public setState: TSetState
 
   //清空
@@ -23,7 +24,7 @@ class FileReader {
       names = this.tasks
     }
     names.forEach(name => {
-      WorkerPool.complete(name)
+      WorkerPool.worker_clean(name)
       const index = this.tasks.indexOf(name)
       if(!!~index) this.tasks.splice(index, 1)
     })
@@ -36,12 +37,18 @@ class FileReader {
     FILE: "GET_FILE_MD5"
   }
 
-  public addFile(worker_id: string) {
+  public async addFile(worker_id: string): Promise<string | null> {
     if(!this.tasks.includes(worker_id)) {
       this.tasks.push(worker_id)
-      this.start(worker_id)
+      return this.start(worker_id)
+      .then((md5) => {
+        if(!md5) return null
+        const process = WorkerPool.getProcess(worker_id)
+        this.setState(process!.task!.symbol, { file: { md5 } })
+        return md5
+      })
     }
-    return this.tasks.length
+    return null
   }
 
   //任务执行
@@ -49,52 +56,57 @@ class FileReader {
     const process = WorkerPool.getProcess(worker_id)
     if(!process) return this.clean(worker_id)
     const task = process.task!
-    await this.emitter('beforeRead', {
-      name: task.symbol,
-      task: task,
-      status: ECACHE_STATUS.doing
-    })
+    const md5 = task.file!.md5
+    if(!!isMd5(md5 as string)) {
+      return Promise.resolve(md5)
+    }
+
+    //read
+    try {
+      await this.emitter('beforeRead', {
+        name: task.symbol,
+        task: task,
+        status: ECACHE_STATUS.reading
+      })
+    }catch(err) {
+      console.warn(err)
+      return Promise.reject(err)
+    }
+    
     const action = task.file.action
+    const fileParse = new FileParse(worker_id)
     switch(action) {
       case 'GET_MD5': 
-        this.GET_MD5(worker_id, task)
-        break
+        return this.GET_MD5(task, fileParse)
       case 'GET_BASE64_MD5':
-        this.GET_BASE64_MD5(worker_id, task)
-        break
+        return this.GET_BASE64_MD5(task, fileParse)
       case 'GET_BUFFER_MD5':
-        this.GET_BUFFER_MD5(worker_id, task)
-        break
+        return this.GET_BUFFER_MD5(task, fileParse)
       case 'GET_FILE_MD5':
-        this.GET_FILE_MD5(worker_id, task)
-        break
+        return this.GET_FILE_MD5(task, fileParse)
       default:
         break
     }
   }
 
   //获取MD5(分片已预先完成)
-  private async GET_MD5(worker_id: string, task: Ttask<TWraperFile>): Promise<string> {
-    const fileParse = new FileParse(worker_id)
-    this.setState(task.symbol, { chunks: [] })  
+  private async GET_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
+    this.setState(task.symbol, { file: { chunks: [] } })  
     return fileParse.files(task, this.emitter)
   }
 
   //获取base64的MD5
-  private async GET_BASE64_MD5(worker_id: string, task: Ttask<TWraperFile>): Promise<string> {
-    const fileParse = new FileParse(worker_id)
+  private async GET_BASE64_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
     return fileParse.base64(task, this.emitter)
   }
 
   //获取arraybuffer类型md5
-  private async GET_BUFFER_MD5(worker_id: string, task: Ttask<TWraperFile>): Promise<string> {
-    const fileParse = new FileParse(worker_id)
+  private async GET_BUFFER_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
     return fileParse.arraybuffer(task, this.emitter)
   }
 
   //获取文件md5
-  private async GET_FILE_MD5(worker_id: string, task: Ttask<TWraperFile>): Promise<string> {
-    const fileParse = new FileParse(worker_id)
+  private async GET_FILE_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
     return fileParse.blob(task, this.emitter)
   }
 

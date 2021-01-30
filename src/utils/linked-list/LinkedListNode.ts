@@ -1,14 +1,18 @@
+/**
+ * code from the 'https://github.com/trekhleb/javascript-algorithms' thanks
+ */
+
 export default class LinkedListNode<T> {
 
-  constructor(value: T, next: T | null | undefined = null) {
+  constructor(value: LinkedListNode<T>, next: LinkedListNode<T>| null = null) {
     this.value = value;
     this.next = next
   }
 
-  value: T
-  next: T | null
+  value: LinkedListNode<T>
+  next: LinkedListNode<T> | null
 
-  toString(callback: (value: T) => string) {
+  toString(callback: (value: LinkedListNode<T>) => string) {
     return callback ? callback(this.value) : `${this.value}`;
   }
 

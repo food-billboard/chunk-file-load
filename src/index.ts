@@ -1,7 +1,7 @@
-import BaseUpload from './upload/base'
-import Upload from './upload/weapp'
+import BaseUpload from './upload'
+// import Upload from './upload/weapp'
 
 export {
-  Upload,
+  // Upload,
   BaseUpload
 }

@@ -1,8 +1,10 @@
 import SparkMD5 from 'spark-md5'
-import { noop } from 'lodash'
+import { transfer } from 'comlink'
+import { noop, merge } from 'lodash'
 import { base64ToArrayBuffer, base64Size, isMd5 } from '../tool'
 import WorkerPool, { TProcess } from '../worker/worker.pool'
-import { Ttask, TWraperFile, TProcessLifeCycle } from '../../upload/index.d'
+import { TWrapperTask, TProcessLifeCycle } from '../../upload/index.d'
+import { ECACHE_STATUS } from '../constant'
 
 export default class {
 
@@ -13,9 +15,9 @@ export default class {
 
   worker: TProcess | null
 
-  public async blob(file: Ttask<TWraperFile>, process: TProcessLifeCycle): Promise<string> {
+  public async blob(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
 
-    const { file: originFile, chunkSize, size, symbol } = file
+    const { file: { size, file }, config: { chunkSize }, symbol } = task
     const that = this
 
     let currentChunk:number = 0,
@@ -23,8 +25,6 @@ export default class {
       totalChunks: number = Math.ceil(size / chunkSize),
       spark!:SparkMD5.ArrayBuffer,
       fileSlice: (start: number, end: number) => Blob = File.prototype.slice
-    
-      console.log(Date.now())
 
     return new Promise(async (resolve, reject) => {
 
@@ -59,7 +59,7 @@ export default class {
             //添加读取的内容
             const buffer = e.target.result
             try {
-              await worker.postFileData(buffer)
+              await that.worker!.worker.read(transfer(buffer, [buffer]))
             }catch(err) {
               return reject(err)
             }
@@ -71,8 +71,7 @@ export default class {
             }
             //读取完毕
             else {
-              console.log(Date.now())
-              resolve(worker.getFileResult())
+              resolve(that.worker!.worker.readEnd())
             }
 
         }
@@ -88,15 +87,17 @@ export default class {
       async function loadNext() {
         let start: number = currentChunk * chunkSize,
           end: number = currentChunk + 1 === totalChunks ? size : (currentChunk + 1) * chunkSize
-        const chunks: Blob = fileSlice.call(originFile, start, end)
+        const chunks: Blob = fileSlice.call(file, start, end)
 
         try {
-          await process({
+          await process('reading', {
             name: symbol,
-            start,
-            end,
-            chunk: chunks
-          }, reject)
+            status: ECACHE_STATUS.reading,
+            current: start,
+            // end,
+            total: size
+            // chunk: chunks
+          })
         }catch(err) {
           reject(err)
         }
@@ -110,11 +111,11 @@ export default class {
 
   }
 
-  public async arraybuffer(file: Ttask<TWraperFile>, process: TProcessLifeCycle): Promise<string> {
+  public async arraybuffer(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
 
     const that = this
 
-    const { file: originFile, chunkSize, size, symbol } = file
+    const { file: { size, file }, config: { chunkSize }, symbol } = task
 
     let currentChunk:number = 0,
       totalChunks: number = Math.ceil(size / chunkSize),
@@ -138,10 +139,10 @@ export default class {
         }
       }else {
         getSparkMethod = async (data) => {
-          await worker.postFileData(data)
+          await that.worker!.worker.read(transfer(data, [data]))
           //读取完毕
           if(currentChunk >= totalChunks) {
-            resolve(worker.getFileResult())
+            resolve(that.worker!.worker.readEnd())
           }
         }
       }
@@ -149,18 +150,20 @@ export default class {
       while(currentChunk < totalChunks) {
         let start: number = currentChunk * chunkSize,
           end: number = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize
-        const chunks: ArrayBuffer = bufferSlice.call(originFile, start, end)
+        const chunks: ArrayBuffer = bufferSlice.call(file, start, end)
   
         currentChunk ++
   
         try {
           await getSparkMethod(chunks)
-          await process({
+          await process('reading', {
             name: symbol,
-            start,
-            end,
-            chunk: new Blob([chunks])
-          }, reject)
+            current: start,
+            total: size,
+            // end,
+            status: ECACHE_STATUS.reading,
+            // chunk: new Blob([chunks])
+          })
         }catch(err) {
           reject(err)
         }
@@ -172,25 +175,20 @@ export default class {
 
   }
 
-  public async base64(file: Ttask<TWraperFile>, process: TProcessLifeCycle): Promise<string> {
-
-    const { file: originFile } = file
-    const bufferFile = base64ToArrayBuffer(originFile as string)
-    return this.arraybuffer({
-      ...file,
-      file: bufferFile
-    }, process)
-
+  public async base64(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
+    const { file } = task
+    const bufferFile = base64ToArrayBuffer(file.file as string)
+    return this.arraybuffer(merge(task, { file: merge(file, { file: bufferFile }) }), process)
   }
 
-  public async files(file: Ttask<TWraperFile>, process: TProcessLifeCycle): Promise<string> {
+  public async files(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
 
-    const { chunks, md5, symbol } = file
+    const { file: { chunks, md5 }, symbol } = task
 
     let fileReader:FileReader
     let spark: SparkMD5.ArrayBuffer
     let completeChunks:number = 0
-    let totalChunks = chunks.length
+    let totalChunks = chunks!.length
 
     let append: (data: ArrayBuffer) => Promise<void> | void
 
@@ -200,9 +198,9 @@ export default class {
 
       let currentChunk = 0
 
-      if(isMd5(md5)) {
+      if(isMd5(md5!)) {
         append = noop
-      }else if(!worker) {
+      }else if(!this.worker) {
         append = (data: ArrayBuffer) => {
           if(!spark) spark = new SparkMD5.ArrayBuffer()
           spark.append(data)
@@ -212,9 +210,9 @@ export default class {
         }
       }else {
         append = async (data: ArrayBuffer) => {
-          await worker.postFileData(data)
+          await this.worker!.worker.read(transfer(data, [data]))
           if(currentChunk >= totalChunks) {
-            resolve(worker.getFileResult())
+            resolve(this.worker!.worker.readEnd())
           }
         }
       }
@@ -222,7 +220,7 @@ export default class {
       for(let i = 0; i < totalChunks; i ++) {
 
         currentChunk = i
-        const chunk = chunks[i]
+        const chunk = chunks![i]
         let size!: number
         let data: any = false
         if(typeof chunk === 'string') {
@@ -258,14 +256,15 @@ export default class {
         }
   
         try {
-          const chunks = new Blob([data])
           await append(data)
-          await process({
+          await process('reading', {
             name: symbol,
-            start: completeChunks, 
-            end: completeChunks += (Number.isNaN(size) ? 0 : size),
-            chunk: chunks
-          }, reject)
+            status: ECACHE_STATUS.reading,
+            start: completeChunks,
+            // end: completeChunks += (Number.isNaN(size) ? 0 : size),
+            total: size,
+            // chunk: new Blob([data])
+          })
         }catch(err) {
           return reject(err)
         }

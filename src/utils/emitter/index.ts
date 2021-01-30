@@ -1,98 +1,102 @@
-import { flat, isObject, base64Size } from '../tool'
 import { merge } from 'lodash'
-import Validator from '../validator'
+import { flat, isObject, base64Size } from '../tool'
 import Reader from '../reader'
-import { Ttask, TFileType, TEvents, TWraperFile } from '../../upload/index.d'
 import { DEFAULT_CONFIG, ECACHE_STATUS } from '../constant'
+import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial } from '../../upload/index.d'
 
 export default class Emitter {
 
-  public tasks: TEvents[] = []
+  public tasks: TWrapperTask[] = []
 
-  public getTask(name: Symbol):[number, TEvents | null] {
+  public getTask(name: Symbol):[number, TWrapperTask | null] {
     const index = this.tasks.findIndex(task => task.symbol === name)
     return !!~index ? [ index, this.tasks[index] ] : [ -1, null ]
   }
 
   //获取文件信息
-  private FILE_TYPE(file: any): TWraperFile {
+  private FILE_TYPE(unWrapperFile: TFile): TWraperFile {
+
+    const { file, mime } = unWrapperFile
 
     let fileType = Object.prototype.toString.call(file);
     [ fileType ] = fileType.match(/(?<=\[object ).+(?=\])/) || []
 
-    let baseFileInfo: TWraperFile = {
+    let baseFileInfo: Partial<TWraperFile> = merge({
       size: 0,
-      name: null,
+      name: '',
       file: file || null,
-      action: Reader.ACTION_TYPE.MD5
-    }
+      action: Reader.ACTION_TYPE.MD5,
+    }, unWrapperFile)
 
     switch(fileType.toLowerCase().trim()) {
       case 'file':
-        return merge(baseFileInfo, {
-          size: file?.size ?? 0,
-          name: file?.name ?? null,
-          action: Reader.ACTION_TYPE.FILE
+        baseFileInfo = merge(baseFileInfo, {
+          size: (file as File)?.size ?? 0,
+          name: (file as File)?.name ?? null,
+          action: Reader.ACTION_TYPE.FILE,
+          mime: mime ? mime : (file as File).type,
         })
       case 'blob':
-        return merge(baseFileInfo, {
-          size: file?.size ?? 0,
-          action: Reader.ACTION_TYPE.FILE
+        baseFileInfo = merge(baseFileInfo, {
+          size: (file as Blob)?.size ?? 0,
+          action: Reader.ACTION_TYPE.FILE,
         })
       case 'arraybuffer':
-        return merge(baseFileInfo, {
-          size: file?.byteLength ?? 0,
+        baseFileInfo = merge(baseFileInfo, {
+          size: (file as ArrayBuffer)?.byteLength ?? 0,
           action: Reader.ACTION_TYPE.BUFFER
         })
       case 'string':
-        return merge(baseFileInfo, {
-          size: base64Size(file),
+        baseFileInfo = merge(baseFileInfo, {
+          size: base64Size(file as string),
           action: Reader.ACTION_TYPE.BASE64
         })
       default:
-        return baseFileInfo
+        
     }
+    return baseFileInfo as TWraperFile
+
   }
 
-  private taskValid(task: Ttask<TFileType>) {
+  private taskValid(task: Ttask) {
     if(isObject(task)) {
       //参数验证
-      const validate = new Validator()
-      validate.add(task)
-      const valid = validate.validate()
-      if(valid === true) {
-        return true
-      }else {
-        console.warn(`the params ${typeof valid == 'string' ? valid : ''} is not verify`)
+      if(!task?.file?.file) {
+        console.warn('the params is not verify')
+        return false
       }
+      return true
     }
     return false
   }
 
-  private generateTask(task: Ttask<TFileType>): Ttask<TWraperFile> {
+  private generateTask(task: Ttask): TWrapperTask{
     const symbol: unique symbol = Symbol()
-    const { config={}, file, mime, lifecycle, ...nextTask } = task
+    const { config={}, file, lifecycle, ...nextTask } = task
     return merge(nextTask, {
+      process: {
+        current: 0,
+        complete: 0
+      },
       lifecycle: lifecycle || {},
-      mime: mime ? mime : (typeof file === 'string' || file instanceof ArrayBuffer ? undefined : file?.type),
       file: this.FILE_TYPE(file),
       config: merge(DEFAULT_CONFIG, config),
       symbol,
       status: ECACHE_STATUS.pending
-    }) as Ttask<TWraperFile>
+    }) as TWrapperTask
   }
 
-  public on(...tasks: Ttask<TFileType>[]): Symbol[] {
+  public on(...tasks: Ttask[]): Symbol[] {
     if(!tasks.length) return []
 
     let names: Symbol[] = []
 
-    const result: Ttask<TWraperFile>[] = flat(tasks)
-    .reduce((acc: Ttask<TWraperFile>[], task: Ttask<TFileType>) => {
-      const { chunks } = task
-      let newTask = task
-      if(!!chunks) {
-        newTask = merge(newTask, { _cp_: true })
+    const result: Ttask[] = flat(tasks)
+    .reduce((acc: TWrapperTask[], task: Ttask) => {
+      const { file } = task
+      let newTask = task as TWrapperTask
+      if(Array.isArray(file.chunks) && !!file.chunks.length) {
+        newTask = merge(newTask, { file: merge(file, { _cp_: true }) })
       }
 
       if(this.taskValid(newTask)) {
@@ -108,11 +112,11 @@ export default class Emitter {
     return names
   }
 
-  public emit(...names: Symbol[]): TEvents<TWraperFile>[] {
-    let tasks: TEvents<TWraperFile>[] = []
+  public emit(...names: Symbol[]): TWrapperTask[] {
+    let tasks: TWrapperTask[] = []
     names.forEach(name => {
       const [ index, task ] = this.getTask(name)
-      if(task?.status === ECACHE_STATUS.pending && task?.symobl === name) {
+      if(task?.status === ECACHE_STATUS.pending && task?.symbol === name) {
         this.statusChange(ECACHE_STATUS.waiting, index)
         console.log('查看是否修改了状态变成了waiting' + task.status)
         tasks.push(task)
@@ -135,9 +139,9 @@ export default class Emitter {
   private dealDoingTaskStatus(status: ECACHE_STATUS.cancel | ECACHE_STATUS.stopping, ...names: Symbol[]) {
     return names.reduce((acc: Symbol[], cur: Symbol) => {
       const [index, task] = this.getTask(cur)
-      if(!!task && task.status !== ECACHE_STATUS.pending) {
+      if(!!task && task.status > ECACHE_STATUS.pending) {
         acc.push(cur)
-        this.statusChange(ECACHE_STATUS[status], index)
+        this.statusChange(status, index)
       }
       return acc
     }, [])
@@ -163,7 +167,7 @@ export default class Emitter {
     this.tasks = []
   }
 
-  public setState(name: Symbol, value: Partial<Ttask<TWraperFile>>={}): Ttask<TWraperFile> {
+  public setState(name: Symbol, value: SuperPartial<TWrapperTask>={}): TWrapperTask {
     const [ index, task ] = this.getTask(name)
     this.tasks[index] = merge(task, value)
     return this.tasks[index]

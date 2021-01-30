@@ -1,9 +1,13 @@
+import { merge } from 'lodash'
 import Emitter from '../utils/emitter'
 import Reader from '../utils/reader'
 import LifeCycle from '../utils/lifecycle'
 import WorkerPool from '../utils/worker/worker.pool'
+import Uploader from '../utils/uploader'
+import { allSettled } from '../utils/tool'
 
-import { TLifecycle, Ttask, TFileType, TEvents, TWraperFile, TProcessLifeCycle } from './index.d'
+import { TLifecycle, Ttask, TFileType, TWrapperTask, TProcessLifeCycle, SuperPartial } from './index.d'
+import { ECACHE_STATUS } from '../utils/constant'
 
 export default class Upload {
 
@@ -13,6 +17,8 @@ export default class Upload {
 
   private reader!: Reader
 
+  private uploader!: Uploader
+
   private wokerPool!: WorkerPool
 
   constructor(options?: {
@@ -21,6 +27,7 @@ export default class Upload {
     if(!Upload.isSupport()) throw new Error('this tool must be support for the ArrayBuffer')
     this.init()
     this.reader = new Reader(this.emitter.setState, this.LIFECYCLE_EMIT)
+    this.uploader = new Uploader(this.emitter.setState, this.LIFECYCLE_EMIT)
     this.lifecycle.onWithObject(options?.lifecycle || {})
     this.wokerPool = new WorkerPool()
   }
@@ -48,7 +55,11 @@ export default class Upload {
   //执行任务
   public emit(...names: Symbol[]) {
     const tasks = this.emitter.emit(...names)
-    this.performanceTask(...tasks)
+    this.performanceTask(...tasks.map(task => {
+      const { lifecycle, symbol } = task
+      this.lifecycle.onWithObject(lifecycle || {}, symbol) 
+      return task
+    }))
     return tasks.map(task => task.symbol)
   }
 
@@ -85,8 +96,22 @@ export default class Upload {
   }
 
   //进度查看
-  public watch(...names: Symbol[]) {
-
+  public watch(...names: Symbol[]): ({ error: string | null, name: Symbol, progress: number, status: ECACHE_STATUS, total: number, current: number } | null)[] {
+    const tasks = this.emitter.tasks
+    return names.map(name => {
+      const target = tasks.find(task => task.symbol == name)
+      if(!target) return null
+      const { process: { current, complete, total }, status,  } = target
+      return {
+        error: null,
+        name,
+        status: status,
+        progress: parseFloat((complete / total).toFixed(4)),
+        total,
+        current
+      }
+    })
+    
   }
 
   //获取原始文件
@@ -96,47 +121,96 @@ export default class Upload {
   }
 
   //任务执行
-  private performanceTask(...tasks: TEvents<TWraperFile>[]) {
+  private performanceTask(...tasks: TWrapperTask[]) {
     this.wokerPool.enqueue(...tasks)
     .then(processes => {
-      processes.forEach(process => {
-        this.reader.addFile(process)
-      })
+      return allSettled(processes.map(async (process: string) => {
+        const target = WorkerPool.getProcess(process)
+        const task = target!.task
+        const { request: { callback }, status, symbol, config: { retry } } = task!
+        return this.reader.addFile(process)
+        .then(_ => this.uploader.addFile(process))
+        .then(_ => {
+          return {
+            remove: true,
+            name: symbol,
+            error: null
+          }
+        })
+        .catch(err => {
+          console.warn(err)
+          WorkerPool.worker_clean(process)
+          const response = {
+            error: err,
+            name: symbol,
+            remove: false
+          }
+
+          if(status !== ECACHE_STATUS.stopping && status !== ECACHE_STATUS.cancel) {
+            this.emitter.setState(symbol, { status: ECACHE_STATUS.rejected })
+          }
+          if(status === ECACHE_STATUS.stopping) {
+            this.LIFECYCLE_EMIT('afterStop', {
+              name: symbol,
+              status: ECACHE_STATUS.stopping,
+              current: task!.process.current
+            })
+          }
+          if(status === ECACHE_STATUS.cancel) {
+            this.LIFECYCLE_EMIT('afterCancel', {
+              name: symbol,
+              status: ECACHE_STATUS.cancel,
+              current: task!.process.current
+            })
+            return merge(response, { remove: true })
+          }
+
+          return response
+        })
+        .then(async (response) => {
+          const { error, name, remove } = response
+          let callbackError = null
+          let needRetry = error && retry.times > 0
+
+          if(needRetry) {
+            callbackError = {
+              error,
+              retry: true
+            }
+            try {
+              await this.LIFECYCLE_EMIT('retry', {
+                name: symbol,
+                status: ECACHE_STATUS.pending,
+                rest: retry.times - 1
+              })
+            }catch(err) {
+              callbackError.retry = false
+            }
+          }
+          callback && callback(callbackError, name)
+          if(remove) {
+            this.emitter.off(symbol)
+          }else if(needRetry && !!callbackError?.retry) {
+            this.emit(symbol)
+          }
+        })
+      }))
     })
   }
 
   //执行声明周期
   private LIFECYCLE_EMIT: TProcessLifeCycle = async (lifecycle, params) => {
-    let returnValue: any
-    const { name } = params
-    const [file] = this.GET_TARGET_FILE(name)
-    if(!file) return
-    const globalLifecycle = this.#lifecycle[lifecycle]
-    const templateLifecycle = file.lifecycle[lifecycle]
-    if(typeof globalLifecycle === 'function') {
-      try {
-        returnValue = await globalLifecycle.bind(this)({
-          ...params,
-          task: file
-        })
-      }catch(err) {
-        console.error(err)
-      }
+    const { name, status } = params
+    const [ , task ] = this.emitter.getTask(name)
+    let state: SuperPartial<TWrapperTask> = {
+      status
     }
-    if(typeof templateLifecycle === 'function') {
-      try {
-        returnValue = await templateLifecycle.bind(this)(
-          {
-            ...params,
-            task: file
-          }
-        )
-      }catch(err) {
-        console.error(err)
-      }
+    if(!task) return Promise.reject('not found the task')
+    const response = await this.lifecycle.emit(lifecycle, params)
+    if((response as any) instanceof Object) {
+      state = merge(state, response)
     }
-
-    return returnValue
+    this.emitter.setState(name, state)
   }
 
 }

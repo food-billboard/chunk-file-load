@@ -1,26 +1,23 @@
-import LinkedList from '../linked-list';
+/**
+ * code from the 'https://github.com/trekhleb/javascript-algorithms' thanks
+ */
 
-export default class Queue {
+import LinkedList from '../linked-list';
+import LinkedListNode from '../linked-list/LinkedListNode'
+
+export default class Queue<T=any> {
+
   constructor() {
-    // We're going to implement Queue based on LinkedList since the two
-    // structures are quite similar. Namely, they both operate mostly on
-    // the elements at the beginning and the end. Compare enqueue/dequeue
-    // operations of Queue with append/deleteHead operations of LinkedList.
-    this.linkedList = new LinkedList();
+    this.linkedList = new LinkedList()
   }
 
-  /**
-   * @return {boolean}
-   */
-  isEmpty() {
+  private linkedList: LinkedList<T>
+
+  public isEmpty(): boolean {
     return !this.linkedList.head;
   }
 
-  /**
-   * Read the element at the front of the queue without removing it.
-   * @return {*}
-   */
-  peek() {
+  public peek() {
     if (!this.linkedList.head) {
       return null;
     }
@@ -28,31 +25,16 @@ export default class Queue {
     return this.linkedList.head.value;
   }
 
-  /**
-   * Add a new element to the end of the queue (the tail of the linked list).
-   * This element will be processed after all elements ahead of it.
-   * @param {*} value
-   */
-  enqueue(value) {
-    this.linkedList.append(value);
+  public enqueue(value: LinkedListNode<T>) {
+    this.linkedList.append(value)
   }
 
-  /**
-   * Remove the element at the front of the queue (the head of the linked list).
-   * If the queue is empty, return null.
-   * @return {*}
-   */
-  dequeue() {
+  public dequeue() {
     const removedHead = this.linkedList.deleteHead();
     return removedHead ? removedHead.value : null;
   }
 
-  /**
-   * @param [callback]
-   * @return {string}
-   */
-  toString(callback) {
-    // Return string representation of the queue's linked list.
+  public toString(callback: (value: LinkedListNode<T>) => string) {
     return this.linkedList.toString(callback);
   }
 }

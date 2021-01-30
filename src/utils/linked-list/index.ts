@@ -1,27 +1,30 @@
-import LinkedListNode from './LinkedListNode';
-import Comparator from '../comparator';
+/**
+ * code from the 'https://github.com/trekhleb/javascript-algorithms' thanks
+ */
 
-export default class LinkedList<T, K> {
+import Node from './LinkedListNode';
+import Comparator from '../comparator'
 
-  constructor(comparatorFunction: K) {
-    this.head = null;
+export const LinkedListNode = Node
+
+export default class LinkedList<T> {
+
+  constructor(comparatorFunction?: <K=Node<T>>(a: K, b: K) => 0 | 1 | -1) {
+    this.head = null
 
     this.tail = null
 
     this.compare = new Comparator(comparatorFunction)
   }
 
+  tail: Node<T> | null
+  head: Node<T> | null
+  compare: Comparator<Node<T>>
 
-  tail: LinkedListNode<T> | null
-  head: LinkedListNode<T> | null
-  compare: Comparator
-
-  public prepend(value: T) {
-    // Make new node to be a head.
-    const newNode = new LinkedListNode<T>(value, this.head)
+  public prepend(value: Node<T>) {
+    const newNode = new Node<T>(value, this.head)
     this.head = newNode
 
-    // If there is no tail yet let's make new node a tail.
     if (!this.tail) {
       this.tail = newNode;
     }
@@ -29,10 +32,9 @@ export default class LinkedList<T, K> {
     return this;
   }
 
-  public append(value) {
-    const newNode = new LinkedListNode(value);
+  public append(value: Node<T>) {
+    const newNode = new Node(value);
 
-    // If there is no head yet let's make new node a head.
     if (!this.head) {
       this.head = newNode;
       this.tail = newNode;
@@ -40,31 +42,27 @@ export default class LinkedList<T, K> {
       return this;
     }
 
-    // Attach new node to the end of linked list.
-    this.tail.next = newNode;
+    this.tail!.next = newNode;
     this.tail = newNode;
 
     return this;
   }
 
-  public delete(value) {
+  public delete(value: Node<T>) {
     if (!this.head) {
       return null;
     }
 
-    let deletedNode = null;
+    let deletedNode: Node<T> | null = null;
 
-    // If the head must be deleted then make next node that is differ
-    // from the head to be a new head.
     while (this.head && this.compare.equal(this.head.value, value)) {
       deletedNode = this.head;
       this.head = this.head.next;
     }
 
-    let currentNode = this.head;
+    let currentNode: Node<T> | null = this.head;
 
     if (currentNode !== null) {
-      // If next node must be deleted then make next node to be a next next one.
       while (currentNode.next) {
         if (this.compare.equal(currentNode.next.value, value)) {
           deletedNode = currentNode.next;
@@ -75,28 +73,25 @@ export default class LinkedList<T, K> {
       }
     }
 
-    // Check if tail must be deleted.
-    if (this.compare.equal(this.tail.value, value)) {
+    if (this.compare.equal(this.tail!.value, value)) {
       this.tail = currentNode;
     }
 
     return deletedNode;
   }
 
-  public find({ value = undefined, callback = undefined }) {
+  public find({ value = undefined, callback = undefined }: { value?: Node<T>, callback?: (value: Node<T>) => boolean }) {
     if (!this.head) {
       return null;
     }
 
-    let currentNode = this.head;
+    let currentNode: Node<T> | null = this.head;
 
     while (currentNode) {
-      // If callback is specified then try to find node by callback.
       if (callback && callback(currentNode.value)) {
         return currentNode;
       }
 
-      // If value is specified then try to compare by value..
       if (value !== undefined && this.compare.equal(currentNode.value, value)) {
         return currentNode;
       }
@@ -111,18 +106,14 @@ export default class LinkedList<T, K> {
     const deletedTail = this.tail;
 
     if (this.head === this.tail) {
-      // There is only one node in linked list.
       this.head = null;
       this.tail = null;
 
       return deletedTail;
     }
 
-    // If there are many nodes in linked list...
-
-    // Rewind to the last node and delete "next" link for the node before the last one.
     let currentNode = this.head;
-    while (currentNode.next) {
+    while (currentNode?.next) {
       if (!currentNode.next.next) {
         currentNode.next = null;
       } else {
@@ -152,7 +143,7 @@ export default class LinkedList<T, K> {
     return deletedHead;
   }
 
-  public fromArray(values) {
+  public fromArray(values: Node<T>[]) {
     values.forEach((value) => this.append(value));
 
     return this;
@@ -170,7 +161,7 @@ export default class LinkedList<T, K> {
     return nodes;
   }
 
-  public toString(callback) {
+  public toString(callback: (value: Node<T>) => string) {
     return this.toArray().map((node) => node.toString(callback)).toString();
   }
 

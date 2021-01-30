@@ -1,2 +1,0 @@
-import ComLink from 'comlink'
-

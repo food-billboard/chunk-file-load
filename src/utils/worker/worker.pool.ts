@@ -1,43 +1,43 @@
 import { merge } from 'lodash'
 import { Remote, wrap } from 'comlink'
 import Queue from '../queue'
-import Worker, { Reader } from './file.worker'
-import { TEvents, TWraperFile } from '../../upload/index.d'
+import Worker, { Tasker } from './file.worker'
+import { TWrapperTask } from '../../upload/index.d'
 
 export type TProcess = {
   id: string
   busy: boolean
-  task?: TEvents<TWraperFile>
+  task?: TWrapperTask
   worker?: any
 }
 
-export type TWorkerMessageType = 'close' | 'post' | 'log4upload' | 'result' | 'log4read'
+// export type TWorkerMessageType = 'close' | 'post' | 'log4upload' | 'result' | 'log4read'
 
-type TCloseData = undefined
-type TPostData = ArrayBuffer
-type TLogUploadData = {
-  current: number
-  precent: number
-  total: number
-  current_size: number
-  total_size: number
-}
-type TLoadReadData = {
+// type TCloseData = undefined
+// type TPostData = ArrayBuffer
+// type TLogUploadData = {
+//   current: number
+//   precent: number
+//   total: number
+//   current_size: number
+//   total_size: number
+// }
+// type TLoadReadData = {
 
-}
-type TResultData = string
+// }
+// type TResultData = string
 
-type TResponseData<T=TCloseData | TPostData | TLogUploadData | TResultData | TLoadReadData> = {
-  threadCode: 0 | 1
-  threadData: {
-    // taskId, 
-    data: T, 
-    // code, 
-    // msg
-  }
-  threadMsg:  string
-  channel: 'close' | 'post' | 'log4upload' | 'result' | 'log4read' | 'pong'
-}
+// type TResponseData<T=TCloseData | TPostData | TLogUploadData | TResultData | TLoadReadData> = {
+//   threadCode: 0 | 1
+//   threadData: {
+//     // taskId, 
+//     data: T, 
+//     // code, 
+//     // msg
+//   }
+//   threadMsg:  string
+//   channel: 'close' | 'post' | 'log4upload' | 'result' | 'log4read' | 'pong'
+// }
 
 const inspectIntervalTime = 10 * 1000
 
@@ -49,17 +49,18 @@ class WorkerPool {
     return WorkerPool.process.find(procs => procs.id == id) || null
   }
 
-  private static readonly QUEUE = new Queue()
+  private static readonly QUEUE = new Queue<TWrapperTask>()
 
-  private static inspectThreads() {
+  private static async inspectThreads() {
     if (WorkerPool.process.length > 0) {
-      WorkerPool.process.forEach(thread => {
-        console.info(`Inspection thread ${thread.id} starts.`);
-        thread.worker.postMessage({
-          channel: 'ping',
-          data: { id: thread.id }
-        })
-      })
+      for(let i = 0; i < WorkerPool.process.length; i ++) {
+        const thread = WorkerPool.process[i]
+        console.info(`Inspection thread ${thread.id} starts.`)
+        const res = await thread.worker?.ping()
+        if(res != 'pong') {
+          WorkerPool.worker_clean(thread.id)
+        }
+      }
     }
   }
 
@@ -78,7 +79,7 @@ class WorkerPool {
 
   //线程创建
   private static async createThread (id: string): Promise<TProcess> {
-    const worker: Remote<any> = wrap<Reader>(new (Worker as any)())
+    const worker: Remote<any> = wrap<Tasker>(new (Worker as any)())
     const instance = await new (worker as any)()
     return {
       worker: instance,
@@ -91,16 +92,16 @@ class WorkerPool {
   private static process:TProcess[] = WorkerPool.initProcessPool()
 
   //入队
-  public enqueue(...tasks: TEvents<TWraperFile>[]) {
+  public enqueue(...tasks: TWrapperTask[]): Promise<string[]> {
     tasks.forEach(task => {
-      WorkerPool.QUEUE.enqueue(task)
+      WorkerPool.QUEUE.enqueue(task as any)
     })
     return this.taskDeal()
   }
 
   //出队
-  public dequeue(): TEvents<TWraperFile> {
-    return this.dequeue()
+  public dequeue(): TWrapperTask | null {
+    return (WorkerPool.QUEUE.dequeue() as any) || null
   }
 
   //线程是否在工作中
@@ -140,7 +141,7 @@ class WorkerPool {
     for(let i = 0; i < process.length; i ++) {
       if(WorkerPool.QUEUE.isEmpty()) return []
 
-      const task: TEvents<TWraperFile> = this.dequeue()
+      const task = this.dequeue() as TWrapperTask
 
       const { worker, id } = process[i]
       let newProcess: TProcess  = merge(process[i], { busy: false, task })
@@ -157,8 +158,12 @@ class WorkerPool {
   }
 
   //线程任务完成
-  public static complete(id: string) {
-
+  public static worker_clean(worker_id: string) {
+    const newProcess = WorkerPool.setProcessInfo({
+      id: worker_id,
+      busy: false
+    })
+    return newProcess?.worker?.clean()
   } 
 
 }

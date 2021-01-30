@@ -8,8 +8,15 @@ import { wrap, proxy } from 'comlink'
 
 const worker = wrap(new Workers())
 
+const request = () => {
+  return {
+    a: function() {},
+    b: function() { console.log(111111) }
+  }
+}
+
 new worker().then(data => {
-  console.log(data.compile())
+  console.log(data.compile(proxy(request)))
 })
 
 function File({ onClick, ...nextProps }) {

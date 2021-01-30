@@ -1,8 +1,203 @@
+import Reader from '../reader'
+import WorkerPool from '../worker/worker.pool'
+import { ECACHE_STATUS } from '../constant'
+import { TProcessLifeCycle, TWrapperTask, TSetState, TExitDataFnReturnValue, TUploadFormData } from '../../upload/index.d'
+import { TProcess } from '../worker/worker.pool'
 
-export default class Uploader {
+export default class Uploader extends Reader {
 
-  constructor() {
-    
+  constructor(setState: TSetState, process: TProcessLifeCycle) {
+    super(setState, process)
   }
 
-}
+  public async addFile(worker_id: string): Promise<string> {
+    if(!this.tasks.includes(worker_id)) {
+      this.tasks.push(worker_id)
+      return this.start(worker_id)
+    }
+    return Promise.reject('task not found')
+  }
+
+  public async start(worker_id: string): Promise<any> {
+
+    const process = WorkerPool.getProcess(worker_id)
+    if(!process) {
+      this.clean(worker_id)
+      return Promise.reject('process not found')
+    }
+    const task = process.task!
+
+    await this.exitDataFn(task)
+    .then(res => this.uploadFn(res, process ))
+
+  }
+
+  private getUnCompleteIndexs(task: TWrapperTask, response: TExitDataFnReturnValue): number[] {
+    const { data } = response
+    const { file: { size }, config: { chunkSize }, symbol } = task
+    const chunksLength = Math.ceil(size / chunkSize)
+    let unComplete = []
+
+    const parseNumber = (target: string | number):number => {
+      return typeof target === 'string' ? parseInt(target) : Number(target.toFixed(0))
+    }
+
+    if(Array.isArray(data)) {
+      unComplete = data
+      .filter(ind => {
+        const index = parseNumber(ind)
+        return !Number.isNaN(index) && chunksLength > index
+      })
+    }else {
+      let nextIndex = parseNumber(data)
+      nextIndex = Number.isNaN(nextIndex) || nextIndex > size ? 0 : nextIndex
+      let offset = nextIndex / chunkSize
+      if(Math.round(offset) == offset) {
+        unComplete = new Array(chunksLength - offset).fill(0).map((_, ind) => ind + offset)
+      }else {
+        unComplete = new Array(chunksLength).fill(0).map((_, index) => index)
+      }
+
+    }
+
+    this.setState(symbol, {
+      file: {
+        unComplete
+      }
+    })
+
+    return unComplete
+
+  }
+
+  //文件存在验证
+  private async exitDataFn(task: TWrapperTask) {
+    const { symbol, config: { chunkSize }, file: { size, mime, name, md5 }, request: { exitDataFn } } = task
+
+    await this.emitter('beforeCheck', {
+      name: symbol,
+      task: task,
+      status: ECACHE_STATUS.uploading
+    })
+
+    if(typeof exitDataFn !== 'function') return { data: [] }
+
+    const params = {
+      filename: name ?? '',
+      md5: md5!,
+      suffix: mime || '',
+      size,
+      chunkSize,
+      chunksLength: Math.ceil(size / chunkSize)
+    }
+    return exitDataFn(params)
+  }
+
+  //文件上传
+  private async uploadFn(res: TExitDataFnReturnValue, process: TProcess) {
+    /**
+     * 列表展示为未上传的部分
+     * data: {
+     *  list: [每一分片的索引]
+     * } | nextIndex 下一分片索引
+     */
+    const { data, ...nextRes } = res || {}
+    const { task } = process
+    const unComplete = this.getUnCompleteIndexs(task!, res)
+    const isExists = !unComplete.length
+    const { symbol } = task!
+
+    await this.emitter('afterCheck', {
+      name: symbol,
+      status: ECACHE_STATUS.uploading,
+      isExists
+    })
+
+    const lifecycleParams = {
+      name: symbol,
+      status: ECACHE_STATUS.uploading,
+      isExists
+    }
+
+    if(!isExists) {
+      return this.upload(process)
+      .then(() => this.emitter('beforeComplete', lifecycleParams))
+      .then(() => {
+        return this.completeFn({ task: task!, response: res })
+      })
+    }
+    else {
+      return this.emitter('beforeComplete', lifecycleParams)
+      .then(_ => nextRes) 
+    }
+  }
+
+  //分片上传
+  private async upload(process: TProcess): Promise<any> {
+
+    const { task, worker } = process
+
+    const { symbol, file: { md5, chunks, unComplete, size }, request: { uploadFn }, config: { chunkSize } } = task!
+    let newUnUploadChunks = [...unComplete]
+    const total = Math.ceil(size / chunkSize)
+
+    for(let i = 0; i < chunks.length; i ++) {
+
+      let currentIndex = newUnUploadChunks.indexOf(i)
+    
+      if(!!~currentIndex) {
+        newUnUploadChunks.splice(currentIndex, 1)
+        const chunk = await worker.getChunk(i)
+        const params: TUploadFormData = {
+          file: chunk,
+          md5: md5!,
+          index: i,
+        }
+
+        let formData: FormData | TUploadFormData
+        if(typeof FormData !== 'undefined') {
+          formData = new FormData()
+          Object.keys(params).forEach((key: string) => {
+            (formData as FormData).append(key, params[key])
+          })
+        }else {
+          formData = params
+        }
+
+        const response = await uploadFn(formData)
+        if(!!response) {
+          newUnUploadChunks = this.getUnCompleteIndexs(task!, response)
+        }
+        this.setState(symbol, {
+          file: {
+            unComplete: newUnUploadChunks
+          }
+        })
+        
+        await this.emitter('uploading', {
+          name: symbol,
+          status: ECACHE_STATUS.uploading,
+          current: i,
+          total,
+          complete: total - newUnUploadChunks.length
+        })
+
+      }
+    }
+
+    return Promise.resolve()
+
+  }
+
+  //文件上传完成
+  private async completeFn({ task, response }: { task: TWrapperTask, response: TExitDataFnReturnValue }) {
+    const { file: { md5 }, symbol, request: { completeFn } } = task
+    return typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }) : Promise.resolve(response)
+    .then(_ => this.emitter('afterComplete', {
+      success: true,
+      name: symbol,
+      status: ECACHE_STATUS.fulfilled
+    }))
+  }
+
+} 

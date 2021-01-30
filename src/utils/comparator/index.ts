@@ -1,19 +1,16 @@
-export default class Comparator {
-  /**
-   * @param {function(a: *, b: *)} [compareFunction] - It may be custom compare function that, let's
-   * say may compare custom objects together.
-   */
-  constructor(compareFunction) {
-    this.compare = compareFunction || Comparator.defaultCompareFunction;
+/**
+ * code from the 'https://github.com/trekhleb/javascript-algorithms' thanks
+ */
+
+export default class Comparator<T=number> {
+
+  constructor(compareFunction?: <T>(a: T, b: T) => 0 | 1 | -1 ) {
+    this.compare = compareFunction || Comparator.defaultCompareFunction
   }
 
-  /**
-   * Default comparison function. It just assumes that "a" and "b" are strings or numbers.
-   * @param {(string|number)} a
-   * @param {(string|number)} b
-   * @returns {number}
-   */
-  static defaultCompareFunction(a, b) {
+  compare = Comparator.defaultCompareFunction
+
+  public static defaultCompareFunction<T>(a: T, b: T) {
     if (a === b) {
       return 0;
     }
@@ -21,61 +18,28 @@ export default class Comparator {
     return a < b ? -1 : 1;
   }
 
-  /**
-   * Checks if two variables are equal.
-   * @param {*} a
-   * @param {*} b
-   * @return {boolean}
-   */
-  equal(a, b) {
+  public equal(a: T, b: T): boolean {
     return this.compare(a, b) === 0;
   }
 
-  /**
-   * Checks if variable "a" is less than "b".
-   * @param {*} a
-   * @param {*} b
-   * @return {boolean}
-   */
-  lessThan(a, b) {
+  public lessThan(a: T, b: T): boolean {
     return this.compare(a, b) < 0;
   }
 
-  /**
-   * Checks if variable "a" is greater than "b".
-   * @param {*} a
-   * @param {*} b
-   * @return {boolean}
-   */
-  greaterThan(a, b) {
+  public greaterThan(a: T, b: T): boolean {
     return this.compare(a, b) > 0;
   }
 
-  /**
-   * Checks if variable "a" is less than or equal to "b".
-   * @param {*} a
-   * @param {*} b
-   * @return {boolean}
-   */
-  lessThanOrEqual(a, b) {
+  public lessThanOrEqual(a: T, b: T): boolean {
     return this.lessThan(a, b) || this.equal(a, b);
   }
 
-  /**
-   * Checks if variable "a" is greater than or equal to "b".
-   * @param {*} a
-   * @param {*} b
-   * @return {boolean}
-   */
-  greaterThanOrEqual(a, b) {
+  public greaterThanOrEqual(a: T, b: T): boolean {
     return this.greaterThan(a, b) || this.equal(a, b);
   }
 
-  /**
-   * Reverses the comparison order.
-   */
-  reverse() {
+  public reverse() {
     const compareOriginal = this.compare;
-    this.compare = (a, b) => compareOriginal(b, a);
+    this.compare = <T>(a: T, b: T) => compareOriginal(b, a);
   }
 }
