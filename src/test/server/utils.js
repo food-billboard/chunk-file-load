@@ -5,7 +5,7 @@ function getExtName(name) {
     return path.extname(name)
 }
 
-function getUploadFileFolder(filename, folderPath='upload') {
+function getUploadFileFolder(filename='', folderPath='upload') {
     //文件分片总目录
     const entryPath = path.join(__dirname, folderPath)
     //不存在则直接创建

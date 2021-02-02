@@ -1,13 +1,16 @@
 import Reader from '../reader'
 import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS } from '../constant'
-import { TProcessLifeCycle, TWrapperTask, TSetState, TExitDataFnReturnValue, TUploadFormData } from '../../upload/index.d'
+import { TProcessLifeCycle, TWrapperTask, TSetState, TGetState, TExitDataFnReturnValue, TUploadFormData } from '../../upload/index.d'
 import { TProcess } from '../worker/worker.pool'
 
 export default class Uploader extends Reader {
 
-  constructor(setState: TSetState, process: TProcessLifeCycle) {
-    super(setState, process)
+  constructor(emitter: {
+    setState: TSetState
+    getState: TGetState
+  }, process: TProcessLifeCycle) {
+    super(emitter, process)
   }
 
   public async addFile(worker_id: string): Promise<string> {
@@ -25,10 +28,10 @@ export default class Uploader extends Reader {
       this.clean(worker_id)
       return Promise.reject('process not found')
     }
-    const task = process.task!
+    const [ , task ] = this.emitter.getState(process.task!)
 
-    await this.exitDataFn(task)
-    .then(res => this.uploadFn(res, process ))
+    await this.exitDataFn(task!)
+    .then(res => this.uploadFn(res, process))
 
   }
 
@@ -60,7 +63,7 @@ export default class Uploader extends Reader {
 
     }
 
-    this.setState(symbol, {
+    this.emitter.setState(symbol, {
       file: {
         unComplete
       }
@@ -74,7 +77,7 @@ export default class Uploader extends Reader {
   private async exitDataFn(task: TWrapperTask) {
     const { symbol, config: { chunkSize }, file: { size, mime, name, md5 }, request: { exitDataFn } } = task
 
-    await this.emitter('beforeCheck', {
+    await this.lifecycle('beforeCheck', {
       name: symbol,
       task: task,
       status: ECACHE_STATUS.uploading
@@ -102,12 +105,12 @@ export default class Uploader extends Reader {
      * } | nextIndex 下一分片索引
      */
     const { data, ...nextRes } = res || {}
-    const { task } = process
+    const [, task] = this.emitter.getState(process?.task!)
     const unComplete = this.getUnCompleteIndexs(task!, res)
     const isExists = !unComplete.length
     const { symbol } = task!
 
-    await this.emitter('afterCheck', {
+    await this.lifecycle('afterCheck', {
       name: symbol,
       status: ECACHE_STATUS.uploading,
       isExists
@@ -121,13 +124,13 @@ export default class Uploader extends Reader {
 
     if(!isExists) {
       return this.upload(process)
-      .then(() => this.emitter('beforeComplete', lifecycleParams))
+      .then(() => this.lifecycle('beforeComplete', lifecycleParams))
       .then(() => {
         return this.completeFn({ task: task!, response: res })
       })
     }
     else {
-      return this.emitter('beforeComplete', lifecycleParams)
+      return this.lifecycle('beforeComplete', lifecycleParams)
       .then(_ => nextRes) 
     }
   }
@@ -135,13 +138,14 @@ export default class Uploader extends Reader {
   //分片上传
   private async upload(process: TProcess): Promise<any> {
 
-    const { task, worker } = process
+    const { task: taskName, worker } = process
+    const [, task] = this.emitter.getState(taskName!)
 
-    const { symbol, file: { md5, chunks, unComplete, size }, request: { uploadFn }, config: { chunkSize } } = task!
+    const { symbol, file: { md5, unComplete, size }, request: { uploadFn }, config: { chunkSize } } = task!
     let newUnUploadChunks = [...unComplete]
     const total = Math.ceil(size / chunkSize)
 
-    for(let i = 0; i < chunks.length; i ++) {
+    for(let i = 0; i < total; i ++) {
 
       let currentIndex = newUnUploadChunks.indexOf(i)
     
@@ -168,13 +172,13 @@ export default class Uploader extends Reader {
         if(!!response) {
           newUnUploadChunks = this.getUnCompleteIndexs(task!, response)
         }
-        this.setState(symbol, {
+        this.emitter.setState(symbol, {
           file: {
             unComplete: newUnUploadChunks
           }
         })
         
-        await this.emitter('uploading', {
+        await this.lifecycle('uploading', {
           name: symbol,
           status: ECACHE_STATUS.uploading,
           current: i,
@@ -193,7 +197,7 @@ export default class Uploader extends Reader {
   private async completeFn({ task, response }: { task: TWrapperTask, response: TExitDataFnReturnValue }) {
     const { file: { md5 }, symbol, request: { completeFn } } = task
     return typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }) : Promise.resolve(response)
-    .then(_ => this.emitter('afterComplete', {
+    .then(_ => this.lifecycle('afterComplete', {
       success: true,
       name: symbol,
       status: ECACHE_STATUS.fulfilled

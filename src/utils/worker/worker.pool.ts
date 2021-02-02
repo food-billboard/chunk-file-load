@@ -1,5 +1,5 @@
 import { merge } from 'lodash'
-import { Remote, wrap } from 'comlink'
+import { Remote, wrap, releaseProxy } from 'comlink'
 import Queue from '../queue'
 import Worker, { Tasker } from './file.worker'
 import { TWrapperTask } from '../../upload/index.d'
@@ -7,8 +7,9 @@ import { TWrapperTask } from '../../upload/index.d'
 export type TProcess = {
   id: string
   busy: boolean
-  task?: TWrapperTask
+  task?: Symbol
   worker?: any
+  release?: () => void
 }
 
 // export type TWorkerMessageType = 'close' | 'post' | 'log4upload' | 'result' | 'log4read'
@@ -55,7 +56,6 @@ class WorkerPool {
     if (WorkerPool.process.length > 0) {
       for(let i = 0; i < WorkerPool.process.length; i ++) {
         const thread = WorkerPool.process[i]
-        console.info(`Inspection thread ${thread.id} starts.`)
         const res = await thread.worker?.ping()
         if(res != 'pong') {
           WorkerPool.worker_clean(thread.id)
@@ -85,6 +85,7 @@ class WorkerPool {
       worker: instance,
       id,
       busy: false,
+      release: () => worker[releaseProxy]()
     }
   }
 
@@ -92,7 +93,7 @@ class WorkerPool {
   private static process:TProcess[] = WorkerPool.initProcessPool()
 
   //入队
-  public enqueue(...tasks: TWrapperTask[]): Promise<string[]> {
+  public enqueue(...tasks: Symbol[]): Promise<string[]> {
     tasks.forEach(task => {
       WorkerPool.QUEUE.enqueue(task as any)
     })
@@ -100,7 +101,7 @@ class WorkerPool {
   }
 
   //出队
-  public dequeue(): TWrapperTask | null {
+  public dequeue(): Symbol | null {
     return (WorkerPool.QUEUE.dequeue() as any) || null
   }
 
@@ -111,7 +112,7 @@ class WorkerPool {
       return !!worker?.busy
     }
     if(WorkerPool.process.length < WorkerPool.PROCESS_LIMIT) return false
-    return WorkerPool.process.some(worker => !worker.busy)
+    return !WorkerPool.process.some(worker => !worker.busy)
   }
 
   //未繁忙的线程
@@ -139,9 +140,9 @@ class WorkerPool {
     const process = WorkerPool.getUnBusyProcess()
     
     for(let i = 0; i < process.length; i ++) {
-      if(WorkerPool.QUEUE.isEmpty()) return []
+      if(WorkerPool.QUEUE.isEmpty()) break
 
-      const task = this.dequeue() as TWrapperTask
+      const task = this.dequeue() as Symbol
 
       const { worker, id } = process[i]
       let newProcess: TProcess  = merge(process[i], { busy: false, task })

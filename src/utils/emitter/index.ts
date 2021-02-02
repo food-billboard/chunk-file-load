@@ -8,7 +8,7 @@ export default class Emitter {
 
   public tasks: TWrapperTask[] = []
 
-  public getTask(name: Symbol):[number, TWrapperTask | null] {
+  public getTask(name: Symbol): [number, TWrapperTask | null] {
     const index = this.tasks.findIndex(task => task.symbol === name)
     return !!~index ? [ index, this.tasks[index] ] : [ -1, null ]
   }
@@ -36,21 +36,25 @@ export default class Emitter {
           action: Reader.ACTION_TYPE.FILE,
           mime: mime ? mime : (file as File).type,
         })
+        break
       case 'blob':
         baseFileInfo = merge(baseFileInfo, {
           size: (file as Blob)?.size ?? 0,
           action: Reader.ACTION_TYPE.FILE,
         })
+        break
       case 'arraybuffer':
         baseFileInfo = merge(baseFileInfo, {
           size: (file as ArrayBuffer)?.byteLength ?? 0,
           action: Reader.ACTION_TYPE.BUFFER
         })
+        break
       case 'string':
         baseFileInfo = merge(baseFileInfo, {
           size: base64Size(file as string),
           action: Reader.ACTION_TYPE.BASE64
         })
+        break
       default:
         
     }
@@ -100,7 +104,8 @@ export default class Emitter {
       }
 
       if(this.taskValid(newTask)) {
-        acc.push(this.generateTask(newTask))
+        newTask = this.generateTask(newTask)
+        acc.push(newTask)
         names.push(newTask.symbol)
       }
       return acc
@@ -118,7 +123,6 @@ export default class Emitter {
       const [ index, task ] = this.getTask(name)
       if(task?.status === ECACHE_STATUS.pending && task?.symbol === name) {
         this.statusChange(ECACHE_STATUS.waiting, index)
-        console.log('查看是否修改了状态变成了waiting' + task.status)
         tasks.push(task)
       }
     })
@@ -167,7 +171,7 @@ export default class Emitter {
     this.tasks = []
   }
 
-  public setState(name: Symbol, value: SuperPartial<TWrapperTask>={}): TWrapperTask {
+  public setState = (name: Symbol, value: SuperPartial<TWrapperTask>={}): TWrapperTask => {
     const [ index, task ] = this.getTask(name)
     this.tasks[index] = merge(task, value)
     return this.tasks[index]

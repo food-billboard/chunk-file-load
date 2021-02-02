@@ -3,22 +3,6 @@ import { BaseUpload as Upload } from '~/index.ts'
 import Axios from 'axios'
 import './index.css'
 
-import Workers from './test.worker'
-import { wrap, proxy } from 'comlink'
-
-const worker = wrap(new Workers())
-
-const request = () => {
-  return {
-    a: function() {},
-    b: function() { console.log(111111) }
-  }
-}
-
-new worker().then(data => {
-  console.log(data.compile(proxy(request)))
-})
-
 function File({ onClick, ...nextProps }) {
   return (
     <div {...nextProps} onClick={onClick} className="input">点击上传</div>
@@ -64,12 +48,10 @@ export default class extends Component {
   errorRef
 
   //验证存在
-  exitDataFn(data) {
+  async exitDataFn(data) {
     const size = data.size
     return Axios.get('/api/check', {
-      params: {
-        ...data
-      }
+      params: data
     })
     .then(data => {
       const res = data.data.res
@@ -79,7 +61,7 @@ export default class extends Component {
   }
 
   //上传
-  uploadFn = (data) => {
+  uploadFn = async (data) => {
     const { name } = this.state
     if(!!name) {
       this.setState({
@@ -172,111 +154,107 @@ export default class extends Component {
       const that = this
       fileReader.onload = function(e) {
         that.upload.upload({
-          file: e.target.result,
-          mime: file.type,
-          exitDataFn: that.exitDataFn,
-          uploadFn: that.uploadFn,
-          completeFn: (...values) => {
-            that.completeFn(...values)
-          },
-          callback: that.callback,
           lifecycle: {
-            reading({ name, task, start, end }) {
-              console.log('loading: ', start, '-', end)
+            reading({ name, task, current, total }) {
+              console.log('loading: ', current, 'total', total)
             }
+          },
+          file: {
+            file: e.target.result,
+            mime: file.type,
+          },
+          request: {
+            exitDataFn: that.exitDataFn,
+            uploadFn: that.uploadFn,
+            completeFn: (...values) => {
+              that.completeFn(...values)
+            },
+            callback: (err, value) => {
+              that.callback(err, value)
+              that.setState({
+                single: null
+              })
+            },
           }
-        })
-        .then(_ => {
-          that.setState({
-            single: null
-          })
-        })
-        .catch(_ => {
-          that.setState({
-            single: null
-          })
         })
       }
       fileReader.readAsDataURL(file)
     }else if(activeSelect == '1') {
       this.upload.upload({
-        file,
-        exitDataFn: this.exitDataFn,
-        uploadFn: this.uploadFn,
-        completeFn: (...values) => {
-          this.completeFn(...values)
+        file: {
+          file,
         },
-        callback: this.callback,
+        request: {
+          exitDataFn: this.exitDataFn,
+          uploadFn: this.uploadFn,
+          completeFn: (...values) => {
+            this.completeFn(...values)
+          },
+          callback: (err, value) => {
+            that.callback(err, value)
+            that.setState({
+              single: null
+            })
+          },
+        },
         lifecycle: {
-          reading({ name, task, start, end }) {
-            console.log('loading: ', start, '-', end)
+          reading({ name, task, current, total }) {
+            console.log('loading: ', current, 'total', total)
           }
         }
-      })
-      .then(_ => {
-        this.setState({
-          single: null
-        })
-      })
-      .catch(_ => {
-        this.setState({
-          single: null
-        })
       })
     }else if(activeSelect == '2') {
       this.upload.upload({
-        file: file.slice(0, file.size),
-        mime: file.type,
-        exitDataFn: this.exitDataFn,
-        uploadFn: this.uploadFn,
-        completeFn: (...values) => {
-          this.completeFn(...values)
+        file: {
+          file: file.slice(0, file.size),
+          mime: file.type,
         },
-        callback: this.callback,
+        request: {
+          exitDataFn: this.exitDataFn,
+          uploadFn: this.uploadFn,
+          completeFn: (...values) => {
+            this.completeFn(...values)
+          },
+          callback: (err, value) => {
+            that.callback(err, value)
+            that.setState({
+              single: null
+            })
+          },
+        },
         lifecycle: {
-          reading({ name, task, start, end }) {
-            console.log('loading: ', start, '-', end)
+          reading({ name, task, current, total }) {
+            console.log('loading: ', current, 'total', total)
           }
         }
-      })
-      .then(_ => {
-        this.setState({
-          single: null
-        })
-      })
-      .catch(_ => {
-        this.setState({
-          single: null
-        })
       })
     }else {
       const fileReader = new FileReader()
       const that = this
       fileReader.onload = function(e) {
         that.upload.upload({
-          file: e.target.result,
-          mime: file.type,
-          exitDataFn: that.exitDataFn,
-          uploadFn: that.uploadFn,
-          completeFn: (...values) => {
-            that.completeFn(...values)
+          file: {
+            file: e.target.result,
+            mime: file.type,
           },
-          callback: that.callback,
+          request: {
+            exitDataFn: that.exitDataFn,
+            uploadFn: that.uploadFn,
+            completeFn: (...values) => {
+              that.completeFn(...values)
+            },
+            callback: (err, value) => {
+              that.callback(err, value)
+              that.setState({
+                single: null
+              })
+            },
+          },
           lifecycle: {
-            reading({ name, task, start, end }) {
-              console.log('loading: ', start, '-', end)
+            reading({ name, task, current, total }) {
+              console.log('loading: ', current, 'total', total)
             }
           }
-        })
-        .then(_ => {
-          that.setState({
-            single: null
-          })
-        })
-        .catch(_ => {
-          that.setState({
-            single: null
-          })
         })
       }
       fileReader.readAsArrayBuffer(file)
@@ -294,35 +272,28 @@ export default class extends Component {
       completeFn: (...values) => {
         this.completeFn(...values)
       },
-      callback: this.callback
+      callback: (err, value) => {
+        this.callback(err, value)
+        this.setState({
+          multiple: null
+        })
+      },
     }
     this.setState({
       multiple: files
     })
-    console.log(Array.isArray(files))
     this.upload.upload(files.map(file => {
         return {
           ...common,
           file
         }
     }))
-    .then(_ => {
-      this.setState({
-        multiple: null
-      })
-    })
-    .catch(_ => {
-      this.setState({
-        multiple: null
-      })
-    })
   }
 
   //控制上传
   handleControlFileUpload = (e) => {
     if(this.state.control) return
     const file = e.target.files[0]
-    console.log(file)
     const [name] = this.upload.on({
       file,
       exitDataFn: this.exitDataFn,
@@ -330,7 +301,13 @@ export default class extends Component {
       completeFn: (...values) => {
         this.completeFn(...values)
       },
-      callback: this.callback
+      callback: (err, value) => {
+        this.callback(err, value)
+        this.setState({
+          control: null,
+          name: null
+        })
+      },
     })
     this.setState({
       name,
@@ -343,18 +320,6 @@ export default class extends Component {
     const { control, name } = this.state
     if(!control || !name) return
     this.upload.emit(name)
-    .then(_ => {
-      this.setState({
-        control: null,
-        name: null
-      })
-    })
-    .catch(_ => {
-      this.setState({
-        control: null,
-        name: null
-      })
-    })
   }
 
   //错误自动重试上传
@@ -365,32 +330,29 @@ export default class extends Component {
       error: file
     })
     const result = await this.upload.upload({
-      file,
-      exitDataFn: this.exitDataFn,
-      uploadFn: this.uploadFn,
-      completeFn: (...values) => {
-        this.completeFn(...values)
+      file: {
+        file
       },
-      callback: this.callback,
+      request: {
+        exitDataFn: this.exitDataFn,
+        uploadFn: this.uploadFn,
+        completeFn: (...values) => {
+          this.completeFn(...values)
+        },
+        callback: (err, value) => {
+          this.callback(err, value)
+          this.setState({
+            error: null,
+            name: null,
+          })
+        },
+      },
       config: {
         retry: {
           times: 3
         },
       }
     })
-    .then(_ => {
-      this.setState({
-        error: null,
-        name: null,
-      })
-    })
-    .catch(_ => {
-      this.setState({
-        error: null,
-        name: null,
-      })
-    })
-    console.log(result)
   }
 
   render = () => {

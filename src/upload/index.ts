@@ -26,8 +26,12 @@ export default class Upload {
   }) {
     if(!Upload.isSupport()) throw new Error('this tool must be support for the ArrayBuffer')
     this.init()
-    this.reader = new Reader(this.emitter.setState, this.LIFECYCLE_EMIT)
-    this.uploader = new Uploader(this.emitter.setState, this.LIFECYCLE_EMIT)
+    const emitter = {
+      setState: this.emitter.setState,
+      getState: this.emitter.getTask.bind(this.emitter)
+    }
+    this.reader = new Reader(emitter, this.LIFECYCLE_EMIT)
+    this.uploader = new Uploader(emitter, this.LIFECYCLE_EMIT)
     this.lifecycle.onWithObject(options?.lifecycle || {})
     this.wokerPool = new WorkerPool()
   }
@@ -55,7 +59,7 @@ export default class Upload {
   //执行任务
   public emit(...names: Symbol[]) {
     const tasks = this.emitter.emit(...names)
-    this.performanceTask(...tasks.map(task => {
+    this.performanceTask(tasks.map(task => {
       const { lifecycle, symbol } = task
       this.lifecycle.onWithObject(lifecycle || {}, symbol) 
       return task
@@ -121,13 +125,14 @@ export default class Upload {
   }
 
   //任务执行
-  private performanceTask(...tasks: TWrapperTask[]) {
-    this.wokerPool.enqueue(...tasks)
+  private performanceTask(tasks: TWrapperTask[]) {
+    this.wokerPool.enqueue(...tasks.map(task => task.symbol))
     .then(processes => {
       return allSettled(processes.map(async (process: string) => {
         const target = WorkerPool.getProcess(process)
-        const task = target!.task
-        const { request: { callback }, status, symbol, config: { retry } } = task!
+        const taskName = target!.task
+        const [ , task ] = this.emitter.getTask(taskName!)
+        const { request: { callback }, status, symbol, config: { retry }, lifecycle } = task!
         return this.reader.addFile(process)
         .then(_ => this.uploader.addFile(process))
         .then(_ => {
@@ -139,7 +144,6 @@ export default class Upload {
         })
         .catch(err => {
           console.warn(err)
-          WorkerPool.worker_clean(process)
           const response = {
             error: err,
             name: symbol,
@@ -168,6 +172,7 @@ export default class Upload {
           return response
         })
         .then(async (response) => {
+          WorkerPool.worker_clean(process)
           const { error, name, remove } = response
           let callbackError = null
           let needRetry = error && retry.times > 0
@@ -188,6 +193,7 @@ export default class Upload {
             }
           }
           callback && callback(callbackError, name)
+          this.lifecycle.onWithObject(lifecycle, name, 'off')
           if(remove) {
             this.emitter.off(symbol)
           }else if(needRetry && !!callbackError?.retry) {

@@ -71,10 +71,8 @@ export default class LifeCycle {
     ],
   }
 
-  private wrapper(lifecycle: keyof TLifecycle, eventFunc: Function) {
-
+  private wrapper(_/*licycle_name 暂时无用*/: keyof TLifecycle, eventFunc: Function) {
     return async function(params: any) {
-      console.info(`${lifecycle} performancing!`, params)
       let state: SuperPartial<TWrapperTask> & { error: boolean } = {
         error: false
       }
@@ -94,7 +92,6 @@ export default class LifeCycle {
   public onWithObject(events: {
     [P in keyof TLifecycle]: TLifecycle[P]
   }, name: Symbol | null=null, action: TActionType='on') {
-
     Object.entries(events).forEach(event => {
       const [ eventName, eventFunc ] = event
       this.on(eventName as keyof TLifecycle, eventFunc as TLifecycle, name, action)
@@ -110,18 +107,22 @@ export default class LifeCycle {
 
   public on(eventName: keyof TLifecycle, eventFunc: TLifecycle, name: Symbol | null, action: TActionType='on') {
     if(typeof eventName !== 'string' || typeof eventFunc !== 'function') return 
-    if(!!this.lifecycleMap[eventName]) return 
-    const index = this.lifecycleMap[eventName].findIndex((item: any) => item.key == name && item.action == eventFunc)
-    
-    let lifecycleState = {
-      key: name,
-      action: this.wrapper(eventName, eventFunc),
-      counter: PERFORMANCE_COUNTER_MAP[action]
-    }
-    if(!!~index) {
-      this.lifecycleMap[eventName].splice(index, 1, lifecycleState)
+    if(!this.lifecycleMap[eventName]) return 
+    const index = this.lifecycleMap[eventName].findIndex((item: any) => item.key == name)
+
+    if(action === 'off' || action === 'removeListener') {
+      this.lifecycleMap[eventName].splice(index, 1)
     }else {
-      this.lifecycleMap[eventName].push(lifecycleState)
+      let lifecycleState = {
+        key: name,
+        action: this.wrapper(eventName, eventFunc),
+        counter: PERFORMANCE_COUNTER_MAP[action]
+      }
+      if(!!~index) {
+        this.lifecycleMap[eventName].splice(index, 1, lifecycleState)
+      }else {
+        this.lifecycleMap[eventName].push(lifecycleState)
+      }
     }
 
   }

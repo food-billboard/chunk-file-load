@@ -150,3 +150,4 @@ import { ECACHE_STATUS } from '../utils/constant'
   }
 
   export type TSetState = (name: Symbol, value: SuperPartial<TWrapperTask>) => TWrapperTask
+  export type TGetState = (name: Symbol) => [ number, TWrapperTask | null ]
