@@ -1,7 +1,6 @@
-import { merge } from 'lodash'
+import { merge, mergeWith } from 'lodash'
 import { flat, isObject, base64Size } from '../tool'
-import Reader from '../reader'
-import { DEFAULT_CONFIG, ECACHE_STATUS } from '../constant'
+import { DEFAULT_CONFIG, ECACHE_STATUS, EActionType } from '../constant'
 import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial } from '../../upload/index.d'
 
 export default class Emitter {
@@ -25,7 +24,7 @@ export default class Emitter {
       size: 0,
       name: '',
       file: file || null,
-      action: Reader.ACTION_TYPE.MD5,
+      action: EActionType.MD5,
     }, unWrapperFile)
 
     switch(fileType.toLowerCase().trim()) {
@@ -33,26 +32,26 @@ export default class Emitter {
         baseFileInfo = merge(baseFileInfo, {
           size: (file as File)?.size ?? 0,
           name: (file as File)?.name ?? null,
-          action: Reader.ACTION_TYPE.FILE,
+          action: EActionType.FILE,
           mime: mime ? mime : (file as File).type,
         })
         break
       case 'blob':
         baseFileInfo = merge(baseFileInfo, {
           size: (file as Blob)?.size ?? 0,
-          action: Reader.ACTION_TYPE.FILE,
+          action: EActionType.FILE,
         })
         break
       case 'arraybuffer':
         baseFileInfo = merge(baseFileInfo, {
           size: (file as ArrayBuffer)?.byteLength ?? 0,
-          action: Reader.ACTION_TYPE.BUFFER
+          action: EActionType.BUFFER
         })
         break
       case 'string':
         baseFileInfo = merge(baseFileInfo, {
           size: base64Size(file as string),
-          action: Reader.ACTION_TYPE.BASE64
+          action: EActionType.BASE64
         })
         break
       default:
@@ -171,9 +170,15 @@ export default class Emitter {
     this.tasks = []
   }
 
+  private customerMergeMethod = (objValue: TWrapperTask, srcValue: SuperPartial<TWrapperTask>): any => {
+    if (Array.isArray(objValue) && Array.isArray(srcValue)) {
+      return mergeWith(objValue.slice(0, srcValue.length), srcValue, this.customerMergeMethod)
+    }
+  }
+
   public setState = (name: Symbol, value: SuperPartial<TWrapperTask>={}): TWrapperTask => {
     const [ index, task ] = this.getTask(name)
-    this.tasks[index] = merge(task, value)
+    this.tasks[index] = mergeWith(task, value, this.customerMergeMethod)
     return this.tasks[index]
   }
 

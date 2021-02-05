@@ -1,10 +1,11 @@
 import SparkMD5 from 'spark-md5'
 import { transfer } from 'comlink'
 import { noop, merge } from 'lodash'
-import { base64ToArrayBuffer, base64Size, isMd5 } from '../tool'
+import { base64ToArrayBuffer, isMd5 } from '../tool'
 import WorkerPool, { TProcess } from '../worker/worker.pool'
 import { TWrapperTask, TProcessLifeCycle } from '../../upload/index.d'
 import { ECACHE_STATUS } from '../constant'
+import { BlobSlicer, ArrayBufferSlicer, FilesSlicer } from '../slicer'
 
 export default class {
 
@@ -15,29 +16,39 @@ export default class {
 
   worker: TProcess | null
 
+  protected workerExists(): boolean {
+    return !!this.worker
+  }
+
+  protected async read(buffer: ArrayBuffer) {
+    return this.worker!.worker.read(transfer(buffer, [buffer]))
+  }
+
+  protected async readEnd() {
+    return this.worker!.worker.readEnd()
+  }
+
   public async blob(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
 
     const { file: { size, file }, config: { chunkSize }, symbol } = task
     const that = this
 
     let currentChunk:number = 0,
-      fileReader:FileReader = new FileReader(),
       totalChunks: number = Math.ceil(size / chunkSize),
-      spark!:SparkMD5.ArrayBuffer,
-      fileSlice: (start: number, end: number) => Blob = File.prototype.slice
+      spark!:SparkMD5.ArrayBuffer
+    const blobSlicer = new BlobSlicer(file as Blob)
+    const workerExists = this.workerExists()
 
     return new Promise(async (resolve, reject) => {
 
       function getSparkMethod() {
 
-        if(!that.worker) {
+        if(!workerExists) {
           if(!spark) spark = new SparkMD5.ArrayBuffer()
   
-          return async function(e: any) {
-  
-            if(!e.target) return reject('读取错误')
+          return async function(buffer: ArrayBuffer) {
             //添加读取的内容
-            spark.append(e.target.result)
+            spark.append(buffer)
             currentChunk ++
             //继续读取
             if(currentChunk < totalChunks) {
@@ -53,13 +64,10 @@ export default class {
           }
         }
   
-        return async function(e: any) {
-  
-          if(!e.target) return reject('读取错误')
-            //添加读取的内容
-            const buffer = e.target.result
+        return async function(buffer: ArrayBuffer) {
+
             try {
-              await that.worker!.worker.read(transfer(buffer, [buffer]))
+              await that.read(buffer)
             }catch(err) {
               return reject(err)
             }
@@ -71,25 +79,23 @@ export default class {
             }
             //读取完毕
             else {
-              resolve(that.worker!.worker.readEnd())
+              resolve(that.readEnd())
             }
 
         }
     
       }
 
-      fileReader.onload = getSparkMethod()
-
-      //错误处理
-      fileReader.onerror = reject
+      const sparkMethod = getSparkMethod()
 
       //文件内容读取
       async function loadNext() {
         let start: number = currentChunk * chunkSize,
-          end: number = currentChunk + 1 === totalChunks ? size : (currentChunk + 1) * chunkSize
-        const chunks: Blob = fileSlice.call(file, start, end)
+          end: number = currentChunk + 1 === totalChunks ? size : (currentChunk + 1) * chunkSize,
+          chunks: ArrayBuffer
 
         try {
+          chunks = await blobSlicer.slice(start, end) as ArrayBuffer
           await process('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
@@ -98,11 +104,11 @@ export default class {
             total: size
             // chunk: chunks
           })
+          await sparkMethod(chunks)
         }catch(err) {
           reject(err)
         }
 
-        fileReader.readAsArrayBuffer(chunks)
       }
 
       await loadNext()
@@ -120,12 +126,13 @@ export default class {
     let currentChunk:number = 0,
       totalChunks: number = Math.ceil(size / chunkSize),
       spark!:SparkMD5.ArrayBuffer,
-      bufferSlice: (start: number, end: number) => ArrayBuffer = ArrayBuffer.prototype.slice,
       getSparkMethod: (data: ArrayBuffer) => Promise<void>
+    const arraybufferSlicer = new ArrayBufferSlicer(file as ArrayBuffer)
+    const workerExists = this.workerExists()
 
     return new Promise(async (resolve, reject) => {
 
-      if(!that.worker) {
+      if(!workerExists) {
         if(!spark) spark = new SparkMD5.ArrayBuffer()
         getSparkMethod = async (data) => {
           //添加读取的内容
@@ -139,10 +146,10 @@ export default class {
         }
       }else {
         getSparkMethod = async (data) => {
-          await that.worker!.worker.read(transfer(data, [data]))
+          await that.read(data)
           //读取完毕
           if(currentChunk >= totalChunks) {
-            resolve(that.worker!.worker.readEnd())
+            resolve(that.readEnd())
           }
         }
       }
@@ -150,12 +157,12 @@ export default class {
       while(currentChunk < totalChunks) {
         let start: number = currentChunk * chunkSize,
           end: number = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize
-        const chunks: ArrayBuffer = bufferSlice.call(file, start, end)
-  
-        currentChunk ++
   
         try {
+          const chunks: ArrayBuffer = await arraybufferSlicer.slice(start, end)
+          currentChunk ++
           await getSparkMethod(chunks)
+
           await process('reading', {
             name: symbol,
             current: start,
@@ -183,12 +190,14 @@ export default class {
 
   public async files(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
 
-    const { file: { chunks, md5 }, symbol } = task
+    const { file: { chunks, md5 }, symbol, config: { chunkSize } } = task
 
-    let fileReader:FileReader
     let spark: SparkMD5.ArrayBuffer
     let completeChunks:number = 0
     let totalChunks = chunks!.length
+    const filesSlicer = new FilesSlicer()
+    const total = chunkSize * chunks.length
+    const workerExists = this.workerExists()
 
     let append: (data: ArrayBuffer) => Promise<void> | void
 
@@ -200,7 +209,7 @@ export default class {
 
       if(isMd5(md5!)) {
         append = noop
-      }else if(!this.worker) {
+      }else if(!workerExists) {
         append = (data: ArrayBuffer) => {
           if(!spark) spark = new SparkMD5.ArrayBuffer()
           spark.append(data)
@@ -210,9 +219,9 @@ export default class {
         }
       }else {
         append = async (data: ArrayBuffer) => {
-          await this.worker!.worker.read(transfer(data, [data]))
+          await this.read(data)
           if(currentChunk >= totalChunks) {
-            resolve(this.worker!.worker.readEnd())
+            resolve(this.readEnd())
           }
         }
       }
@@ -221,48 +230,18 @@ export default class {
 
         currentChunk = i
         const chunk = chunks![i]
-        let size!: number
-        let data: any = false
-        if(typeof chunk === 'string') {
-          try {
-            size = base64Size(chunk)
-            data = base64ToArrayBuffer(chunk)
-          }catch(err) {
-            return reject(err)
-          }
-        }else if(chunk instanceof ArrayBuffer) {
-          try {
-            size = chunk.byteLength
-            data = chunk
-          }catch(err) {
-            return reject(err)
-          }
-        }else {
-          if(!fileReader) fileReader = new FileReader()
-          try {
-            if(chunk instanceof File || chunk instanceof Blob) {
-              size = chunk.size
-              fileReader.readAsArrayBuffer(chunk)
-              await new Promise((resolve, _) => {
-                fileReader.onload = function(e: any) {
-                  data = e.target.result
-                  resolve(null)
-                }
-              })
-            }
-          }catch(err) {
-            return reject(err)
-          }
-        }
   
         try {
+          const data = await filesSlicer.slice(chunk)
+          let size: number = data.byteLength
           await append(data)
+          completeChunks += (Number.isNaN(size) ? 0 : size)
           await process('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
             start: completeChunks,
             // end: completeChunks += (Number.isNaN(size) ? 0 : size),
-            total: size,
+            total, //暂时无法知道总的文件大小
             // chunk: new Blob([data])
           })
         }catch(err) {
@@ -270,8 +249,6 @@ export default class {
         }
 
       }
-
-      
 
     })
 

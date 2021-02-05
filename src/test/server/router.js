@@ -39,13 +39,14 @@ router.get('/api/check', async(ctx) => {
             cache[md5]['status'] = 'complete'
             result = false
         }else {
-            result = getChunkList(md5).map(item => item.split('-')[1])
+            result = getChunkList(md5).map(item => parseInt(item.split('-')[1]))
         }
+        result = !!result ? new Array(parseInt(chunksLength)).fill(0).map((_, index) => index).filter((item, index) => !result.includes(item)) : result
 
         ctx.body = JSON.stringify({
             success: true,
             res: {
-                data: !!result ? new Array(chunksLength).fill(0).map((_, index) => index).filter((_, index) => !result.includes(index)) : result
+                data: result
             }
         })
     }

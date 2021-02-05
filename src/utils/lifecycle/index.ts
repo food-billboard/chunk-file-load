@@ -30,7 +30,7 @@ export default class LifeCycle {
     }> } = {
     beforeRead: [],
     reading: [
-      merge(BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total }: { current: number, total: number }) {
+      merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total }: { current: number, total: number }) {
         return {
           process: {
             current,
@@ -43,7 +43,7 @@ export default class LifeCycle {
     beforeCheck: [],
     afterCheck: [],
     uploading: [
-      merge(BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total, complete }: { current: number, total: number, complete: number }) {
+      merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total, complete }: { current: number, total: number, complete: number }) {
         return {
           process: {
             current,
@@ -58,7 +58,7 @@ export default class LifeCycle {
     afterComplete: [],
     afterStop: [],
     retry: [
-      merge(BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ rest }: { rest: number }) {
+      merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ rest }: { rest: number }) {
         return {
           config: {
             retry: {

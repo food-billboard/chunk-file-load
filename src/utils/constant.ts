@@ -11,6 +11,13 @@ enum ECACHE_STATUS {
   stopping = -1,
 }
 
+enum EActionType {
+  MD5,
+  FILE,
+  BUFFER,
+  BASE64
+}
+
 const DEFAULT_CONFIG = {
   chunkSize: MAX_FILE_CHUNK
 }
@@ -20,5 +27,6 @@ Object.seal(DEFAULT_CONFIG)
 export {
   MAX_FILE_CHUNK,
   ECACHE_STATUS,
-  DEFAULT_CONFIG
+  DEFAULT_CONFIG,
+  EActionType
 }

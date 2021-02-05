@@ -1,4 +1,4 @@
-import { ECACHE_STATUS } from '../utils/constant'
+import { ECACHE_STATUS, EActionType } from '../utils/constant'
 
   export type TFailEmitReturnType = {
     reason: any
@@ -103,7 +103,7 @@ import { ECACHE_STATUS } from '../utils/constant'
     _cp_: boolean
     size: number
     name?: string
-    action: any
+    action: EActionType
     unComplete: number[]
   }
 

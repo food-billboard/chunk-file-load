@@ -5,11 +5,23 @@ import LifeCycle from '../utils/lifecycle'
 import WorkerPool from '../utils/worker/worker.pool'
 import Uploader from '../utils/uploader'
 import { allSettled } from '../utils/tool'
-
 import { TLifecycle, Ttask, TFileType, TWrapperTask, TProcessLifeCycle, SuperPartial } from './index.d'
 import { ECACHE_STATUS } from '../utils/constant'
 
 export default class Upload {
+
+  protected static plugins: { [key: string]: any } = {
+    reader: undefined,
+    upload: undefined,
+    slice: undefined
+  }
+
+  public static install<T=any>(name: string, descriptor: T) {
+    if (!Upload.plugins) {
+      Upload.plugins = {}
+    }
+    Upload.plugins[name] = descriptor
+  }
 
   private lifecycle: LifeCycle = new LifeCycle()
 
@@ -69,7 +81,8 @@ export default class Upload {
 
   //执行任务
   public start(...names: Symbol[]) {
-    return this.emitter.emit(...names)
+    names.forEach(name => this.emitter.statusChange(ECACHE_STATUS.pending, name))
+    return this.emit(...names)
   }
 
   //取消绑定的任务
@@ -78,12 +91,12 @@ export default class Upload {
   }
 
   //停止任务执行
-  public stop(...names: Symbol[]) {
+  public stop(...names: Symbol[]): Symbol[] {
     return this.emitter.stop(...names)
   }
 
   //取消任务执行
-  public cancel(...names: Symbol[]) {
+  public cancel(...names: Symbol[]): Symbol[] {
     return this.emitter.stop(...names)
   }
 
@@ -118,10 +131,22 @@ export default class Upload {
     
   }
 
+  //获取任务
+  public getTask(name: Symbol): TWrapperTask | null {
+    const [ , task ] = this.emitter.getTask(name)
+    return task
+  }
+
   //获取原始文件
   public getOriginFile(name: Symbol): TFileType | null {
-    const [ , file ] = this.emitter.getTask(name)
-    return file?.file?.file || null
+    const task = this.getTask(name)
+    return task?.file?.file || null
+  }
+
+  //任务状态
+  public getStatus(name: Symbol): ECACHE_STATUS | null {
+    const task = this.getTask(name)
+    return task?.status || null
   }
 
   //任务执行
@@ -132,7 +157,7 @@ export default class Upload {
         const target = WorkerPool.getProcess(process)
         const taskName = target!.task
         const [ , task ] = this.emitter.getTask(taskName!)
-        const { request: { callback }, status, symbol, config: { retry }, lifecycle } = task!
+        const { request: { callback }, symbol, config: { retry }, lifecycle } = task!
         return this.reader.addFile(process)
         .then(_ => this.uploader.addFile(process))
         .then(_ => {
@@ -150,23 +175,10 @@ export default class Upload {
             remove: false
           }
 
+          const { status } = task!
+
           if(status !== ECACHE_STATUS.stopping && status !== ECACHE_STATUS.cancel) {
             this.emitter.setState(symbol, { status: ECACHE_STATUS.rejected })
-          }
-          if(status === ECACHE_STATUS.stopping) {
-            this.LIFECYCLE_EMIT('afterStop', {
-              name: symbol,
-              status: ECACHE_STATUS.stopping,
-              current: task!.process.current
-            })
-          }
-          if(status === ECACHE_STATUS.cancel) {
-            this.LIFECYCLE_EMIT('afterCancel', {
-              name: symbol,
-              status: ECACHE_STATUS.cancel,
-              current: task!.process.current
-            })
-            return merge(response, { remove: true })
           }
 
           return response
@@ -208,15 +220,54 @@ export default class Upload {
   private LIFECYCLE_EMIT: TProcessLifeCycle = async (lifecycle, params) => {
     const { name, status } = params
     const [ , task ] = this.emitter.getTask(name)
+    const { status: originStatus, symbol } = task!
     let state: SuperPartial<TWrapperTask> = {
       status
     }
     if(!task) return Promise.reject('not found the task')
-    const response = await this.lifecycle.emit(lifecycle, params)
-    if((response as any) instanceof Object) {
-      state = merge(state, response)
+    let error: unknown = false
+    let response
+    try {
+      response = await this.lifecycle.emit(lifecycle, { ...params, task })
+      if((response as any) instanceof Object) {
+        state = merge(state, response)
+      }
+    }catch(err) {
+      error = err
+    }finally {
+      if(originStatus === ECACHE_STATUS.stopping || originStatus === ECACHE_STATUS.cancel) {
+        if(originStatus === ECACHE_STATUS.stopping) {
+          try {
+            await this.lifecycle.emit('afterStop', {
+              name: symbol,
+              status: ECACHE_STATUS.stopping,
+              current: task!.process.current,
+              task
+            })
+          }catch(err) {}
+          error = 'stop'
+        }
+        if(originStatus === ECACHE_STATUS.cancel) {
+          try {
+            await this.lifecycle.emit('afterStop', {
+              name: symbol,
+              status: ECACHE_STATUS.cancel,
+              current: task!.process.current,
+              task
+            })
+          }catch(err) {}
+
+          error = 'cancel'
+        }
+        state.status = originStatus
+      }
+
+      this.emitter.setState(name, state)
+
+      if(error) {
+        return Promise.reject(error)
+      } 
     }
-    this.emitter.setState(name, state)
   }
 
 }

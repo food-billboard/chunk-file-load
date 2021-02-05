@@ -37,6 +37,14 @@ export class Tasker {
     this.init()
   }
 
+  public close() {
+    self.close()
+  }
+
+  public cacheExists(length?: number) {
+    return !!this.cache.length && ( typeof length === 'number' ? this.cache.length === length : true )
+  }
+
 }
 
 expose(Tasker)

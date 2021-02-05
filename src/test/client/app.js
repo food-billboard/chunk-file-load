@@ -20,7 +20,8 @@ export default class extends Component {
     control: null,
     error: null,
     progress: 0,
-    name: null
+    name: null,
+    stop: false
   }
 
   select = [
@@ -64,12 +65,14 @@ export default class extends Component {
   uploadFn = async (data) => {
     const { name } = this.state
     if(!!name) {
+      const progress = this.upload.watch(name)[0]['progress'] * 100
       this.setState({
-        progress: this.upload.watch(name)[0]['progress'] * 100
+        progress
       })
     }
     return Axios.post('/api/load', data)
     .then(data => data.data.res)
+    .then(_ => undefined)
   } 
 
   //回调
@@ -167,7 +170,7 @@ export default class extends Component {
             exitDataFn: that.exitDataFn,
             uploadFn: that.uploadFn,
             completeFn: (...values) => {
-              that.completeFn(...values)
+              return that.completeFn(...values)
             },
             callback: (err, value) => {
               that.callback(err, value)
@@ -188,7 +191,7 @@ export default class extends Component {
           exitDataFn: this.exitDataFn,
           uploadFn: this.uploadFn,
           completeFn: (...values) => {
-            this.completeFn(...values)
+            return this.completeFn(...values)
           },
           callback: (err, value) => {
             that.callback(err, value)
@@ -213,11 +216,11 @@ export default class extends Component {
           exitDataFn: this.exitDataFn,
           uploadFn: this.uploadFn,
           completeFn: (...values) => {
-            this.completeFn(...values)
+            return this.completeFn(...values)
           },
           callback: (err, value) => {
-            that.callback(err, value)
-            that.setState({
+            this.callback(err, value)
+            this.setState({
               single: null
             })
           },
@@ -267,17 +270,24 @@ export default class extends Component {
     if(this.state.multiple) return
     const files = Object.values(e.target.files)
     const common = {
-      exitDataFn: this.exitDataFn,
-      uploadFn: this.uploadFn,
-      completeFn: (...values) => {
-        this.completeFn(...values)
+      request: {
+        exitDataFn: this.exitDataFn,
+        uploadFn: this.uploadFn,
+        completeFn: (...values) => {
+          this.completeFn(...values)
+        },
+        callback: (err, value) => {
+          this.callback(err, value)
+          this.setState({
+            multiple: null
+          })
+        },
       },
-      callback: (err, value) => {
-        this.callback(err, value)
-        this.setState({
-          multiple: null
-        })
-      },
+      lifecycle: {
+        reading({ name, task, current, total }) {
+          console.log('loading: ', current, 'total', total)
+        }
+      }
     }
     this.setState({
       multiple: files
@@ -285,7 +295,10 @@ export default class extends Component {
     this.upload.upload(files.map(file => {
         return {
           ...common,
-          file
+          file: {
+            file,
+            mime: file.type,
+          }
         }
     }))
   }
@@ -295,19 +308,29 @@ export default class extends Component {
     if(this.state.control) return
     const file = e.target.files[0]
     const [name] = this.upload.on({
-      file,
-      exitDataFn: this.exitDataFn,
-      uploadFn: this.uploadFn,
-      completeFn: (...values) => {
-        this.completeFn(...values)
+      file: {
+        file,
+        mime: file.type
       },
-      callback: (err, value) => {
-        this.callback(err, value)
-        this.setState({
-          control: null,
-          name: null
-        })
+      request: {
+        exitDataFn: this.exitDataFn,
+        uploadFn: this.uploadFn,
+        completeFn: (...values) => {
+          this.completeFn(...values)
+        },
+        callback: (err, value) => {
+          this.callback(err, value)
+          this.setState({
+            control: null,
+            name: null
+          })
+        },
       },
+      lifecycle: {
+        reading({ name, task, current, total }) {
+          console.log('loading: ', current, 'total', total)
+        }
+      }
     })
     this.setState({
       name,
@@ -320,6 +343,38 @@ export default class extends Component {
     const { control, name } = this.state
     if(!control || !name) return
     this.upload.emit(name)
+  }
+
+  //暂停
+  handleStop = () => {
+    const { stop, name, control } = this.state
+    if(!control || !name) return
+    if(stop) {
+      this.upload.start(name)
+    }else {
+      this.upload.stop(name)
+    }
+    this.setState({
+      stop: !stop
+    })
+  }
+
+  handleCancel = () => {
+    const { control, name } = this.state
+    if(!control || !name) return
+    const status = this.upload.getStatus(name)
+    if(status == 0) {
+      this.upload.cancelEmit(name)
+      console.log('清除任务')
+    }else {
+      this.upload.cancel(name)
+      console.log('取消任务')
+    }
+    this.upload.cancel()
+    this.setState({
+      control: null,
+      name: null
+    })
   }
 
   //错误自动重试上传
@@ -357,7 +412,7 @@ export default class extends Component {
 
   render = () => {
 
-    const { activeSelect, progress } = this.state
+    const { activeSelect, progress, stop } = this.state
 
     return (
       <div className="upload">
@@ -395,7 +450,11 @@ export default class extends Component {
             <div>
               <input ref={ref => this.controlRef = ref} type="file" onChange={this.handleControlFileUpload} />
               <File onClick={() => this.controlRef.click()}></File>
-              <span className="button" onClick={this.handleUpload}>点我上传</span>
+            </div>
+            <div style={{marginTop: 20}}>
+              <span className="button" style={{marginRight: 20}} onClick={this.handleUpload}>点我上传</span>
+              <span className="button stop" style={{marginRight: 20}} onClick={this.handleStop}>{stop ? '继续' : '暂停'}(在解析中暂停需要从头开始解析)</span>
+              <span className="button" onClick={this.handleCancel}>取消(取消后无法继续上传)</span>
               <div className="progress">
                 <p style={{width:`${progress}%`}}></p>
               </div>

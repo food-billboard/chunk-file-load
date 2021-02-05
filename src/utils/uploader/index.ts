@@ -3,6 +3,7 @@ import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS } from '../constant'
 import { TProcessLifeCycle, TWrapperTask, TSetState, TGetState, TExitDataFnReturnValue, TUploadFormData } from '../../upload/index.d'
 import { TProcess } from '../worker/worker.pool'
+import { FilesSlicer } from '../slicer'
 
 export default class Uploader extends Reader {
 
@@ -16,9 +17,8 @@ export default class Uploader extends Reader {
   public async addFile(worker_id: string): Promise<string> {
     if(!this.tasks.includes(worker_id)) {
       this.tasks.push(worker_id)
-      return this.start(worker_id)
     }
-    return Promise.reject('task not found')
+    return this.start(worker_id)
   }
 
   public async start(worker_id: string): Promise<any> {
@@ -79,7 +79,6 @@ export default class Uploader extends Reader {
 
     await this.lifecycle('beforeCheck', {
       name: symbol,
-      task: task,
       status: ECACHE_STATUS.uploading
     })
 
@@ -113,7 +112,7 @@ export default class Uploader extends Reader {
     await this.lifecycle('afterCheck', {
       name: symbol,
       status: ECACHE_STATUS.uploading,
-      isExists
+      isExists,
     })
 
     const lifecycleParams = {
@@ -141,9 +140,27 @@ export default class Uploader extends Reader {
     const { task: taskName, worker } = process
     const [, task] = this.emitter.getState(taskName!)
 
-    const { symbol, file: { md5, unComplete, size }, request: { uploadFn }, config: { chunkSize } } = task!
+    const { symbol, file: { md5, unComplete, size, file }, request: { uploadFn }, config: { chunkSize } } = task!
     let newUnUploadChunks = [...unComplete]
     const total = Math.ceil(size / chunkSize)
+
+    //get chunk method
+    let getChunkMethod: (index: number) => Promise<Blob>
+    const workerExists = await worker?.cacheExists(total)
+    if(workerExists) {
+      getChunkMethod = async (index) => {
+        return worker.getChunk(index)
+      }
+    }else {
+      const slicer = new FilesSlicer()
+      getChunkMethod = async (index) => {
+        const start = index * chunkSize
+        let end = start + chunkSize
+        end = end >= size ? size : end
+        const buffer = await slicer.slice(file, start, end)
+        return new Blob([buffer])
+      }
+    }
 
     for(let i = 0; i < total; i ++) {
 
@@ -151,7 +168,7 @@ export default class Uploader extends Reader {
     
       if(!!~currentIndex) {
         newUnUploadChunks.splice(currentIndex, 1)
-        const chunk = await worker.getChunk(i)
+        const chunk = await getChunkMethod(i)
         const params: TUploadFormData = {
           file: chunk,
           md5: md5!,
@@ -168,6 +185,14 @@ export default class Uploader extends Reader {
           formData = params
         }
 
+        await this.lifecycle('uploading', {
+          name: symbol,
+          status: ECACHE_STATUS.uploading,
+          current: i,
+          total,
+          complete: total - newUnUploadChunks.length,
+        })
+
         const response = await uploadFn(formData)
         if(!!response) {
           newUnUploadChunks = this.getUnCompleteIndexs(task!, response)
@@ -176,14 +201,6 @@ export default class Uploader extends Reader {
           file: {
             unComplete: newUnUploadChunks
           }
-        })
-        
-        await this.lifecycle('uploading', {
-          name: symbol,
-          status: ECACHE_STATUS.uploading,
-          current: i,
-          total,
-          complete: total - newUnUploadChunks.length
         })
 
       }
@@ -200,7 +217,7 @@ export default class Uploader extends Reader {
     .then(_ => this.lifecycle('afterComplete', {
       success: true,
       name: symbol,
-      status: ECACHE_STATUS.fulfilled
+      status: ECACHE_STATUS.fulfilled,
     }))
   }
 

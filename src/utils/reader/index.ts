@@ -1,6 +1,6 @@
 import FileParse from './parse'
 import WorkerPool from '../worker/worker.pool'
-import { ECACHE_STATUS } from '../constant'
+import { ECACHE_STATUS, EActionType } from '../constant'
 import { isMd5 } from '../tool'
 import { TProcessLifeCycle, TSetState, TGetState, TWrapperTask } from '../../upload/index.d'
 
@@ -33,26 +33,18 @@ class FileReader {
     })
   }
 
-  public static readonly ACTION_TYPE = {
-    MD5: "GET_MD5",
-    BASE64: "GET_BASE64_MD5",
-    BUFFER: "GET_BUFFER_MD5",
-    FILE: "GET_FILE_MD5"
-  }
-
   public async addFile(worker_id: string): Promise<string | null> {
     if(!this.tasks.includes(worker_id)) {
       this.tasks.push(worker_id)
-      return this.start(worker_id)
-      .then((md5) => {
-        if(!md5) return null
-        const process = WorkerPool.getProcess(worker_id)
-        const [ , task ] = this.emitter.getState(process?.task!)
-        this.emitter.setState(task!.symbol, { file: { md5 } })
-        return md5
-      })
     }
-    return null
+    return this.start(worker_id)
+    .then((md5) => {
+      if(!md5) return null
+      const process = WorkerPool.getProcess(worker_id)
+      const [ , task ] = this.emitter.getState(process?.task!)
+      this.emitter.setState(task!.symbol, { file: { md5 } })
+      return md5
+    })
   }
 
   //任务执行
@@ -69,7 +61,6 @@ class FileReader {
     try {
       await this.lifecycle('beforeRead', {
         name: task!.symbol,
-        task: task,
         status: ECACHE_STATUS.reading
       })
     }catch(err) {
@@ -80,13 +71,13 @@ class FileReader {
     const action = task!.file.action
     const fileParse = new FileParse(worker_id)
     switch(action) {
-      case 'GET_MD5': 
+      case EActionType.MD5: 
         return this.GET_MD5(task!, fileParse)
-      case 'GET_BASE64_MD5':
+      case EActionType.BASE64:
         return this.GET_BASE64_MD5(task!, fileParse)
-      case 'GET_BUFFER_MD5':
+      case EActionType.BUFFER:
         return this.GET_BUFFER_MD5(task!, fileParse)
-      case 'GET_FILE_MD5':
+      case EActionType.FILE:
         return this.GET_FILE_MD5(task!, fileParse)
       default:
         break

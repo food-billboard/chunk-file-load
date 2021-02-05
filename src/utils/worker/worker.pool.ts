@@ -1,4 +1,4 @@
-import { merge } from 'lodash'
+import { merge, noop } from 'lodash'
 import { Remote, wrap, releaseProxy } from 'comlink'
 import Queue from '../queue'
 import Worker, { Tasker } from './file.worker'
@@ -160,11 +160,20 @@ class WorkerPool {
 
   //线程任务完成
   public static worker_clean(worker_id: string) {
-    const newProcess = WorkerPool.setProcessInfo({
+    const process = WorkerPool.getProcess(worker_id)
+    let baseConfig = {
       id: worker_id,
       busy: false
-    })
-    return newProcess?.worker?.clean()
+    }
+    
+    if(WorkerPool.QUEUE.isEmpty()) {
+      process?.worker?.close()
+      process?.release && process?.release()
+      baseConfig = merge({}, baseConfig, { release: noop, worker: null })
+    }else {
+      process?.worker?.clean()
+    }
+    WorkerPool.setProcessInfo(baseConfig)
   } 
 
 }
