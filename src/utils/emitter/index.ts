@@ -1,7 +1,8 @@
-import { merge, mergeWith } from 'lodash'
+import merge from 'lodash/merge'
+import mergeWith from 'lodash/mergeWith'
 import { flat, isObject, base64Size } from '../tool'
 import { DEFAULT_CONFIG, ECACHE_STATUS, EActionType } from '../constant'
-import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial } from '../../upload/index.d'
+import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial } from '../../upload/type'
 
 export default class Emitter {
 
@@ -10,6 +11,10 @@ export default class Emitter {
   public getTask(name: Symbol): [number, TWrapperTask | null] {
     const index = this.tasks.findIndex(task => task.symbol === name)
     return !!~index ? [ index, this.tasks[index] ] : [ -1, null ]
+  }
+
+  public getTasks() {
+    return this.tasks
   }
 
   //获取文件信息
@@ -89,7 +94,7 @@ export default class Emitter {
     }) as TWrapperTask
   }
 
-  public on(...tasks: Ttask[]): Symbol[] {
+  public add(...tasks: Ttask[]): Symbol[] {
     if(!tasks.length) return []
 
     let names: Symbol[] = []
@@ -116,7 +121,7 @@ export default class Emitter {
     return names
   }
 
-  public emit(...names: Symbol[]): TWrapperTask[] {
+  public deal(...names: Symbol[]): TWrapperTask[] {
     let tasks: TWrapperTask[] = []
     names.forEach(name => {
       const [ index, task ] = this.getTask(name)

@@ -1,17 +1,24 @@
-import SparkMD5 from 'spark-md5'
+import { ArrayBuffer as SparkMD5ArrayBuffer } from 'spark-md5'
 import { transfer } from 'comlink'
-import { noop, merge } from 'lodash'
+import noop from 'lodash/noop'
+import merge from 'lodash/merge'
+import Upload from '../../upload'
+import Proxy from '../proxy'
 import { base64ToArrayBuffer, isMd5 } from '../tool'
 import WorkerPool, { TProcess } from '../worker/worker.pool'
-import { TWrapperTask, TProcessLifeCycle } from '../../upload/index.d'
+import { TWrapperTask } from '../../upload/type'
 import { ECACHE_STATUS } from '../constant'
 import { BlobSlicer, ArrayBufferSlicer, FilesSlicer } from '../slicer'
 
-export default class {
+type TNext = () => Promise<void>
+type TDone = (value: string | PromiseLike<string>) => void
+type TError = (err: any) => void
 
-  constructor(worker_id: string) {
-    const worker = WorkerPool.getProcess(worker_id)
-    this.worker = worker
+export default class extends Proxy {
+
+  constructor(context: Upload, worker_id: string) {
+    super(context)
+    this.worker = WorkerPool.getProcess(worker_id)
   }
 
   worker: TProcess | null
@@ -28,65 +35,60 @@ export default class {
     return this.worker!.worker.readEnd()
   }
 
-  public async blob(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
+  sparkMethod() {
+    const workerExists = this.workerExists()
+    const that = this
+
+    if(workerExists) {
+      const spark = new SparkMD5ArrayBuffer()
+
+      return async function(buffer: ArrayBuffer, { next, done }: { next: TNext | false, done: TDone | false, error: TError }) {
+        //添加读取的内容
+        spark.append(buffer)
+        if(next) {
+          await next()
+        }
+        //读取完毕
+        else if(done){
+          const result = spark.end()
+          spark.destroy()
+          done(result)
+        }
+      }
+    }
+
+    return async function(buffer: ArrayBuffer, { next, done, error }: { next: TNext | false, done: TDone | false, error: TError }) {
+      try {
+        await that.read(buffer)
+      }catch(err) {
+        return error(err)
+      }
+
+      //继续读取
+      if(next) {
+        await next()
+      }
+      //读取完毕
+      else if(done){
+        const result = await that.readEnd()
+        done(result)
+      }
+    }
+
+  }
+
+  public async blob(task: TWrapperTask): Promise<string> {
 
     const { file: { size, file }, config: { chunkSize }, symbol } = task
     const that = this
 
     let currentChunk:number = 0,
-      totalChunks: number = Math.ceil(size / chunkSize),
-      spark!:SparkMD5.ArrayBuffer
-    const blobSlicer = new BlobSlicer(file as Blob)
-    const workerExists = this.workerExists()
+      totalChunks: number = Math.ceil(size / chunkSize)
+    const blobSlicer = new BlobSlicer(this.context, file as Blob)
 
     return new Promise(async (resolve, reject) => {
 
-      function getSparkMethod() {
-
-        if(!workerExists) {
-          if(!spark) spark = new SparkMD5.ArrayBuffer()
-  
-          return async function(buffer: ArrayBuffer) {
-            //添加读取的内容
-            spark.append(buffer)
-            currentChunk ++
-            //继续读取
-            if(currentChunk < totalChunks) {
-              await loadNext()
-            }
-            //读取完毕
-            else {
-              const result = spark.end()
-              spark.destroy()
-              resolve(result)
-            }
-    
-          }
-        }
-  
-        return async function(buffer: ArrayBuffer) {
-
-            try {
-              await that.read(buffer)
-            }catch(err) {
-              return reject(err)
-            }
-
-            currentChunk ++
-            //继续读取
-            if(currentChunk < totalChunks) {
-              await loadNext()
-            }
-            //读取完毕
-            else {
-              resolve(that.readEnd())
-            }
-
-        }
-    
-      }
-
-      const sparkMethod = getSparkMethod()
+      const sparkMethod = that.sparkMethod()
 
       //文件内容读取
       async function loadNext() {
@@ -96,7 +98,7 @@ export default class {
 
         try {
           chunks = await blobSlicer.slice(start, end) as ArrayBuffer
-          await process('reading', {
+          await that.dealLifecycle('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
             current: start,
@@ -104,7 +106,18 @@ export default class {
             total: size
             // chunk: chunks
           })
-          await sparkMethod(chunks)
+          
+          let next: TNext | false = false
+          let done: TDone | false = false
+          let error = reject
+
+          if(++currentChunk < totalChunks) {
+            next = loadNext
+          }else {
+            done = resolve
+          }
+
+          await sparkMethod(chunks, { next, done, error })
         }catch(err) {
           reject(err)
         }
@@ -117,7 +130,7 @@ export default class {
 
   }
 
-  public async arraybuffer(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
+  public async arraybuffer(task: TWrapperTask): Promise<string> {
 
     const that = this
 
@@ -125,118 +138,86 @@ export default class {
 
     let currentChunk:number = 0,
       totalChunks: number = Math.ceil(size / chunkSize),
-      spark!:SparkMD5.ArrayBuffer,
-      getSparkMethod: (data: ArrayBuffer) => Promise<void>
-    const arraybufferSlicer = new ArrayBufferSlicer(file as ArrayBuffer)
-    const workerExists = this.workerExists()
+      sparkMethod = this.sparkMethod()
+    const arraybufferSlicer = new ArrayBufferSlicer(this.context, file as ArrayBuffer)
 
     return new Promise(async (resolve, reject) => {
 
-      if(!workerExists) {
-        if(!spark) spark = new SparkMD5.ArrayBuffer()
-        getSparkMethod = async (data) => {
-          //添加读取的内容
-          spark.append(data)
-          //读取完毕
-          if(currentChunk >= totalChunks) {
-            const result = spark.end()
-            spark.destroy()
-            resolve(result)
-          }
-        }
-      }else {
-        getSparkMethod = async (data) => {
-          await that.read(data)
-          //读取完毕
-          if(currentChunk >= totalChunks) {
-            resolve(that.readEnd())
-          }
-        }
-      }
-
-      while(currentChunk < totalChunks) {
+      async function loadNext() {
         let start: number = currentChunk * chunkSize,
-          end: number = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize
-  
-        try {
-          const chunks: ArrayBuffer = await arraybufferSlicer.slice(start, end)
-          currentChunk ++
-          await getSparkMethod(chunks)
+          end: number = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize,
+          chunks: ArrayBuffer
 
-          await process('reading', {
+        try {
+          chunks = await arraybufferSlicer.slice(start, end)
+          await that.dealLifecycle('reading', {
             name: symbol,
-            current: start,
-            total: size,
-            // end,
             status: ECACHE_STATUS.reading,
-            // chunk: new Blob([chunks])
+            current: start,
+            // end,
+            total: size
+            // chunk: chunks
           })
+          
+          let next: TNext | false = false
+          let done: TDone | false = false
+          let error = reject
+
+          if(++currentChunk < totalChunks) {
+            next = loadNext
+          }else {
+            done = resolve
+          }
+
+          await sparkMethod(chunks, { next, done, error })
         }catch(err) {
           reject(err)
         }
-  
       }
+
+      await loadNext()
 
     })
 
 
   }
 
-  public async base64(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
+  public async base64(task: TWrapperTask): Promise<string> {
     const { file } = task
     const bufferFile = base64ToArrayBuffer(file.file as string)
-    return this.arraybuffer(merge(task, { file: merge(file, { file: bufferFile }) }), process)
+    return this.arraybuffer(merge(task, { file: merge(file, { file: bufferFile }) }))
   }
 
-  public async files(task: TWrapperTask, process: TProcessLifeCycle): Promise<string> {
+  public async files(task: TWrapperTask): Promise<string> {
+
+    const that = this
 
     const { file: { chunks, md5 }, symbol, config: { chunkSize } } = task
 
-    let spark: SparkMD5.ArrayBuffer
     let completeChunks:number = 0
     let totalChunks = chunks!.length
-    const filesSlicer = new FilesSlicer()
+    let currentChunk:number = 0
+    const filesSlicer = new FilesSlicer(this.context)
     const total = chunkSize * chunks.length
-    const workerExists = this.workerExists()
 
-    let append: (data: ArrayBuffer) => Promise<void> | void
+    let sparkMethod = this.sparkMethod()
 
     // blob -> file -> base64
 
     return new Promise(async (resolve, reject) => {
 
-      let currentChunk = 0
-
       if(isMd5(md5!)) {
-        append = noop
-      }else if(!workerExists) {
-        append = (data: ArrayBuffer) => {
-          if(!spark) spark = new SparkMD5.ArrayBuffer()
-          spark.append(data)
-          if(currentChunk >= totalChunks) {
-            resolve(spark.end())
-          }
-        }
-      }else {
-        append = async (data: ArrayBuffer) => {
-          await this.read(data)
-          if(currentChunk >= totalChunks) {
-            resolve(this.readEnd())
-          }
-        }
+        sparkMethod = noop as any
       }
 
-      for(let i = 0; i < totalChunks; i ++) {
+      async function loadNext() {
 
-        currentChunk = i
-        const chunk = chunks![i]
-  
         try {
+          const chunk = chunks![currentChunk]
           const data = await filesSlicer.slice(chunk)
           let size: number = data.byteLength
-          await append(data)
           completeChunks += (Number.isNaN(size) ? 0 : size)
-          await process('reading', {
+          await that.dealLifecycle('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
             start: completeChunks,
@@ -244,11 +225,24 @@ export default class {
             total, //暂时无法知道总的文件大小
             // chunk: new Blob([data])
           })
-        }catch(err) {
-          return reject(err)
-        }
+          
+          let next: TNext | false = false
+          let done: TDone | false = false
+          let error = reject
 
+          if(++currentChunk < totalChunks) {
+            next = loadNext
+          }else {
+            done = resolve
+          }
+
+          await sparkMethod(data, { next, done, error })
+        }catch(err) {
+          reject(err)
+        }
       }
+
+      await loadNext()
 
     })
 

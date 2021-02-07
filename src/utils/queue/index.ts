@@ -34,6 +34,10 @@ export default class Queue<T=any> {
     return removedHead ? removedHead.value : null;
   }
 
+  public find({ value = undefined, callback = undefined }: { value?: LinkedListNode<T>, callback?: (value: LinkedListNode<T>) => boolean }) {
+    return this.linkedList.find({ value, callback })
+  }
+
   public toString(callback: (value: LinkedListNode<T>) => string) {
     return this.linkedList.toString(callback);
   }

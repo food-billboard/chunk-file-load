@@ -1,8 +1,10 @@
-import { merge, noop } from 'lodash'
+import merge from 'lodash/merge'
+import noop from 'lodash/noop'
 import { Remote, wrap, releaseProxy } from 'comlink'
 import Queue from '../queue'
-import Worker, { Tasker } from './file.worker'
-import { TWrapperTask } from '../../upload/index.d'
+import Worker from './file.worker'
+import { Tasker } from './tasker'
+import { TWrapperTask } from '../../upload/type'
 
 export type TProcess = {
   id: string
@@ -12,42 +14,26 @@ export type TProcess = {
   release?: () => void
 }
 
-// export type TWorkerMessageType = 'close' | 'post' | 'log4upload' | 'result' | 'log4read'
-
-// type TCloseData = undefined
-// type TPostData = ArrayBuffer
-// type TLogUploadData = {
-//   current: number
-//   precent: number
-//   total: number
-//   current_size: number
-//   total_size: number
-// }
-// type TLoadReadData = {
-
-// }
-// type TResultData = string
-
-// type TResponseData<T=TCloseData | TPostData | TLogUploadData | TResultData | TLoadReadData> = {
-//   threadCode: 0 | 1
-//   threadData: {
-//     // taskId, 
-//     data: T, 
-//     // code, 
-//     // msg
-//   }
-//   threadMsg:  string
-//   channel: 'close' | 'post' | 'log4upload' | 'result' | 'log4read' | 'pong'
-// }
-
 const inspectIntervalTime = 10 * 1000
 
 //线程池
 class WorkerPool {
 
+  public static support() {
+    try {
+      return !!(typeof window.Worker)
+    }catch(err) {
+      return false
+    }
+  }
+
   public static getProcess(id: string): TProcess | null {
     if(!id) return null
     return WorkerPool.process.find(procs => procs.id == id) || null
+  }
+
+  public static getProcesses():TProcess[] {
+    return WorkerPool.process
   }
 
   private static readonly QUEUE = new Queue<TWrapperTask>()
@@ -65,7 +51,7 @@ class WorkerPool {
   }
 
   //线程池最大数量
-  private static readonly PROCESS_LIMIT = window.navigator.hardwareConcurrency || 4
+  private static readonly PROCESS_LIMIT = window?.navigator.hardwareConcurrency || 4
 
   private static inspectTimer:NodeJS.Timeout
 
@@ -79,14 +65,26 @@ class WorkerPool {
 
   //线程创建
   private static async createThread (id: string): Promise<TProcess> {
-    const worker: Remote<any> = wrap<Tasker>(new (Worker as any)())
-    const instance = await new (worker as any)()
-    return {
-      worker: instance,
+    let baseThread = {
       id,
       busy: false,
-      release: () => worker[releaseProxy]()
     }
+    
+    if(WorkerPool.support()) {
+      const worker: Remote<any> = wrap<Tasker>(new (Worker as any)())
+      const instance = await new (worker as any)()
+      baseThread = merge(baseThread, {
+        worker: instance,
+        release: () => worker[releaseProxy]()
+      })
+    }else {
+      baseThread = merge(baseThread, {
+        worker: new Tasker(),
+        release: noop
+      })
+    }
+
+    return baseThread
   }
 
   //线程池
@@ -103,6 +101,10 @@ class WorkerPool {
   //出队
   public dequeue(): Symbol | null {
     return (WorkerPool.QUEUE.dequeue() as any) || null
+  }
+
+  public static queueIsEmpty() {
+    return WorkerPool.QUEUE.isEmpty()
   }
 
   //线程是否在工作中
@@ -134,13 +136,13 @@ class WorkerPool {
 
   //任务执行
   private async taskDeal(): Promise<string[]> {
-    if(WorkerPool.QUEUE.isEmpty() || WorkerPool.isBusy()) return []
+    if(WorkerPool.queueIsEmpty() || WorkerPool.isBusy()) return []
 
     let workers: string[] = []
     const process = WorkerPool.getUnBusyProcess()
     
     for(let i = 0; i < process.length; i ++) {
-      if(WorkerPool.QUEUE.isEmpty()) break
+      if(WorkerPool.queueIsEmpty()) break
 
       const task = this.dequeue() as Symbol
 
@@ -166,7 +168,7 @@ class WorkerPool {
       busy: false
     }
     
-    if(WorkerPool.QUEUE.isEmpty()) {
+    if(WorkerPool.queueIsEmpty()) {
       process?.worker?.close()
       process?.release && process?.release()
       baseConfig = merge({}, baseConfig, { release: noop, worker: null })

@@ -1,9 +1,7 @@
-import BaseUpload from './upload'
-// import Upload from './upload/weapp'
+import Upload from './upload'
+export * from './upload/type'
 
 export { ECACHE_STATUS, EActionType } from './utils/constant'
-
 export {
-  // Upload,
-  BaseUpload
+  Upload
 }

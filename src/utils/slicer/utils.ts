@@ -1,4 +1,4 @@
-import { TFileType } from '../../upload/index.d'
+import { TFileType } from '../../upload/type'
 import { base64Size } from '../tool'
 
 export function getChunkSize(chunk:TFileType): number {

@@ -1,14 +1,15 @@
-import { TFileType } from '../../upload/index.d'
+import Upload from '../../upload'
+import { TFileType } from '../../upload/type'
 import ArrayBufferSlicer from './arraybuffer'
 import Base64Slicer from './base64'
 import BlobSlicer from './blob'
 
 export default class {
 
-  constructor() {
-    this.base64 = new Base64Slicer()
-    this.blob = new BlobSlicer()
-    this.arraybuffer = new ArrayBufferSlicer()
+  constructor(context: Upload) {
+    this.base64 = new Base64Slicer(context)
+    this.blob = new BlobSlicer(context)
+    this.arraybuffer = new ArrayBufferSlicer(context)
   }
 
   private arraybuffer: ArrayBufferSlicer

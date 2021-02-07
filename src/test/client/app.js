@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { BaseUpload as Upload } from '~/index.ts'
+import { Upload } from '~/index.ts'
 import Axios from 'axios'
 import './index.css'
 
@@ -307,7 +307,7 @@ export default class extends Component {
   handleControlFileUpload = (e) => {
     if(this.state.control) return
     const file = e.target.files[0]
-    const [name] = this.upload.on({
+    const [name] = this.upload.add({
       file: {
         file,
         mime: file.type
@@ -342,7 +342,7 @@ export default class extends Component {
   handleUpload = () => {
     const { control, name } = this.state
     if(!control || !name) return
-    this.upload.emit(name)
+    this.upload.deal(name)
   }
 
   //暂停

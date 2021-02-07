@@ -27,6 +27,7 @@ module.exports = merge(commonConfig, {
     new BundleAnalyzerPlugin(),
   ],
   optimization: {
+    sideEffects: false,
     minimize: true,
     minimizer: [ new TerserPlugin({
       terserOptions: {
@@ -34,6 +35,17 @@ module.exports = merge(commonConfig, {
           warnings: false
         }
       }
-    }) ]
+    }) ],
+    // splitChunks:{
+    //   cacheGroups:{
+    //     vendors:{//node_modules里的代码
+    //       test:/[\\/]node_modules[\\/]/,
+    //       chunks: "initial",
+    //       name:'vendors', //chunks name
+    //       priority:10, //优先级
+    //       enforce:true 
+    //     }
+    //   }
+    // }
   }
 })

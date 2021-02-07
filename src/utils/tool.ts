@@ -139,7 +139,7 @@ export const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
   // const base64Data = (base64 + padding)
   // .replace(/-/g, '+')
   // .replace(/_/g, '/')
-  const base64Data = base64.replace(/^data:image\/.+;base64,/, '')
+  const base64Data = base64.replace(/^data:.+?\/.+;base64,/, '')
   const rawData = window.atob(base64Data)
   const outputArray = new Uint8Array(rawData.length)
 

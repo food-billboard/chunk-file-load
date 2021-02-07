@@ -1,5 +1,6 @@
-import { merge, omit } from 'lodash'
-import { SuperPartial, TLifecycle, TProcessLifeCycle, TWrapperTask } from 'src/upload/index.d'
+import merge from 'lodash/merge'
+import omit from 'lodash/omit'
+import { SuperPartial, TLifecycle, TProcessLifeCycle, TWrapperTask } from 'src/upload/type'
 import { ECACHE_STATUS } from '../constant'
 
 type TActionType = 'on' | 'addListener' | 'off' | 'once' | 'removeListener'
@@ -21,55 +22,63 @@ const BASE_GLOBAL_LIFECYCLE_CONFIG = {
 
 export default class LifeCycle {
 
-  protected lifecycleMap: {
+  constructor() {
+    this.init()
+  }
+
+  public init() {
+    this.lifecycleMap = {
+      beforeRead: [],
+      reading: [
+        merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total }: { current: number, total: number }) {
+          return {
+            process: {
+              current,
+              complete: current,
+              total
+            }
+          }
+        } })
+      ],
+      beforeCheck: [],
+      afterCheck: [],
+      uploading: [
+        merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total, complete }: { current: number, total: number, complete: number }) {
+          return {
+            process: {
+              current,
+              total,
+              complete
+            }
+          }
+        } })
+      ],
+      afterCancel: [],
+      beforeComplete: [],
+      afterComplete: [],
+      afterStop: [],
+      retry: [
+        merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ rest }: { rest: number }) {
+          return {
+            config: {
+              retry: {
+                retring: true,
+                times: rest
+              }
+            }
+          }
+        } })
+      ],
+    }
+  }
+
+  protected lifecycleMap!: {
     [P in keyof Required<TLifecycle>]: Array<{
       key: Symbol | null
       action: TLifecycle<Promise<SuperPartial<TWrapperTask>> | SuperPartial<TWrapperTask>>[P]
       counter: number // -1 不销毁 0 销毁
       skip?: true
-    }> } = {
-    beforeRead: [],
-    reading: [
-      merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total }: { current: number, total: number }) {
-        return {
-          process: {
-            current,
-            complete: current,
-            total
-          }
-        }
-      } })
-    ],
-    beforeCheck: [],
-    afterCheck: [],
-    uploading: [
-      merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total, complete }: { current: number, total: number, complete: number }) {
-        return {
-          process: {
-            current,
-            total,
-            complete
-          }
-        }
-      } })
-    ],
-    afterCancel: [],
-    beforeComplete: [],
-    afterComplete: [],
-    afterStop: [],
-    retry: [
-      merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ rest }: { rest: number }) {
-        return {
-          config: {
-            retry: {
-              retring: true,
-              times: rest
-            }
-          }
-        }
-      } })
-    ],
-  }
+    }> }
 
   private wrapper(_/*licycle_name 暂时无用*/: keyof TLifecycle, eventFunc: Function) {
     return async function(params: any) {

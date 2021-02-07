@@ -1,22 +1,21 @@
-import { merge } from 'lodash'
-import Emitter from '../utils/emitter'
-import Reader from '../utils/reader'
-import LifeCycle from '../utils/lifecycle'
-import WorkerPool from '../utils/worker/worker.pool'
-import Uploader from '../utils/uploader'
-import { allSettled } from '../utils/tool'
-import { TLifecycle, Ttask, TFileType, TWrapperTask, TProcessLifeCycle, SuperPartial } from './index.d'
-import { ECACHE_STATUS } from '../utils/constant'
+import merge from 'lodash/merge'
+import EventEmitter from 'eventemitter3'
+import { 
+  Emitter, 
+  FileReader as Reader, 
+  LifeCycle, 
+  Uploader, 
+  WorkerPool,
+  allSettled,
+  ECACHE_STATUS
+} from '../utils'
+import { TLifecycle, Ttask, TFileType, TWrapperTask, TProcessLifeCycle, SuperPartial, TPlugins } from './type'
 
-export default class Upload {
+export default class Upload extends EventEmitter {
 
-  protected static plugins: { [key: string]: any } = {
-    reader: undefined,
-    upload: undefined,
-    slice: undefined
-  }
+  protected static plugins: Partial<TPlugins> = {}
 
-  public static install<T=any>(name: string, descriptor: T) {
+  public static install(name: keyof TPlugins, descriptor: TPlugins[keyof TPlugins]) {
     if (!Upload.plugins) {
       Upload.plugins = {}
     }
@@ -34,24 +33,58 @@ export default class Upload {
   private wokerPool!: WorkerPool
 
   constructor(options?: {
-    lifecycle?: TLifecycle
+    lifecycle?: TLifecycle,
+    ignores?: string[]
   }) {
+    super()
     if(!Upload.isSupport()) throw new Error('this tool must be support for the ArrayBuffer')
-    this.init()
-    const emitter = {
-      setState: this.emitter.setState,
-      getState: this.emitter.getTask.bind(this.emitter)
-    }
-    this.reader = new Reader(emitter, this.LIFECYCLE_EMIT)
-    this.uploader = new Uploader(emitter, this.LIFECYCLE_EMIT)
+    this.reader = new Reader(this)
+    this.uploader = new Uploader(this)
     this.lifecycle.onWithObject(options?.lifecycle || {})
     this.wokerPool = new WorkerPool()
+    this.pluginsCall(options?.ignores)
   }
 
-  //初始化
-  public init() {
+  //插件注册
+  private pluginsCall(ignores: string[]=[]) {
+    if (Upload.plugins) {
+      const keys = Object.keys(Upload.plugins) as (keyof TPlugins)[]
+      keys.forEach((name) => {
+        if(!ignores.includes(name)) {
+          let descriptor = Upload.plugins[name]
+          descriptor!.call(this, this)
+        }
+      })
+    }
+  }
+
+  //销毁
+  public async dispose() {
+    const tasks = this.emitter.getTasks()
+    const process = WorkerPool.getProcesses()
+    for(let i = 0; i < tasks.length; i ++) {
+      const { symbol, status } = tasks[i]
+      const target = process.find(pro => pro.task == symbol)
+      if(status >= ECACHE_STATUS.waiting && !!target) {
+        this.cancel(symbol)
+      }
+    }
+    
+    let tempTasks = []
+    while(!WorkerPool.queueIsEmpty()) {
+      tempTasks.push(this.wokerPool.dequeue())
+    }
+    tempTasks.forEach(task => {
+      if(!task) return 
+      const target = tasks.find(_task => _task.symbol == task)
+      if(!target) {
+        this.wokerPool.enqueue(task)
+      }
+    })
+
     this.emitter?.clean()
     this.reader?.clean()
+    this.lifecycle.init()
   }
 
   //是否支持
@@ -64,13 +97,13 @@ export default class Upload {
   }
 
   //添加任务
-  public on(...tasks: Ttask<TFileType>[]): Symbol[] {
-    return this.emitter.on(...tasks)
+  public add(...tasks: Ttask<TFileType>[]): Symbol[] {
+    return this.emitter.add(...tasks)
   }
 
   //执行任务
-  public emit(...names: Symbol[]) {
-    const tasks = this.emitter.emit(...names)
+  public deal(...names: Symbol[]) {
+    const tasks = this.emitter.deal(...names)
     this.performanceTask(tasks.map(task => {
       const { lifecycle, symbol } = task
       this.lifecycle.onWithObject(lifecycle || {}, symbol) 
@@ -82,11 +115,11 @@ export default class Upload {
   //执行任务
   public start(...names: Symbol[]) {
     names.forEach(name => this.emitter.statusChange(ECACHE_STATUS.pending, name))
-    return this.emit(...names)
+    return this.deal(...names)
   }
 
   //取消绑定的任务
-  public cancelEmit(...names: Symbol[]) {
+  public cancelAdd(...names: Symbol[]) {
     return this.emitter.off(...names)
   }
 
@@ -107,8 +140,8 @@ export default class Upload {
 
   //上传
   public upload(...tasks: Ttask<TFileType>[]): Symbol[] {
-    const names = this.on(...tasks)
-    this.emit(...names)
+    const names = this.add(...tasks)
+    this.deal(...names)
     return names
   }
 

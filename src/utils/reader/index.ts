@@ -1,22 +1,18 @@
 import FileParse from './parse'
+import Upload from '../../upload'
+import Proxy from '../proxy'
 import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS, EActionType } from '../constant'
 import { isMd5 } from '../tool'
-import { TProcessLifeCycle, TSetState, TGetState, TWrapperTask } from '../../upload/index.d'
+import { TWrapperTask } from '../../upload/type'
 
-class FileReader {
+class FileReader extends Proxy {
 
-  constructor(emitter: {
-    setState: TSetState
-    getState: TGetState
-  }, process: TProcessLifeCycle) {
-    this.lifecycle = process
-    this.emitter = emitter
+  constructor(context: Upload) {
+    super(context)
   }
 
   protected tasks: string[] = []
-  protected lifecycle: TProcessLifeCycle
-  public emitter
 
   //清空
   public clean(name?: string) {
@@ -41,8 +37,8 @@ class FileReader {
     .then((md5) => {
       if(!md5) return null
       const process = WorkerPool.getProcess(worker_id)
-      const [ , task ] = this.emitter.getState(process?.task!)
-      this.emitter.setState(task!.symbol, { file: { md5 } })
+      const [ , task ] = this.getState(process?.task!)
+      this.setState(task!.symbol, { file: { md5 } })
       return md5
     })
   }
@@ -51,7 +47,7 @@ class FileReader {
   public async start(worker_id: string) {
     const process = WorkerPool.getProcess(worker_id)
     if(!process) return this.clean(worker_id)
-    const [ , task ] = this.emitter.getState(process.task!)
+    const [ , task ] = this.getState(process.task!)
     const md5 = task!.file!.md5
     if(!!isMd5(md5 as string)) {
       return Promise.resolve(md5)
@@ -59,7 +55,7 @@ class FileReader {
 
     //read
     try {
-      await this.lifecycle('beforeRead', {
+      await this.dealLifecycle('beforeRead', {
         name: task!.symbol,
         status: ECACHE_STATUS.reading
       })
@@ -67,9 +63,21 @@ class FileReader {
       console.warn(err)
       return Promise.reject(err)
     }
+
+    if(this.hasReaderEmit()) {
+      return new Promise<string>((resolve, reject) => {
+        this.emit('reader', task, (md5: string) => {
+          resolve(md5)
+        })
+        setTimeout(() => {
+          reject('timeout')
+        }, 24 * 60 * 60 * 1000)
+      })
+    }
     
     const action = task!.file.action
-    const fileParse = new FileParse(worker_id)
+    const fileParse = new FileParse(this.context, worker_id)
+
     switch(action) {
       case EActionType.MD5: 
         return this.GET_MD5(task!, fileParse)
@@ -86,23 +94,23 @@ class FileReader {
 
   //获取MD5(分片已预先完成)
   private async GET_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
-    this.emitter.setState(task.symbol, { file: { chunks: [] } })  
-    return fileParse.files(task, this.lifecycle)
+    this.setState(task.symbol, { file: { chunks: [] } })  
+    return fileParse.files(task)
   }
 
   //获取base64的MD5
   private async GET_BASE64_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
-    return fileParse.base64(task, this.lifecycle)
+    return fileParse.base64(task)
   }
 
   //获取arraybuffer类型md5
   private async GET_BUFFER_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
-    return fileParse.arraybuffer(task, this.lifecycle)
+    return fileParse.arraybuffer(task)
   }
 
   //获取文件md5
   private async GET_FILE_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
-    return fileParse.blob(task, this.lifecycle)
+    return fileParse.blob(task)
   }
 
 }

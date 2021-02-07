@@ -1,4 +1,5 @@
 import { ECACHE_STATUS, EActionType } from '../utils/constant'
+import Upload from './index'
 
   export type TFailEmitReturnType = {
     reason: any
@@ -90,14 +91,14 @@ import { ECACHE_STATUS, EActionType } from '../utils/constant'
     chunksLength: number
   }) => Promise<TExitDataFnReturnValue>
 
-  type TFile<T=TFileType> = {
+  export type TFile<T=TFileType> = {
     md5?: string
     mime?: string
     file: T
     chunks?: TFileType[]
   }
 
-  type TWraperFile<T=TFileType> = TFile<T> & {
+  export type TWraperFile<T=TFileType> = TFile<T> & {
     mime: string
     chunks: TFileType[]
     _cp_: boolean
@@ -151,3 +152,8 @@ import { ECACHE_STATUS, EActionType } from '../utils/constant'
 
   export type TSetState = (name: Symbol, value: SuperPartial<TWrapperTask>) => TWrapperTask
   export type TGetState = (name: Symbol) => [ number, TWrapperTask | null ]
+
+  export type TPlugins = {
+    reader: (context: Upload) => void
+    slicer: (context: Upload) => void
+  }
