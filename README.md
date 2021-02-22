@@ -3,7 +3,7 @@
 文件分片上传工具
 
 ## 测试
-具体实例及测试请在[github](https://github.com/food-billboard/chunk-file-load)进行`fork`后运行一下命令
+具体实例及测试请在[github](https://github.com/food-billboard/chunk-file-load)进行`fork`后运行以下命令  
 
 1. cmd分别命令执行查看相关示例
 `npm start`
@@ -17,19 +17,40 @@
 ## 简单介绍
 
 * 工具可以使上传文件变为可控，包括多任务同时上传、暂停任务、取消任务以及查看上传进度、断点续传，但是中间相关细节需要后端进行配合
+**new**
+* 此次更新增加了更多的文件上传流程控制，以及更改了相关`api`的名称，配合`worker`进行文件解析。
+* 分离了兼容小程序的上传方法，小程序端`import { WeUpload } from 'chunk-file-upload'`, 反之`import { Upload } from 'chunk-file-upload'` 
 
-### 调用 new Upload()
-因为小程序端无法使用诸如`Blob`、`File`、`FileRader`等的API，所以为了勉强能在小程序端运行    
-这里采用在小程序端使用`base64`作为分片的类型。   
-所以在构造函数中添加了可选的配置参数，如下  
+### 简单使用
 ```js
-    //以微信小程序为例
-    const upload = new Upload({
-        base64ToArrayBuffer: wx.base64ToArrayBuffer,
-        arrayBufferToBase64: wx.arrayBufferToBase64
-    })
+//in react
+import { Upload } from 'chunk-file-upload'
+
+function UploadFile() {
+
+    const onChange = (e) => {
+        const [ file ] = e.target.files
+        const upload = new Upload()
+        upload.upload({
+            file,
+            request: {
+                uploadFn: (data) => {
+                    //request(data)
+                }
+            }
+        })
+    }
+
+    return (
+        <input type="file" onChange={onChange} />
+    )
+
+}
 ```
-通过注入两个相互转换的方法来实现分片转换  
+
+### 关于差异  
+[Upload](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/upload.md)  
+[WeUpload](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/weupload.md)
 
 ### 使用 upload.upload(...args) 上传文件
 
@@ -41,54 +62,61 @@
 ``` typescript
 const upload = new Upload()
 let config: {
-    file: File | Blob | ArrayBuffer | base64
-    md5?: string
     config: {
         retry?: {
             times: number
         }
         chunkSize?: number
     }
-    mime?: string
-    exitDataFn?: ({ 
-        filename,
-        md5,
-        suffix,
-        size,
-        chunkSize,
-        chunksLength
-    }: {
-        filename: string
-        md5: string
-        suffix: string
-        size: number
-        chunkSize: number
-        chunksLength: number
-    }) => Promise<{
-        data: Array<string | number>
-        [key: string]: any
-    }> | {
-        data: Array<string | number>
-        [key: string]: any
+    file: {
+        mime?: string
+        file: File | Blob | ArrayBuffer | string
+        md5?: string
+        chunks?: (File | Blob | ArrayBuffer | string)[]
     }
-    uploadFn: TUploadFn
-    completeFn?: ({ name, md5 } : { name: Symbol, md5: string }) => any
-    callback?: (err: any, data: any) => any
+    lifecycle /*具体查看下面生命周期*/
+    request: {
+        exitDataFn?: (params: {
+            filename: string
+            md5: string
+            suffix: string
+            size: number
+            chunkSize: number
+            chunksLength: number
+        }) => Promise<{
+            data: Array<number> | string | number
+            [key: string]: any
+        }>
+        uploadFn: (data: FormData | { 
+            file: Blob | string
+            md5: string
+            index: number 
+        }) => Promise<{
+            data: Array<number> | string | number
+            [key: string]: any
+        } | void>
+        completeFn?: (params : { name: Symbol, md5: string }) => any
+        callback?: (err: any, data: any) => any
+    }
 } = {
-    file,   //文件 支持file blob arraybuffer 以及base64格式的文件, 并且尽量传递mime类型，否则后台对文件合并时无法获取文件mime类型
-    md5, //加密后的名称，用于跳过加密过程，配合chunks使用，单独传递无效
-    mime, //mime类型(/.+\/.+/)
-    exitDataFn, //验证后端是否存在文件的方法(可选，不传则每一次上传都会全部重新上传)
-    uploadFn,   //上传方法
-    completeFn, //完成上传后通知后端的方法(可选，如果后端有自己的验证方式则无需传递)
-    callback,    //回调函数(可选)
+    file: {
+        file,   //文件 支持file blob arraybuffer 以及base64格式的文件, 并且尽量传递mime类型，否则后台对文件合并时无法获取文件mime类型
+        md5, //加密后的名称，用于跳过加密过程，配合chunks使用，单独传递无效
+        mime, //mime类型(/.+\/.+/)
+        chunks //事先完成的分片，用于跳过分片过程，具体参照下面的 uploading 方法
+    },
+    request: {
+        exitDataFn, //验证后端是否存在文件的方法(可选，不传则每一次上传都会全部重新上传)
+        uploadFn,   //上传方法
+        completeFn, //完成上传后通知后端的方法(可选，如果后端有自己的验证方式则无需传递)
+        callback,    //回调函数(可选)
+    },
     config: {   //相关配置(可选)
         retry: { //是否错误重试 默认不重试
             times
         },
         chunkSize //分片大小 默认500k
     },
-    chunks //事先完成的分片，用于跳过分片过程，具体参照下面的 uploading 方法
 }
 let names = upload.upload(config)
 ```
@@ -135,7 +163,7 @@ exitDataFn: function(...someparams) {
 ```typescript
     type response = {
         //data索引必传
-        data: Array<string | number> | false
+        data: Array<string> | number | string | false
         [key: string]: any
     }
 ```
@@ -143,56 +171,72 @@ exitDataFn: function(...someparams) {
 * about callback 第一参数为`error`, 第二参数为`completeFn`或是在秒传时`exitDataFn`除`data`外的其余数据
 like this `callback(err: null | any, data: null | any) => any`
 
-### 调用 upload.on(...tasks) 加入上传文件队列
+- 使用不同类型的文件
+```js
+    const upload = new Upload()
+    upload.upload({
+        file: {
+            file: new File([new ArrayBuffer(1024)], 'filename'), 
+        },
+        request: {
+            uploadFn
+        },
+    })
+```
+- 预先解析完成(可跳过解析流程)
+```js
+    const upload = new Upload()
+    upload.upload({
+        file: {
+            file: new File([new ArrayBuffer(1024)], 'filename'), 
+            md5: 'xxxxxxxxxxxx'
+        },
+        request: {
+            uploadFn
+        },
+    })
+```
+- 预先完成分片
+```js
+        const upload = new Upload()
+    upload.upload({
+        file: {
+            md5: 'xxxxxxxxxxxx',
+            mime: 'image/png',
+            chunks: [ new ArrayBuffer(1024), new Blob([new ArrayBuffer(1024)]) ]
+        },
+        request: {
+            uploadFn
+        },
+    })
+```
+
+### 调用 upload.add(...tasks) 加入上传文件队列
 
 * 传入相关参数(参数类型与上面的`upload`方法相同)
 * 支持传入多个任务参数
-* 不会自动触发上传，需要调用`upload.emit`
+* 不会自动触发上传，需要调用`upload.deal`
 * 返回自动生成的唯一文件名称集合
 
 ```js
 //支持任意格式的对象参数，但是需要保证对象内的必要参数都正确
-let names = upload.on({
+let names = upload.add({
     file,   
     exitDataFn, 
     uploadFn,  
     completeFn,
     callback    
 })
-
-let names = upload.on({/*同上参数*/}, {/*同上参数*/}, callback)
-
-let names = upload.on([{/*同上参数*/}, {/*同上参数*/}], callback)
-
-let names = upload.on([{/*同上参数*/}, {/*同上参数*/}], {/*同上参数*/}, callback)
 ```
 
-### 调用 upload.emit(...names) 执行指定的队列任务
+### 调用 upload.deal(...names) 执行指定的队列任务
 
 * 参数为绑定上传任务时返回的给定任务文件名称
 * 支持传入多个参数
-* 返回所有状态的任务(rejected fulfilled cancel stopping)
+* 返回所有状态的任务名称
 
 ```typescript 
-type TEevents //具体参考上面的`upload`方法参数，多了一个唯一名称`symbol`
-const response: {
-    rejected: {
-        reason: any
-        data: TEvents | null
-    }[]
-    fulfilled: { 
-        value: { name: string, err: null }
-        data: TEvents 
-    }[] 
-    cancel: {
-        reason: any
-        data: TEvents
-    }[]
-    stopping: {
-        reason: any
-        data: TEvents
-    }[] 
-} = await upload.emit(name)
+upload.deal(name)
 ```
 
 ### upload.uploading(...tasks)
@@ -207,38 +251,33 @@ const response: {
 **保证分片列表的顺序正确**  
 分片会被统一转换成一种格式，按照`api`的支持程度顺序为`Blob -> File -> base64`  
 
-```typescript
-upload.uploading({
-    //其他配置
-    chunks: [ new File(), new Blob() ],
-    md5: '.....' //md5加密名称
-})
-```
-
 ### 搭配生命周期更细粒度的控制上传过程
 ```typescript
-//序列化前
-beforeRead?: (params: { name: Symbol, task: TFiles }) => any
-//序列化中
-reading?: (params: { name: Symbol, task: TFiles, start?: number, end?: number }) => boolean | Promise<boolean>
-//MD5序列化后，检查请求前
-beforeCheck?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
-//检查请求响应后
-afterCheck?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
-//分片上传前(可以在这里执行stop或cancel，任务会立即停止, 或者直接return false表示暂停)
-beforeUpload?: (params: { name: Symbol, task: TFiles | null }) => boolean | Promise<boolean>
-//分片上传后(多次执行)
-afterUpload?: (params: { name: Symbol,  task: TFiles | null, index?: number, success?: boolean }) => any
-//触发暂停响应后
-afterStop?: (params: { name: Symbol, task: TFiles | null, index?: index }) => any
-//触发取消响应后
-afterCancel?: (params: { name: Symbol, task: TFiles | null, index?: index }) => any
-//完成请求前
-beforeComplete?: (params: { name: Symbol, task: TFiles | null, isExists?: boolean }) => any
-//完成请求后
-afterComplete?: (params: { name: Symbol, task: TFiles | null, success?: boolean }) => any
-//触发重试任务执行
-retry?: (params: { name: Symbol, task: TFiles | null }) => any
+    type responseType = boolean | Promise<boolean>
+    type TLifeCycleParams = {
+        name: Symbol
+        task: TWrapperTask //参照api
+    }
+    //序列化前
+    beforeRead?: (params: TLifeCycleParams) => responseType
+    //序列化中
+    reading?: (params: TLifeCycleParams & { current: number, total: number }) => responseType
+    //MD5序列化后，检查请求前
+    beforeCheck?: (params: TLifeCycleParams) => responseType
+    //检查请求响应后
+    afterCheck?: (params: TLifeCycleParams & { isExists: boolean }) => responseType
+    //分片上传后(多次执行)
+    uploading?: (params: TLifeCycleParams & { current: number, total: number, complete: number }) => responseType
+    //触发暂停响应后
+    afterStop?: (params: TLifeCycleParams & { current: number }) => responseType
+    //触发取消响应后
+    afterCancel?: (params: TLifeCycleParams & { current: number }) => responseType
+    //完成请求前
+    beforeComplete?: (params: TLifeCycleParams & { isExists: boolean }) => responseType
+    //完成请求后
+    afterComplete?: (params: TLifeCycleParams & { success: boolean }) => responseType
+    //触发重试任务执行
+    retry?: (params: TLifeCycleParams & { rest: number }) => responseType
 ```
 
 生命周期包括全局和单一任务生命周期  
@@ -256,7 +295,7 @@ const upload = new Upload({
 - 局部
 ```js
     const upload = new Upload()
-    upload.on({
+    upload.add({
         /*其他配置*/
         lifecycle: {
             beforeUpload: ({ name, task }) => {
@@ -271,20 +310,20 @@ const upload = new Upload({
     })
 ```
 
-**全局的生命周期执行在局部之前**  
-**如果希望能使用this来获取实例属性方法等，请不要使用箭头函数**
+- 全局的生命周期执行在局部之前  
+- 如果希望能使用this来获取实例属性方法等，请不要使用箭头函数  
+- 返回false或reject则停止后续生命周期执行  
 
 ## API
 
-### init
+### dispose
 
-* 重置或初始化
-* 将待执行任务全部清除
+* 销毁实例
 `upload.init()`
 
 ### start
 
-* 执行指定队列任务，与emit功能相同
+* 执行指定队列任务，与`deal`功能相同
 * 对于处于上传中的任务无效
 `upload.start(...names)` 
 
@@ -304,37 +343,53 @@ upload.stop(...names) //不传参数则暂停所有任务
 * 取消上传中的任务
 * 返回执行取消操作的任务文件名称集合
 * 只对上传中的任务有效
-* 一旦取消了上传任务则需要重新通过upload或on进行添加才能上传
+* 一旦取消了上传任务则需要重新通过`upload`或`add`进行添加才能上传
 
 ```js
 upload.cancel(...names)
 ```
 
-### cancelEmit
+### cancelAdd
 
 * 取消队列中的任务
 * 返回被取消绑定的任务文件名称集合
 * 只对加入队列但还处于等待状态的任务有效
 
 ```js
-upload.cancelEmit(...names)    //不传则取消所有任务
+upload.cancelAdd(...names)    //不传则取消所有任务
 ```
 
 ### watch
 
-* 查看上传进度
-* 返回指定任务的上传进度集合
-* 你也可以在任务中的`watch`属性方法来获取对应的任务进度。
+* 查看上传进度  
+* 返回指定任务的上传进度集合  
+* 你也可以在任务中的`watch`属性方法来获取对应的任务进度。  
 
 ```js
-//return { name, progress }
+//return [{ error, name, progress, status, total, current } || null]
 upload.watch(...names) //不传则返回所有进度
 ```
 
+### getTask
+
+* 获取指定的任务信息  
+
+### getOriginFile
+
+* 获取源文件  
+
+### getStatus
+
+* 获取任务当前状态  
+
+### static isSupport
+
+* 当前环境是否支持  
+
 ## ps 
 
-小程序方面的限制虽然得到了解决，但是因为`base64`的转换使得原本的分片体积增大，这可能会导致转换时出现相关的性能问题，所以尽量不要设置太大的文件分片。当前设置的上限分片大小为**500k**。
-并且对于`base64`的文件，因为转换性能较差所以没有办法传递较大文件，对`base64`类型文件最大为**500k**。
+小程序方面的限制虽然得到了解决，但是因为`base64`的转换使得原本的分片体积增大，这可能会导致转换时出现相关的性能问题，所以尽量不要设置太大的文件分片。  
+并且对于`base64`的文件，因为转换性能较差所以没有办法传递较大文件。  
 
 ## 总结
 

@@ -30,7 +30,7 @@ export default class Upload extends EventEmitter {
 
   private uploader!: Uploader
 
-  private wokerPool!: WorkerPool
+  private workerPool!: WorkerPool
 
   constructor(options?: {
     lifecycle?: TLifecycle,
@@ -41,7 +41,7 @@ export default class Upload extends EventEmitter {
     this.reader = new Reader(this)
     this.uploader = new Uploader(this)
     this.lifecycle.onWithObject(options?.lifecycle || {})
-    this.wokerPool = new WorkerPool()
+    this.workerPool = new WorkerPool()
     this.pluginsCall(options?.ignores)
   }
 
@@ -72,13 +72,13 @@ export default class Upload extends EventEmitter {
     
     let tempTasks = []
     while(!WorkerPool.queueIsEmpty()) {
-      tempTasks.push(this.wokerPool.dequeue())
+      tempTasks.push(this.workerPool.dequeue())
     }
     tempTasks.forEach(task => {
       if(!task) return 
       const target = tasks.find(_task => _task.symbol == task)
       if(!target) {
-        this.wokerPool.enqueue(task)
+        this.workerPool.enqueue(task)
       }
     })
 
@@ -184,7 +184,7 @@ export default class Upload extends EventEmitter {
 
   //任务执行
   private performanceTask(tasks: TWrapperTask[]) {
-    this.wokerPool.enqueue(...tasks.map(task => task.symbol))
+    this.workerPool.enqueue(...tasks.map(task => task.symbol))
     .then(processes => {
       return allSettled(processes.map(async (process: string) => {
         const target = WorkerPool.getProcess(process)
