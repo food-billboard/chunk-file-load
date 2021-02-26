@@ -1,66 +1,70 @@
-// import Upload from './base'
-// import {
-//     arrayBufferToBase64 as internalArrayBufferToBase64,
-//     base64ToArrayBuffer as internalBase64ToArrayBuffer, 
-// } from '../utils/tool'
+import merge from 'lodash/merge'
+import Upload from './index'
+import {
+    arrayBufferToBase64 as internalArrayBufferToBase64,
+    base64ToArrayBuffer as internalBase64ToArrayBuffer, 
+} from '../utils/tool'
+import { TLifecycle, TPlugins, Ttask, TFileType, TUploadFormData } from './type'
 
-// class WeappUpload extends Upload {
+class WeUpload extends Upload {
 
-//   constructor() {
-//     super(...arguments)
-//   }
+	protected static plugins: Partial<TPlugins> = {
+		slicer: (context: Upload) => {
+			context.on('slicer', (_, __, file, complete) => {
+				//在这里处理分片
+				if(typeof file === 'string') {
+					return WeUpload.atob(file)
+				}else if(file instanceof ArrayBuffer) {
+					complete(file)
+				}else {
+					throw new Error('can not slice this type file')
+				}
+			})
+		}
+	}
 
-//   #Blob: boolean = true
+	public static setOptions({
+		arrayBufferToBase64,
+		base64ToArrayBuffer
+	}: {
+		arrayBufferToBase64: (chunk: ArrayBuffer) => string,
+		base64ToArrayBuffer: (chunk: string) => ArrayBuffer
+	}) {
 
-//   #FileReader: boolean = true
+		WeUpload.btoa = arrayBufferToBase64
+		WeUpload.atob = base64ToArrayBuffer
+	}
+  
+	constructor(options: {
+		lifecycle?: TLifecycle,
+		ignores?: string[]
+	}) {
+		super(options)
+	}
 
-//   #ArrayBuffer: boolean = true
+	public static btoa = internalArrayBufferToBase64
+	public static atob = internalBase64ToArrayBuffer
 
-//   #File: boolean = true
+  //添加任务
+  public add(...tasks: Ttask<TFileType>[]): Symbol[] {
+    return this.emitter.add(...tasks.map(task => {
+			const { request } = task
+			const { uploadFn } = request
+			//wrap uploadFn
+			return merge(task, {
+				request: merge(request, {
+					uploadFn: function(formData: TUploadFormData) {
+						const newFile = WeUpload.btoa(formData.file as ArrayBuffer)
+						return uploadFn(merge(formData, {
+							file: newFile
+						}))
+					}
+				})
+			})
+		}))
+  }
 
-//   #Btoa: boolean | Function = false
+}
 
-//   #Atob: boolean | Function = false
-
-//   private SUPPORT_CHECK({ base64ToArrayBuffer, arrayBufferToBase64 }: {
-//         base64ToArrayBuffer?: (data: string) => ArrayBuffer
-//         arrayBufferToBase64?: (data: ArrayBuffer) => string
-//     }) {
-
-//         let notSupport:string[] = []
-//         if(typeof Blob === 'undefined') {
-//             notSupport.push('Blob')
-//             this.#Blob = false
-//         }
-//         if(typeof FileReader === 'undefined' ) {
-//             notSupport.push('FileReader')
-//             this.#FileReader = false
-//         }
-//         if(typeof ArrayBuffer === 'undefined') {
-//             notSupport.push('ArrayBuffer')
-//             this.#ArrayBuffer = false
-//         }
-//         if(typeof File === 'undefined') {
-//             notSupport.push('File')
-//             this.#File = false
-//         }
-//         if(!arrayBufferToBase64 && typeof btoa === 'undefined') {
-//             notSupport.push('btoa')
-//         }else {
-//             this.#Btoa = arrayBufferToBase64 || internalArrayBufferToBase64
-//         }
-//         if(!base64ToArrayBuffer && typeof atob === 'undefined') {
-//             notSupport.push('atob')
-//         }else {
-//             this.#Atob = base64ToArrayBuffer || internalBase64ToArrayBuffer
-//         }
-
-//         if(!this.#ArrayBuffer) throw new Error('this tool must be support for the ArrayBuffer')
-        
-//         if(!!notSupport.length) console.warn('these api is not support: ', notSupport.join(','))
-//     }
-
-// }
-
-export default {}
+export default WeUpload
 

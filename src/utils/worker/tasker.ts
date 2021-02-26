@@ -4,7 +4,7 @@ export class Tasker {
 
   spark!: SparkMD5ArrayBuffer
   uploader: any
-  cache: Blob[] = []
+  cache: (Blob | ArrayBuffer)[] = []
 
   constructor() {
     this.init()
@@ -19,9 +19,13 @@ export class Tasker {
     this.cache = []
   }
 
+  private generateCacheChunk = (chunk: ArrayBuffer) => {
+    return typeof Blob === 'undefined' ? chunk : new Blob([chunk])
+  }
+
   public read(chunk: ArrayBuffer) {
     this.spark.append(chunk)
-    this.cache && this.cache.push(new Blob([chunk]))
+    this.cache && this.cache.push(this.generateCacheChunk(chunk))
   }
 
   public readEnd(): string {

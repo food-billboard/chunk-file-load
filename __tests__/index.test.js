@@ -1,5 +1,5 @@
 import { Upload } from '../src'
-import { base64ToArrayBuffer, arrayBufferToBase64, isSymbol, isFalse } from '../src/utils/tool'
+import { base64ToArrayBuffer, arrayBufferToBase64, isSymbol } from '../src/utils/tool'
 import SparkMd5 from 'spark-md5'
 
 const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLength }) => {
@@ -16,10 +16,16 @@ const config = {
   retry: {
     times: 3
   },
-  chunkSize: 1024 * 500
+  chunkSize: 1024 * 1024 * 5
 }
 
-const callback = (err, data) => {}
+const callback = (done) => (error) => {
+  if(error) {
+    done(error)
+  }else {
+    done()
+  }
+}
 
 const FILE_SIZE = 1024 * 1024 * 20
 const BASE_SIZE = 1024 * 500
@@ -62,12 +68,9 @@ while(currentChunk < totalChunks) {
 }
 
 const md5 = spark.end()
+spark.destroy()
 
-let upload = new Upload({
-  //模拟小程序的arraybuffer与base64互相转换的方法
-  base64ToArrayBuffer,
-  arrayBufferToBase64
-})
+let upload = new Upload()
 
 const emitExpect = (target, targetKey) => {
   expect(target).toBeInstanceOf(Object)
@@ -85,8 +88,6 @@ const emitExpect = (target, targetKey) => {
   })
 }
 
-
-
 describe('upload chunk test', () => {
 
   describe('upload api', () => {
@@ -98,57 +99,57 @@ describe('upload chunk test', () => {
             reading = 0,
             beforeCheck = 0,
             afterCheck = 0,
-            beforeUpload = 0,
-            afterUpload = 0,
+            uploading = 0,
             beforeComplete = 0,
-            afterComplete = 0
-        const result = await upload.upload({
-          exitDataFn,
-          uploadFn,
-          file,
-          completeFn,
-          callback,
-          lifecycle: {
-            beforeRead({ name, task }) {
-              beforeRead ++
+            afterComplete = 0,
+            result
+        await new Promise((resolve, reject) => {
+          result = upload.upload({
+            exitDataFn,
+            uploadFn,
+            file,
+            completeFn,
+            callback: (err) => {
+              if(err) {
+                reject(err)
+              }else {
+                resolve()
+              }
             },
-            reading({ name, task, start, end }) {
-              expect(start).toBe((reading ++) * config.chunkSize)
-              expect(end).toBe(reading * config.chunkSize > FILE_SIZE ? FILE_SIZE : reading * config.chunkSize)
-            },
-            beforeCheck({ name, task }) {
-              beforeCheck ++
-            },
-            afterCheck({ name, task, isExists }) {
-              afterCheck ++
-              expect(isExists).toBe(false)
-            },
-            beforeUpload({ name, task }) {
-              beforeUpload ++
-            },
-            afterUpload({ name, task, index, success }) {
-              expect(index).toBe(afterUpload)
-              afterUpload ++
-            },
-            beforeComplete({ name, task, isExists }) {
-              beforeComplete ++
-              expect(isExists).toBe(false)
-            },
-            afterComplete({ name, task, success }) {
-              afterComplete ++
-              expect(success).toBe(true)
+            lifecycle: {
+              beforeRead({ name, task }) {
+                beforeRead ++
+              },
+              reading({ name, task, start, end }) {
+                expect(start).toBe((reading ++) * config.chunkSize)
+                expect(end).toBe(reading * config.chunkSize > FILE_SIZE ? FILE_SIZE : reading * config.chunkSize)
+              },
+              beforeCheck({ name, task }) {
+                beforeCheck ++
+              },
+              afterCheck({ name, task, isExists }) {
+                afterCheck ++
+                expect(isExists).toBe(false)
+              },
+              uploading({ name, task, index, success }) {
+                expect(index).toBe(uploading)
+                uploading ++
+              },
+              beforeComplete({ name, task, isExists }) {
+                beforeComplete ++
+                expect(isExists).toBe(false)
+              },
+              afterComplete({ name, task, success }) {
+                afterComplete ++
+                expect(success).toBe(true)
+              }
             }
-          }
+          })
         })
 
         expect(result).toBeInstanceOf(Array)
-        const [ names, emitResult ] = result
-
-        expect(names).toBeInstanceOf(Array)
       
-        names.forEach(name => expect(isSymbol(name)).toBeTruthy)
-
-        emitExpect(emitResult, 'fulfilled')
+        result.forEach(name => expect(isSymbol(name)).toBeTruthy)
 
         const _times = Math.ceil(FILE_SIZE / config.chunkSize)
 
@@ -156,8 +157,7 @@ describe('upload chunk test', () => {
         expect(reading).toBe(_times)
         expect(beforeCheck).toBe(1)
         expect(afterCheck).toBe(1)
-        expect(beforeUpload).toBe(1)
-        expect(afterUpload).toBe(_times)
+        expect(uploading).toBe(_times)
         expect(beforeComplete).toBe(1)
         expect(afterComplete).toBe(1)
 
@@ -167,18 +167,18 @@ describe('upload chunk test', () => {
 
   })
 
-  describe('on api', () => {
+  describe('add api', () => {
 
-    describe('on api success test', () => {
+    describe('add api success test', () => {
 
-      it('on api success', () => {
+      it('add api success', () => {
 
-        const tasks = upload.on({
+        const tasks = upload.add({
           exitDataFn,
           uploadFn,
           file,
           completeFn,
-          callback,
+          callback: callback(() => {}),
         })
         expect(tasks).toBeInstanceOf(Array)
         expect(tasks.length).toBe(1)
@@ -190,182 +190,64 @@ describe('upload chunk test', () => {
 
     })
 
-    describe('on api fail test', () => {
-
-      test('on api fail because the task params of exitDataFn is not verify', () => {
-
-        const tasks = upload.on({
-          exitDataFn: null,
-          uploadFn,
-          file,
-          completeFn,
-          callback,
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks.length).toBe(0)
-
-      })
-
-      test('on api fail because the task params of uploadFn is not verify', () => {
-        
-        const tasks = upload.on({
-          exitDataFn,
-          uploadFn: null,
-          file,
-          completeFn,
-          callback,
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks.length).toBe(0)
-
-      })
-
-      test('on api fail because lack of the task params of uploadFn', () => {
-       
-        const tasks = upload.on({
-          exitDataFn,
-          file,
-          completeFn,
-          callback,
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks.length).toBe(0)
-
-      })
-
-      test('on api fail because the task params of file is not verify', () => {
-        
-        const tasks = upload.on({
-          exitDataFn,
-          uploadFn,
-          file: null,
-          completeFn,
-          callback,
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks.length).toBe(0)
-
-      })
- 
-      test('on api fail because lack of the task params of file', () => {
-        
-        const tasks = upload.on({
-          exitDataFn,
-          uploadFn,
-          completeFn,
-          callback,
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks.length).toBe(0)
-
-      })
-
-      test('on api fail because lack of the task params of mime and the file type can not get the mime', () => {
-        
-        const tasks = upload.on({
-          exitDataFn,
-          uploadFn,
-          file: blobFile,
-          completeFn,
-          callback,
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks.length).toBe(0)
-
-      })
-
-      test('on api fail because the chunks is post but the content is not verify file type', () => {
-        
-        const tasks = upload.on({
-          exitDataFn,
-          uploadFn,
-          chunks: [ null, null ],
-          completeFn,
-          callback,
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks.length).toBe(0)
-
-      })
-
-    })
-
   })
 
-  describe('emit api', () => {
+  describe('deal api', () => {
 
-    describe('emit api success test', () => {
+    let tasks 
+    let _config = {
+      exitDataFn,
+      uploadFn,
+      completeFn,
+    }
 
-      let tasks 
-      let _config = {
-        exitDataFn,
-        uploadFn,
-        completeFn
-      }
+    const add = (config={}) => {
+      tasks = upload.add({
+        ..._config,
+        ...config,
+      })
+    }
 
-      const on = (config={}) => {
-        tasks = upload.on({
-          ..._config,
-          ...config,
-        })
-      }
+    describe('deal api success test', () => {
 
-      test('emit api success with file ', async () => {
-
-        on({file})
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'fulfilled')
-        
+      test('deal api success width base64', (done) => {
+        add({ file: base64File, mime, callback: callback(done) })
+        upload.deal(tasks)
       })
 
-      test('emit api success with blob ', async () => {
+      test('deal api success with file', (done) => {
+        add({ file, callback: callback(done) })
+        upload.deal(tasks)
+      })
 
-        on({ 
+      test('deal api success with blob', (done) => {
+        add({ 
           file: blobFile,
-          mime
+          mime,
+          callback: callback(done)
         })
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'fulfilled')
-
+        upload.deal(tasks)
       })
 
-      test('emit api success with arraybuffer ', async () => {
-
-        on({ file: arrayBufferFile, mime })
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'fulfilled')
-
+      test('deal api success with arraybuffer', (done) => {
+        add({ file: arrayBufferFile, mime, callback: callback(done) })
+        upload.deal(tasks)
       })
 
-      test('emit api success with chunks list file', async () => {
-
-        on({
+      test('deal api success with chunks list file', (done) => {
+        add({
           chunks,
           mime,
-          md5
+          md5,
+          callback: callback(done)
         })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'fulfilled')
-
+        upload.deal(tasks)
       })
 
-      test('emit api success but the exitFn return the not verify data and all the chunks need upload', async () => {
-
+      test('deal api success but the exitFn return the not verify data and all the chunks need upload', (done) => {
         let times = 0
 
-        on({
+        add({
           ...config,
           file,
           exitDataFn: () => {
@@ -373,25 +255,189 @@ describe('upload chunk test', () => {
           },
           uploadFn: (data) => {
             times ++
+          },
+          callback: (error) => {
+            if(error) {
+              done(error)
+            }else {
+              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
+              done()
+            }
           }
         })
-        const result = await upload.emit(tasks)
 
-        emitExpect(result, 'fulfilled')
-        expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
-
+        upload.deal(tasks)
       })
+
+      test('deal api success but the exitFn return the not verify data and all the chunks need upload', (done) => {
+        let times = 0
+
+        add({
+          ...config,
+          file,
+          exitDataFn: () => {
+            return {
+              data: config.chunkSize + 1
+            }
+          },
+          uploadFn: (data) => {
+            times ++
+          },
+          callback: (error) => {
+            if(error) {
+              done(error)
+            }else {
+              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
+              done()
+            }
+          }
+        })
+
+        upload.deal(tasks)
+      })
+
+      test('deal api success and exitFn return the number list uploaded chunk', (done) => {
+        let times = 0
+
+        add({
+          ...config,
+          file,
+          exitDataFn: () => {
+            return {
+              data: [0]
+            }
+          },
+          uploadFn: (data) => {
+            times ++
+          },
+          callback: (error) => {
+            if(error) {
+              done(error)
+            }else {
+              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+              done()
+            }
+          }
+        })
+
+        upload.deal(tasks)
+      })
+
+      test('deal api success and exitFn return the string list uploaded chunk', async () => {
+        let times = 0
+
+        add({
+          ...config,
+          file,
+          exitDataFn: () => {
+            return {
+              data: ['0']
+            }
+          },
+          uploadFn: (data) => {
+            times ++
+          },
+          callback: (error) => {
+            if(error) {
+              done(error)
+            }else {
+              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+              done()
+            }
+          }
+        })
+
+        upload.deal(tasks)
+      })
+
+      test('deal api success and exitFn return the number of next need upload chunk', (done) => {
+        let times = 0
+
+        add({
+          ...config,
+          file,
+          exitDataFn: () => {
+            return {
+              data: config.chunkSize
+            }
+          },
+          uploadFn: (data) => {
+            times ++
+          },
+          callback: (error) => {
+            if(error) {
+              done(error)
+            }else {
+              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+              done()
+            }
+          }
+        })
+
+        upload.deal(tasks)
+      })
+
+      test('deal api success and uploadFn return the string of next need upload chunk', (done) => {
+        let times = 0
+
+        add({
+          ...config,
+          file,
+          exitDataFn: () => {
+            return {
+              data: config.chunkSize.toString()
+            }
+          },
+          uploadFn: (data) => {
+            times ++
+          },
+          callback: (error) => {
+            if(error) {
+              done(error)
+            }else {
+              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+              done()
+            }
+          }
+        })
+
+        upload.deal(tasks)
+      })
+
+      // test('deal api success and uploadFn no response', async () => {
+
+      // })
 
     })
 
-    describe('emit api fail test', () => {
+    describe('deal api fail test', () => {
 
-      test('emit api fail because the task name is not found', async () => {
+      test('deal api fail because the task name is not found', () => {
+        const result = upload.emit(null)
+        expect(result.length).toBe(0)
+      })
 
-        const result = await upload.emit(null)
+      test('deal api fail because the task not the uploadFn', (done) => {
+        let times = 0
+        const names = upload.add({
+          file,
+          callback: (error) => {
+            expect(!!error).toBe(true)
+            expect(times).toBe(0)
+            done()
+          },
+          lifecycle: {
+            uploading: () => {
+              times ++
+            }
+          }
+        })
+        upload.deal(...names)
+      })
 
-        emitExpect(result, 'other')
-
+      test('deal api fail because not hava the file and not have the chunk', () => {
+        const names = upload.add({})
+        expect(names.length).toBe(0)
       })
 
     })
@@ -402,19 +448,18 @@ describe('upload chunk test', () => {
 
     describe('start api success test', () => {
 
-      test('start api success', async () => {
-
+      test('start api success', (done) => {
         const tasks = upload.on({
           exitDataFn,
           file,
           completeFn,
-          uploadFn
+          uploadFn,
+          callback: callback(done)
         })
 
-        const result = await upload.start(tasks)
+        upload.start(tasks)
 
-        emitExpect(result, 'fulfilled')
-
+        expect(tasks.length).toBe(0)
       })
 
     })
@@ -426,13 +471,13 @@ describe('upload chunk test', () => {
     describe('stop api success test', () => {
 
       const total = Math.ceil(FILE_SIZE / config.chunkSize)
-      let times = new Array(total).fill(0).map((_, index) => index)
+      let times = Array.from({ length: total }, (_, index) => index)
       let stop = false
 
       test('stop api success', async () => {
 
         //在emit中的stop中能找到当前指定队列名称任务
-        const tasks = upload.on({
+        const tasks = upload.add({
           exitDataFn() {
             return times
           },
@@ -553,11 +598,11 @@ describe('upload chunk test', () => {
 
   })
 
-  describe('cancelEmit api', () => {
+  describe('cancelAdd api', () => {
 
-    describe('cancelEmit api success test', () => {
+    describe('cancelAdd api success test', () => {
 
-      test('cancelEmit api success', async () => {
+      test('cancelAdd api success', async () => {
 
          const tasks = upload.on({
           exitDataFn,
@@ -581,9 +626,9 @@ describe('upload chunk test', () => {
 
     })
 
-    describe('cancelEmit api fail test', () => {
+    describe('cancelAdd api fail test', () => {
 
-      test('cancelEmit api fail because the task is uploading', async () => {
+      test('cancelAdd api fail because the task is uploading', async () => {
 
         let times = 0
 
@@ -607,13 +652,73 @@ describe('upload chunk test', () => {
 
       })
 
-      test('cancelEmit api fail because the task name is not found', () => {
+      test('cancelAdd api fail because the task name is not found', () => {
         //在之后能再次执行任务
 
         const result = upload.cancelEmit(null)
 
         expect(result).toBeInstanceOf(Array)
         expect(result).toHaveLength(0)
+
+      })
+
+    })
+
+  })
+
+  describe('isSupport api', () => {
+
+    describe('isSupport api sucess test', () => {
+
+      test('isSupport api sucess', () => {
+
+      })
+
+    })
+
+  })
+
+  describe('getTask api', () => {
+
+    describe('getTask api sucess test', () => {
+
+      test('getTask api sucess', () => {
+
+      })
+
+      test('getTask api sucess but the task not found ', () => {
+
+      })
+
+    })
+
+  })
+
+  describe('getOriginFile api', () => {
+    
+    describe('getOriginFile api sucess test', () => {
+
+      test('getOriginFile api sucess', () => {
+
+      })
+
+      test('getOriginFile api sucess but the task not found ', () => {
+
+      })
+
+    })
+
+  })
+
+  describe('getStatus api', () => {
+    
+    describe('getStatus api sucess test', () => {
+
+      test('getStatus api sucess', () => {
+
+      })
+
+      test('getStatus api sucess but the task not found ', () => {
 
       })
 
@@ -730,7 +835,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test('lifecycle stop the task in reading', async () => {
+      test('lifecycle stop the task in reading with file', async () => {
 
         let reading = 0
 
@@ -758,7 +863,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test('lifecycle stop the task in reading', async () => {
+      test('lifecycle stop the task in reading with arraybuffer file', async () => {
 
         let reading = 0
 
@@ -786,7 +891,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test('lifecycle stop the task in reading', async () => {
+      test('lifecycle stop the task in reading width base64 file', async () => {
 
         getUpload({
           reading() {
@@ -807,7 +912,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test('lifecycle stop the task in reading', async () => {
+      test('lifecycle stop the task in reading width chunks file', async () => {
 
         getUpload({
           reading() {
@@ -828,7 +933,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test('lifecycle stop the task before upload', async () => {
+      test('lifecycle stop the task before red', async () => {
 
         getUpload({
           beforeUpload() {
@@ -852,12 +957,12 @@ describe('upload chunk test', () => {
 
       })
 
-      test('lifecycle stop in check', async () => {
+      test('lifecycle stop the task before check', async () => {
 
         getUpload({
-          beforeCheck() {
+          beforeUpload() {
             return false
-          },
+          },  
           afterComplete({ success }) {
             expect(success).toBeFalsy
           }
@@ -876,116 +981,103 @@ describe('upload chunk test', () => {
 
       })
 
-    })
+      test('lifecycle stop the task after check', async () => {
 
-  })
-
-  describe('mini app analog', () => {
-
-    //临时保存全局变量模拟小程序环境
-    let Blob = window.Blob
-    let File = window.File
-    let FileReader = window.FileReader
-    // let atob = window.atob
-    let upload
-
-    beforeAll(() => {
-      window.Blob = undefined
-      window.File = undefined
-      window.FileReader = undefined
-      // window.atob = undefined
-      upload = new Upload({
-        //模拟小程序的arraybuffer与base64互相转换的方法
-        base64ToArrayBuffer,
-        arrayBufferToBase64
-      })
-    })
-
-    afterAll(() => {
-      window.Blob = Blob
-      window.File = File
-      window.FileReader = FileReader
-      // window.atob = atob
-    })
-
-    describe('mini app analog success test', () => {
-
-      test('mini app analog with arraybuffer success', async () => {
-
-        const tasks = upload.on({
-          uploadFn,
-          file: arrayBufferFile,
-          completeFn,
-          mime
+        getUpload({
+          beforeUpload() {
+            return false
+          },  
+          afterComplete({ success }) {
+            expect(success).toBeFalsy
+          }
         })
 
-        const result = await upload.emit(tasks) 
-        
-        emitExpect(result, 'fulfilled')
-
-      })
-
-      test('mini app analog with base64 success', async () => {
-
         const tasks = upload.on({
-          uploadFn,
-          file: base64File,
-          mime,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'fulfilled')
-
-      })
-
-      test('mini app analog with chunks success', async () => {
-
-        let chunks = []
-
-        let totalChunks = Math.ceil(FILE_SIZE / config.chunkSize),
-            bufferSlice = ArrayBuffer.prototype.slice
-
-        while(chunks.length < totalChunks) {
-          let start = currentChunk * config.chunkSize,
-              end = currentChunk + 1 === totalChunks ? FILE_SIZE : ( currentChunk + 1 ) * config.chunkSize
-          const chunk = bufferSlice.call(arrayBufferFile, start, end)
-
-          chunks.push(chunk)
-        }
-
-        const tasks = upload.on({
-          uploadFn,
-          chunks,
-          mime,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'fulfilled')
-
-      })
-
-    })
-
-    describe('mini app analog fail test', () => {
-
-      let upload = new Upload()
-
-      test('mini app analog fail becasue lack of the file transform api', () => {
-        //未指定base64转换方法相关
-
-        const result = upload.on({
+          file,
           exitDataFn,
-          file: base64File,
-          mime,
+          uploadFn,
           completeFn
         })
 
-        expect(result).toBeInstanceOf(Array)
-        expect(result).toHaveLength(0)
+        const result = await upload.emit(tasks)
+
+        emitExpect(result, 'stopping')
+
+      })
+
+      test('lifecycle stop the task uploading', async () => {
+
+        getUpload({
+          beforeUpload() {
+            return false
+          },  
+          afterComplete({ success }) {
+            expect(success).toBeFalsy
+          }
+        })
+
+        const tasks = upload.on({
+          file,
+          exitDataFn,
+          uploadFn,
+          completeFn
+        })
+
+        const result = await upload.emit(tasks)
+
+        emitExpect(result, 'stopping')
+
+      })
+
+      test('lifecycle stop the task before complete', async () => {
+
+        getUpload({
+          beforeUpload() {
+            return false
+          },  
+          afterComplete({ success }) {
+            expect(success).toBeFalsy
+          }
+        })
+
+        const tasks = upload.on({
+          file,
+          exitDataFn,
+          uploadFn,
+          completeFn
+        })
+
+        const result = await upload.emit(tasks)
+
+        emitExpect(result, 'stopping')
+
+      })
+
+      test('lifecycle stop the task after complete', async () => {
+
+        getUpload({
+          beforeUpload() {
+            return false
+          },  
+          afterComplete({ success }) {
+            expect(success).toBeFalsy
+          }
+        })
+
+        const tasks = upload.on({
+          file,
+          exitDataFn,
+          uploadFn,
+          completeFn
+        })
+
+        const result = await upload.emit(tasks)
+
+        emitExpect(result, 'stopping')
+
+      })
+
+      test('lifecycle stop the task on retry', async () => {
 
       })
 
@@ -1050,6 +1142,34 @@ describe('upload chunk test', () => {
         emitExpect(result, 'rejected')
 
       })
+
+    })
+
+  })
+
+  describe('install api', () => {
+
+    test('install success', () => {
+
+    })
+
+    test('install success and ignore the plguin', () => {
+
+    })
+
+  })
+
+  describe('reader plugin test', () => {
+
+    test('reader plugin success deal test', () => {
+
+    })
+
+  })
+
+  describe('slicer plguin test', () => {
+
+    test('slicer plguin success deal test', () => {
 
     })
 

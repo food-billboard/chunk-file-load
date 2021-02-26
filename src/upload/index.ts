@@ -22,15 +22,15 @@ export default class Upload extends EventEmitter {
     Upload.plugins[name] = descriptor
   }
 
-  private lifecycle: LifeCycle = new LifeCycle()
+  protected lifecycle: LifeCycle = new LifeCycle()
 
-  private emitter: Emitter = new Emitter()
+  protected emitter: Emitter = new Emitter()
 
-  private reader!: Reader
+  protected reader!: Reader
 
-  private uploader!: Uploader
+  protected uploader!: Uploader
 
-  private workerPool!: WorkerPool
+  protected workerPool!: WorkerPool
 
   constructor(options?: {
     lifecycle?: TLifecycle,
@@ -239,10 +239,10 @@ export default class Upload extends EventEmitter {
           }
           callback && callback(callbackError, name)
           this.lifecycle.onWithObject(lifecycle, name, 'off')
-          if(remove) {
+          if(remove || !!!callbackError?.retry) {
             this.emitter.off(symbol)
           }else if(needRetry && !!callbackError?.retry) {
-            this.emit(symbol)
+            this.deal(symbol)
           }
         })
       }))

@@ -53,7 +53,9 @@ export default class Uploader extends Reader {
       let nextIndex = parseNumber(data)
       nextIndex = Number.isNaN(nextIndex) || nextIndex > size ? 0 : nextIndex
       let offset = nextIndex / chunkSize
-      if(Math.round(offset) == offset) {
+      if(nextIndex == size) {
+        unComplete = [] as any
+      }else if(Math.round(offset) == offset) {
         unComplete = new Array(chunksLength - offset).fill(0).map((_, ind) => ind + offset)
       }else {
         unComplete = new Array(chunksLength).fill(0).map((_, index) => index)
@@ -157,7 +159,7 @@ export default class Uploader extends Reader {
         let end = start + chunkSize
         end = end >= size ? size : end
         const buffer = await slicer.slice(file, start, end)
-        return new Blob([buffer])
+        return typeof Blob === 'undefined' ? buffer : new Blob([buffer])
       }
     }
 
@@ -184,6 +186,8 @@ export default class Uploader extends Reader {
           formData = params
         }
 
+        const response = await uploadFn(formData)
+
         await this.dealLifecycle('uploading', {
           name: symbol,
           status: ECACHE_STATUS.uploading,
@@ -192,7 +196,6 @@ export default class Uploader extends Reader {
           complete: total - newUnUploadChunks.length,
         })
 
-        const response = await uploadFn(formData)
         if(!!response) {
           newUnUploadChunks = this.getUnCompleteIndexs(task!, response)
         }
