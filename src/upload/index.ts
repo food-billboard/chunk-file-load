@@ -151,14 +151,14 @@ export default class Upload extends EventEmitter {
     return names.map(name => {
       const target = tasks.find(task => task.symbol == name)
       if(!target) return null
-      const { process: { current, complete, total }, status,  } = target
+      const { process: { current, complete, total }, status } = target
       return {
         error: null,
         name,
-        status: status,
-        progress: parseFloat((complete / total).toFixed(4)),
-        total,
-        current
+        status,
+        progress: parseFloat((complete / total).toFixed(4)) || 0,
+        total: total || 0,
+        current: current || 0
       }
     })
     

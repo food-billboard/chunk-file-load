@@ -1,6 +1,7 @@
-import { Upload } from '../src'
+import { Upload, ECACHE_STATUS } from '../src'
 import { base64ToArrayBuffer, arrayBufferToBase64, isSymbol } from '../src/utils/tool'
 import SparkMd5 from 'spark-md5'
+import merge from 'lodash/merge'
 
 const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLength }) => {
   return false
@@ -105,16 +106,20 @@ describe('upload chunk test', () => {
             result
         await new Promise((resolve, reject) => {
           result = upload.upload({
-            exitDataFn,
-            uploadFn,
-            file,
-            completeFn,
-            callback: (err) => {
-              if(err) {
-                reject(err)
-              }else {
-                resolve()
-              }
+            request: {
+              exitDataFn,
+              uploadFn,
+              completeFn,
+              callback: (err) => {
+                if(err) {
+                  reject(err)
+                }else {
+                  resolve()
+                }
+              },
+            },
+            file: {
+              file
             },
             lifecycle: {
               beforeRead({ name, task }) {
@@ -174,11 +179,15 @@ describe('upload chunk test', () => {
       it('add api success', () => {
 
         const tasks = upload.add({
-          exitDataFn,
-          uploadFn,
-          file,
-          completeFn,
-          callback: callback(() => {}),
+          upload: {
+            exitDataFn,
+            uploadFn,
+            completeFn,
+            callback: callback(() => {}),
+          },
+          file: {
+            file
+          },
         })
         expect(tasks).toBeInstanceOf(Array)
         expect(tasks.length).toBe(1)
@@ -202,44 +211,72 @@ describe('upload chunk test', () => {
     }
 
     const add = (config={}) => {
-      tasks = upload.add({
-        ..._config,
-        ...config,
-      })
+      tasks = upload.add(merge({}, _config, config))
     }
 
     describe('deal api success test', () => {
 
       test('deal api success width base64', (done) => {
-        add({ file: base64File, mime, callback: callback(done) })
+        add({ 
+          file: {
+            file: base64File,
+            mime
+          }, 
+          request: {
+            callback: callback(done)
+          }, 
+        })
         upload.deal(tasks)
       })
 
       test('deal api success with file', (done) => {
-        add({ file, callback: callback(done) })
+        add({ 
+          file: {
+            file
+          }, 
+          request: {
+            callback: callback(done)
+          }
+        })
         upload.deal(tasks)
       })
 
       test('deal api success with blob', (done) => {
         add({ 
-          file: blobFile,
-          mime,
-          callback: callback(done)
+          file: {
+            file: blobFile,
+            mime
+          },
+          request: {
+            callback: callback(done)
+          }
         })
         upload.deal(tasks)
       })
 
       test('deal api success with arraybuffer', (done) => {
-        add({ file: arrayBufferFile, mime, callback: callback(done) })
+        add({ 
+          file: {
+            file: arrayBufferFile, 
+            mime
+          }, 
+          request: {
+            callback: callback(done) 
+          }
+        })
         upload.deal(tasks)
       })
 
       test('deal api success with chunks list file', (done) => {
         add({
-          chunks,
-          mime,
-          md5,
-          callback: callback(done)
+          file: {
+            chunks,
+            mime,
+            md5,
+          },
+          request: {
+            callback: callback(done)
+          }
         })
         upload.deal(tasks)
       })
@@ -272,26 +309,30 @@ describe('upload chunk test', () => {
       test('deal api success but the exitFn return the not verify data and all the chunks need upload', (done) => {
         let times = 0
 
-        add({
-          ...config,
-          file,
-          exitDataFn: () => {
-            return {
-              data: config.chunkSize + 1
-            }
+        add(merge({}, {
+          config,
+          file: {
+            file
           },
-          uploadFn: (data) => {
-            times ++
-          },
-          callback: (error) => {
-            if(error) {
-              done(error)
-            }else {
-              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
-              done()
+          request: {
+            exitDataFn: () => {
+              return {
+                data: config.chunkSize + 1
+              }
+            },
+            uploadFn: (data) => {
+              times ++
+            },
+            callback: (error) => {
+              if(error) {
+                done(error)
+              }else {
+                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
+                done()
+              }
             }
           }
-        })
+        }))
 
         upload.deal(tasks)
       })
@@ -299,26 +340,30 @@ describe('upload chunk test', () => {
       test('deal api success and exitFn return the number list uploaded chunk', (done) => {
         let times = 0
 
-        add({
-          ...config,
-          file,
-          exitDataFn: () => {
-            return {
-              data: [0]
-            }
+        add(merge({
+          config,
+          file: {
+            file
           },
-          uploadFn: (data) => {
-            times ++
-          },
-          callback: (error) => {
-            if(error) {
-              done(error)
-            }else {
-              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-              done()
+          request: {
+            exitDataFn: () => {
+              return {
+                data: [0]
+              }
+            },
+            uploadFn: (data) => {
+              times ++
+            },
+            callback: (error) => {
+              if(error) {
+                done(error)
+              }else {
+                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                done()
+              }
             }
           }
-        })
+        }))
 
         upload.deal(tasks)
       })
@@ -326,26 +371,30 @@ describe('upload chunk test', () => {
       test('deal api success and exitFn return the string list uploaded chunk', async () => {
         let times = 0
 
-        add({
-          ...config,
-          file,
-          exitDataFn: () => {
-            return {
-              data: ['0']
-            }
+        add(merge({
+          config,
+          file: {
+            file
           },
-          uploadFn: (data) => {
-            times ++
-          },
-          callback: (error) => {
-            if(error) {
-              done(error)
-            }else {
-              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-              done()
+          request: {
+            exitDataFn: () => {
+              return {
+                data: ['0']
+              }
+            },
+            uploadFn: (data) => {
+              times ++
+            },
+            callback: (error) => {
+              if(error) {
+                done(error)
+              }else {
+                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                done()
+              }
             }
           }
-        })
+        }))
 
         upload.deal(tasks)
       })
@@ -353,26 +402,30 @@ describe('upload chunk test', () => {
       test('deal api success and exitFn return the number of next need upload chunk', (done) => {
         let times = 0
 
-        add({
-          ...config,
-          file,
-          exitDataFn: () => {
-            return {
-              data: config.chunkSize
-            }
+        add(merge({
+          config,
+          file: {
+            file
           },
-          uploadFn: (data) => {
-            times ++
-          },
-          callback: (error) => {
-            if(error) {
-              done(error)
-            }else {
-              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-              done()
+          request: {
+            exitDataFn: () => {
+              return {
+                data: config.chunkSize
+              }
+            },
+            uploadFn: (data) => {
+              times ++
+            },
+            callback: (error) => {
+              if(error) {
+                done(error)
+              }else {
+                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                done()
+              }
             }
           }
-        })
+        }))
 
         upload.deal(tasks)
       })
@@ -380,26 +433,30 @@ describe('upload chunk test', () => {
       test('deal api success and uploadFn return the string of next need upload chunk', (done) => {
         let times = 0
 
-        add({
-          ...config,
-          file,
-          exitDataFn: () => {
-            return {
-              data: config.chunkSize.toString()
-            }
+        add(merge({
+          config,
+          file: {
+            file
           },
-          uploadFn: (data) => {
-            times ++
-          },
-          callback: (error) => {
-            if(error) {
-              done(error)
-            }else {
-              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-              done()
+          request: {
+            exitDataFn: () => {
+              return {
+                data: config.chunkSize.toString()
+              }
+            },
+            uploadFn: (data) => {
+              times ++
+            },
+            callback: (error) => {
+              if(error) {
+                done(error)
+              }else {
+                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                done()
+              }
             }
           }
-        })
+        }))
 
         upload.deal(tasks)
       })
@@ -420,11 +477,15 @@ describe('upload chunk test', () => {
       test('deal api fail because the task not the uploadFn', (done) => {
         let times = 0
         const names = upload.add({
-          file,
-          callback: (error) => {
-            expect(!!error).toBe(true)
-            expect(times).toBe(0)
-            done()
+          file: {
+            file
+          },
+          request: {
+            callback: (error) => {
+              expect(!!error).toBe(true)
+              expect(times).toBe(0)
+              done()
+            },
           },
           lifecycle: {
             uploading: () => {
@@ -450,11 +511,15 @@ describe('upload chunk test', () => {
 
       test('start api success', (done) => {
         const tasks = upload.on({
-          exitDataFn,
-          file,
-          completeFn,
-          uploadFn,
-          callback: callback(done)
+          request: {
+            exitDataFn,
+            completeFn,
+            uploadFn,
+            callback: callback(done)
+          },
+          file: {
+            file
+          },
         })
 
         upload.start(tasks)
@@ -472,36 +537,40 @@ describe('upload chunk test', () => {
 
       const total = Math.ceil(FILE_SIZE / config.chunkSize)
       let times = Array.from({ length: total }, (_, index) => index)
-      let stop = false
 
-      test('stop api success', async () => {
+      test('stop api success and with api', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
 
         //在emit中的stop中能找到当前指定队列名称任务
-        const tasks = upload.add({
-          exitDataFn() {
-            return times
-          },
-          file,
-          completeFn,
-          uploadFn: (data) => {
-            const index = data.get('index')
-            const _index = times.indexOf(parseInt(index))
-            if(!!~_index) {
-              times.splice(_index, 1)
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              count ++
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                upload.start(tasks)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(count).toEqual(times)
+                done()
+              }
             }
           },
+          file: {
+            file
+          },
           lifecycle: {
-            beforeUpload({ name }) {
-              if(!stop) {
-                const _result = this.stop(name)
-
-                expect(_result).toBeInstanceOf(Array)
-                expect(_result).toHaveLength(1)
-                expect(_result[0]).toEqual(name)
+            uploading({ name }) {
+              if(stop) {
+                this.stop(name)
               }
-            },
-            afterStop() {
-              stop = true
             },
           }
         })
@@ -509,17 +578,671 @@ describe('upload chunk test', () => {
         expect(tasks).toBeInstanceOf(Array)
         expect(tasks).toHaveLength(1)
 
-        const result = await upload.emit(tasks)
+        upload.deal(...tasks)
 
-        emitExpect(result, 'stopping')
+      })
 
-        expect(stop).toBe(true)
+      test('stop api success and stop in uploading', (done) => {
 
-        //可以继续上传
-        await upload.start(tasks)
+        let count = 0
+        let reading = 0
+        let tasks
+        let stop = true
 
-        expect(times).toBeInstanceOf(Array)
-        expect(times).toHaveLength(0)
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              count ++
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(count).toEqual(times)
+                expect(reading).toBe(times)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading() {
+              reading ++
+            },
+            uploading({ name }) {
+              if(stop) {
+                this.stop(name)
+              }
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in reading', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(count).toEqual(times + 1)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              if(stop) {
+                this.stop(name)
+              }
+              count ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in beforeRead', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(count).toEqual(2)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            beforeRead({ name }) {
+              if(stop) {
+                this.stop(name)
+              }
+              count ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in beforeCheck', (done) => {
+
+        let beforeCheck = 0
+        let reading = 0
+        let tasks
+        let stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(beforeCheck).toEqual(2)
+                expect(reading).toBe(times)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading() {
+              reading ++
+            },
+            beforeCheck({ name }) {
+              if(stop) {
+                this.stop(name)
+              }
+              beforeCheck ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in afterCheck', (done) => {
+
+        let uploadCount = 0
+        let reading = 0
+        let tasks
+        let stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              uploadCount ++
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                upload.start(tasks)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(uploadCount).toEqual(times)
+                expect(reading).toBe(times)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              if(stop) {
+                this.stop(name)
+              }
+              reading ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in afterStop and not use', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+              }else {
+                expect(count).toBe(1)
+                expect(!!error).toBeFalsy
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              if(stop) {
+                this.stop(name)
+              }
+            },
+            afterStop({ name }) {
+              if(stop) {
+                const names = this.stop(name)
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(0)
+              }
+              count ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in afterCancel and not use', (done) => {
+
+        let count = 0
+        let tasks
+        let cancel = true
+        let reading = 0
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+                expect(reading).toBe(1)
+              }else {
+                expect(count).toBe(1)
+                expect(reading).toBe(1)
+                expect(!!error).toBeTruthy
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              if(cancel) {
+                this.cancel(name)
+              }
+              reading ++
+            },
+            afterCancel({ name }) {
+              if(cancel) {
+                const names = this.stop(name)
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(0)
+              }
+              count ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in beforeComplete', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
+        let reading = 0
+        let uploading = 0
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+                expect(reading).toBe(times)
+                expect(uploading).toBe(times)
+              }else {
+                expect(count).toBe(2)
+                expect(!!error).toBeFalsy
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              reading ++
+            },
+            uploading({ name }) {
+              uploading ++
+            },
+            beforeComplete({ name }) {
+              if(stop) {
+                const names = this.stop(name)
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(1)
+              }
+              count ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in afterComplete', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
+        let reading = 0
+        let uploading = 0
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+                expect(reading).toBe(times)
+                expect(uploading).toBe(times)
+              }else {
+                expect(count).toBe(2)
+                expect(!!error).toBeFalsy
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              reading ++
+            },
+            uploading({ name }) {
+              uploading ++
+            },
+            afterComplete({ name }) {
+              if(stop) {
+                const names = this.stop(name)
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(1)
+              }
+              count ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and stop in retry', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
+        let uploading = 0
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              if(stop) {
+                throw new Error()
+              }
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                expect(error.retry).toBeFalsy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+              }else {
+                expect(count).toBe(1)
+                expect(!!error).toBeFalsy
+                expect(uploading).toBe(times)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            uploading({ name }) {
+              uploading ++
+            },
+            retry({ name }) {
+              if(stop) {
+                const names = this.stop(name)
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(1)
+              }
+              count ++
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and with error', (done) => {
+
+        let count = 0
+        let tasks
+        stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              count ++
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                upload.start(tasks)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(count).toEqual(times)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            uploading({ name }) {
+              if(stop) {
+                throw new Error()
+              }
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and with boolean', (done) => {
+
+        let count = 0
+        let tasks
+        stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              count ++
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                upload.start(tasks)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(count).toEqual(times)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            uploading({ name }) {
+              if(stop) {
+                return false
+              }
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
+
+      })
+
+      test('stop api success and with promise', (done) => {
+
+        let count = 0
+        let tasks
+        let stop = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              count ++
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                upload.start(tasks)
+              }else {
+                expect(!!error).toBeFalsy
+                expect(count).toEqual(times)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            async uploading({ name }) {
+              await new Promise((resolve) => setTimeout(resolve, 1000))
+              if(stop) {
+                return false
+              }
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        upload.deal(...tasks)
 
       })
 
@@ -545,38 +1268,550 @@ describe('upload chunk test', () => {
 
     describe('cancel api success test', () => {
 
-      test('cancel api success', async () => {
+      test('cancel api success with api', async () => {
 
-        let cancel = false
+        let tasks
 
-         const tasks = upload.on({
-          exitDataFn,
-          file,
-          completeFn,
-          uploadFn,
+        tasks = upload.add({
+          request: {
+            exitDataFn,
+            completeFn,
+            uploadFn,
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const result = upload.start(...tasks)
+              expect(result).toBeInstanceOf(Array)
+              expect(result.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file,
+          },
           lifecycle: {
-            beforeUpload({ name }) {
-              if(!cancel) {
-                const _result = this.cancel(name)
-                expect(_result).toBeInstanceOf(Array)
-                expect(_result).toHaveLength(1)
-                expect(_result[0]).toEqual(name)
-              }
-            },
-            afterCancel({ name }) {
-              cancel = true
+            uploading({ name }) {
+              const _result = this.cancel(name)
+              expect(_result).toBeInstanceOf(Array)
+              expect(_result).toHaveLength(1)
+              expect(_result[0]).toEqual(name)
             }
           }
         })
 
-        const result = await upload.emit(tasks)
+        const result = upload.deal(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
 
-        emitExpect(result, 'cancel')
+      })
 
-        //无法继续上传
-        const start = await upload.start(tasks)
+      test('cancel api success with error', (done) => {
 
-        emitExpect(start, 'other')
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            exitDataFn,
+            completeFn,
+            uploadFn,
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const result = upload.start(...tasks)
+              expect(result).toBeInstanceOf(Array)
+              expect(result.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file,
+          },
+          lifecycle: {
+            uploading({ name }) {
+              throw new Error()
+            }
+          }
+        })
+
+        const result = upload.emit(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
+
+      })
+
+      test('cancel api success with boolean', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            exitDataFn,
+            completeFn,
+            uploadFn,
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const result = upload.start(...tasks)
+              expect(result).toBeInstanceOf(Array)
+              expect(result.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file,
+          },
+          lifecycle: {
+            uploading({ name }) {
+              return false
+            }
+          }
+        })
+
+        const result = upload.emit(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
+
+      })
+
+      test('cancel api success and with promise', (done) => {
+
+        let tasks
+        let cancel = true
+
+        //在emit中的stop中能找到当前指定队列名称任务
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+             
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            async uploading({ name }) {
+              await new Promise((resolve) => setTimeout(resolve, 1000))
+              if(stop) {
+                return false
+              }
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(0)
+
+      })
+
+      test('cancel api success and cancel in uploading', (done) => {
+
+        let tasks
+        let cancel = true
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(cancel) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            uploading({ name }) {
+              if(cancel) {
+                this.cancel(name)
+              }
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in reading', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              this.cancel(name)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in beforeRead', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            beforeRead({ name }) {
+              this.cancel(name)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in beforeCheck', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            beforeCheck({ name }) {
+              this.cancel(name)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in afterCheck', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              uploadCount ++
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              this.cancel(name)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in afterStop and not use', (done) => {
+
+        let tasks
+        let stop = true
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              if(stop) {
+                expect(!!error).toBeTruthy
+                stop = false
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(1)
+              }else {
+                expect(!!error).toBeFalsy
+                done()
+              }
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              if(stop) {
+                this.stop(name)
+              }
+            },
+            afterStop({ name }) {
+              const names = this.cancel(name)
+              expect(names).toBeInstanceOf(Array)
+              expect(names.length).toBe(0)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in afterCancel and not use', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              this.cancel(name)
+            },
+            afterCancel({ name }) {
+              const names = this.cancel(name)
+              expect(names).toBeInstanceOf(Array)
+              expect(names.length).toBe(0)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in beforeComplete', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            beforeComplete({ name }) {
+              const names = this.cancel(name)
+              expect(names).toBeInstanceOf(Array)
+              expect(names.length).toBe(0)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in afterComplete', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            afterComplete({ name }) {
+              const names = this.cancel(name)
+              expect(names).toBeInstanceOf(Array)
+              expect(names.length).toBe(1)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('cancel api success and cancel in retry', (done) => {
+
+        let tasks
+
+        tasks = upload.add({
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              throw new Error()
+            },
+            callback: (error) => {
+              expect(!!error).toBeTruthy
+              expect(error.retry).toBeFalsy
+              const nextTasks = upload.start(tasks)
+              expect(nextTasks).toBeInstanceOf(Array)
+              expect(nextTasks.length).toBe(0)
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            retry({ name }) {
+              const names = this.cancel(name)
+              expect(names).toBeInstanceOf(Array)
+              expect(names.length).toBe(1)
+            },
+          }
+        })
+
+        expect(tasks).toBeInstanceOf(Array)
+        expect(tasks).toHaveLength(1)
+
+        const names = upload.deal(...tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
 
       })
 
@@ -602,25 +1837,31 @@ describe('upload chunk test', () => {
 
     describe('cancelAdd api success test', () => {
 
-      test('cancelAdd api success', async () => {
+      test('cancelAdd api success', (done) => {
 
-         const tasks = upload.on({
-          exitDataFn,
-          file,
-          completeFn,
-          uploadFn
+        const tasks = upload.add({
+          request: {
+            exitDataFn,
+            completeFn,
+            uploadFn
+          },
+          file: {
+            file
+          },
         })
 
-        const cancelResult = upload.cancelEmit(tasks)
+        const cancelResult = upload.cancelAdd(tasks)
 
         expect(cancelResult).toBeInstanceOf(Array)
         expect(cancelResult).toHaveLength(1)
         expect(cancelResult[0]).toEqual(tasks[0])
 
         //无法继续上传，需要重新订阅
-        const result = await upload.emit(tasks)
+        const result = upload.deal(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(0)
 
-        emitExpect(result, 'other')
+        done()
 
       })
 
@@ -628,27 +1869,34 @@ describe('upload chunk test', () => {
 
     describe('cancelAdd api fail test', () => {
 
-      test('cancelAdd api fail because the task is uploading', async () => {
+      test('cancelAdd api fail because the task is uploading', (done) => {
 
         let times = 0
 
-        const tasks = await upload.upload({
-          exitDataFn,
-          file,
-          completeFn,
-          uploadFn(data) {
-            times ++
+        const tasks = upload.upload({
+          request: {
+            completeFn,
+            uploadFn(data) {
+              times ++
+            },
+            exitDataFn,
+            callback(error) {
+              expect(!!error).toBeFalsy
+              expect(times).toBe(totalChunks)
+              done()
+            }
+          },
+          file: {
+            file
           },
           lifecycle: {
-            beforeUpload({ name }) {
-              const _result = this.cancelEmit(name)
+            uploading({ name }) {
+              const _result = this.cancelAdd(name)
               expect(_result).toBeInstanceOf(Array)
               expect(_result).toHaveLength(0)
             }
           }
         })   
-        
-        expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
 
       })
 
@@ -668,9 +1916,27 @@ describe('upload chunk test', () => {
 
   describe('isSupport api', () => {
 
-    describe('isSupport api sucess test', () => {
+    describe('isSupport api success test', () => {
 
-      test('isSupport api sucess', () => {
+      test('isSupport api success', () => {
+
+        const result = Upload.isSupport()
+        expect(result).toBeTruthy()
+
+      })
+
+    })
+
+    describe('isSupport api fail test', () => {
+
+      test('isSupport api fail because the environment is not support', (done) => {
+
+        let _ArrayBuffer = window.ArrayBuffer
+        window.ArrayBuffer = undefined
+        const result = Upload.isSupport()
+        expect(result).toBeFalsy
+        window.ArrayBuffer = _ArrayBuffer
+        done()
 
       })
 
@@ -680,13 +1946,35 @@ describe('upload chunk test', () => {
 
   describe('getTask api', () => {
 
-    describe('getTask api sucess test', () => {
+    describe('getTask api success test', () => {
 
-      test('getTask api sucess', () => {
+      let name
+
+      beforeAll((done) => {
+        [ name ] = upload.add({
+          request: {
+            uploadFn,
+            completeFn
+          },
+          file: {
+            file
+          }
+        })
+      })
+
+      test('getTask api success', (done) => {
+
+        const task = upload.getTask(name)
+        expect(!!task).toBeTruthy
+        done()
 
       })
 
-      test('getTask api sucess but the task not found ', () => {
+      test('getTask api success but the task not found ', (done) => {
+
+        const task = upload.getTask(null)
+        expect(!!task).toBeFalsy
+        done()
 
       })
 
@@ -696,14 +1984,32 @@ describe('upload chunk test', () => {
 
   describe('getOriginFile api', () => {
     
-    describe('getOriginFile api sucess test', () => {
+    describe('getOriginFile api success test', () => {
 
-      test('getOriginFile api sucess', () => {
+      let name
 
+      beforeAll((done) => {
+        [ name ] = upload.add({
+          request: {
+            uploadFn,
+            completeFn
+          },
+          file: {
+            file
+          }
+        })
       })
 
-      test('getOriginFile api sucess but the task not found ', () => {
+      test('getOriginFile api success', (done) => {
+        const task = upload.getOriginFile(name)
+        expect(!!task).toBeTruthy
+        done()
+      })
 
+      test('getOriginFile api success but the task not found ', () => {
+        const task = upload.getOriginFile(null)
+        expect(!!task).toBeFalsy
+        done()
       })
 
     })
@@ -712,13 +2018,142 @@ describe('upload chunk test', () => {
 
   describe('getStatus api', () => {
     
-    describe('getStatus api sucess test', () => {
+    describe('getStatus api success test', () => {
 
-      test('getStatus api sucess', () => {
+      test('getStatus api success', (done) => {
+
+        let name
+        const expectStatus = (expectValue) => {
+          const status = upload.getStatus(name)
+          expect(status).toEqual(expectValue)
+        }
+
+        [ name ] = upload.add({
+          request: {
+            uploadFn() {
+              expectStatus(ECACHE_STATUS.uploading)
+            },
+            completeFn() {
+              expectStatus(ECACHE_STATUS.uploading)
+            },
+            exitDataFn() {
+              expectStatus(ECACHE_STATUS.uploading)
+            },
+            callback() {
+              expectStatus(ECACHE_STATUS.fulfilled)
+              done()
+            }
+          },
+          file: {
+            file
+          },
+          lifecycle: {
+            reading({ name }) {
+              expectStatus(ECACHE_STATUS.reading)
+            },
+            beforeRead({ name }) {
+              expectStatus(ECACHE_STATUS.waiting)
+            },
+            beforeCheck({ name }) {
+              expectStatus(ECACHE_STATUS.reading)
+            },
+            afterCheck({ name }) {
+              expectStatus(ECACHE_STATUS.reading)
+            },
+            uploading({ name }) {
+              expectStatus(ECACHE_STATUS.uploading)
+            },
+            beforeComplete({ name }) {
+              expectStatus(ECACHE_STATUS.uploading)
+            },
+            afterComplete({ name }) {
+              expectStatus(ECACHE_STATUS.uploading)
+            }
+          }
+        })
+
+        expectStatus(ECACHE_STATUS.pending)
+
+        upload.deal(name)
 
       })
 
-      test('getStatus api sucess but the task not found ', () => {
+      test('getStatus api success and in other situation', (done) => {
+
+        let name
+
+        [ name ] = upload.add({
+          file: {
+            file
+          },
+          request: {
+            uploadFn() {
+              throw new Error()
+            },
+            callback(error) {
+              const status = upload.getStatus(name)
+              expect(status).toEqual(ECACHE_STATUS.rejected)
+              done()
+            }
+          }
+        })
+
+        upload.deal(name)
+
+      })
+
+      test('getStatus api success and stop', (done) => {
+
+        let name
+
+        [ name ] = upload.add({
+          file: {
+            file
+          },
+          request: {
+            uploadFn() {
+              this.stop(name)
+            },
+            callback(error) {
+              const status = upload.getStatus(name)
+              expect(status).toEqual(ECACHE_STATUS.stopping)
+              done()
+            }
+          }
+        })
+
+        upload.deal(name)
+
+      })
+
+      test('getStatus api success and cancel', (done) => {
+
+        let name
+
+        [ name ] = upload.add({
+          file: {
+            file
+          },
+          request: {
+            uploadFn() {
+              this.cancel(name)
+            },
+            callback(error) {
+              const status = upload.getStatus(name)
+              expect(status).toEqual(ECACHE_STATUS.cancel)
+              done()
+            }
+          }
+        })
+
+        upload.deal(name)
+
+      })
+
+      test('getStatus api success but the task not found ', () => {
+
+        const status = upload.getStatus(null)
+        expect(!!status).toBeFalsy
 
       })
 
@@ -730,27 +2165,232 @@ describe('upload chunk test', () => {
 
     describe('watch api success test', () => {
 
-      test('watch api success', async () => {
+      const expectWatch = (value, property) => {
+        expect(value).toBeInstanceOf(Object)
+        expect(value).toHaveProperty('progress')
+        expect(value.progress).toEqual(property.progress)
+        expect(value).toHaveProperty('name')
+        expect(value.name).toEqual(property.name)
+        expect(value).toHaveProperty('error')
+        expect(value.error).toEqual(property.error)
+        expect(value).toHaveProperty('status')
+        expect(value.status).toEqual(property.status)
+        expect(value).toHaveProperty('total')
+        expect(value.total).toEqual(property.total)
+        expect(value).toHaveProperty('current')
+        expect(value.current).toEqual(property.current)
+      }
+
+      const progress = (target) => {
+        const { progress: { complete, total } } = target
+        return parseFloat((complete - 1 / total).toFixed(4))
+      }
+
+      test('watch api success', (done) => {
+
+        let reading = 0
+        let beforeRead = 0
+        let beforeCheck = 0
+        let afterCheck = 0
+        let uploading = 0
+        let beforeComplete = 0
+        let afterComplete = 0
 
         //返回正确的参数
-        const tasks = upload.on({
-          file,
-          uploadFn: (data) => {
-            const watch = upload.watch(tasks)
-            expect(watch).toBeInstanceOf(Array)
-            expect(watch).toHaveLength(1)
-            watch.forEach(wa => {
-              expect(wa).toBeInstanceOf(Object)
-              expect(wa).toHaveProperty('progress')
-              expect(wa).toHaveProperty('name')
-            })
+        const tasks = upload.add({
+          file: {
+            file
           },
-          completeFn
+          request: {
+            uploadFn: (data) => {},
+            completeFn,
+            callback(error) {
+              expect(!!error).toBeFalsy
+              expect(beforeRead).toBe(1)
+              expect(reading).toBe(totalChunks)
+              expect(beforeCheck).toBe(1)
+              expect(afterCheck).toBe(1)
+              expect(uploading).toBe(totalChunks)
+              expect(beforeComplete).toBe(1)
+              expect(afterComplete).toBe(1)
+              done()
+            }
+          },
+          lifecycle: {
+            beforeRead({ name, task }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.waiting,
+                total: 0,
+                current: 0
+              })
+              beforeRead ++
+            },
+            reading({ name, current, total }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: progress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total,
+                current: current == 0 ? 0 : current - config.chunkSize
+              })
+              reading ++
+            },
+            beforeCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 100,
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: FILE_SIZE,
+                current: FILE_SIZE
+              })
+              beforeCheck ++
+            },
+            afterCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: FILE_SIZE,
+                current: 0
+              })
+              afterCheck ++
+            },
+            uploading({ name, current, total, complete }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: progress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: FILE_SIZE,
+                current: current == 0 ? 0 : current
+              })
+              uploading ++
+            },
+            beforeComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 100,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: FILE_SIZE,
+                current: FILE_SIZE
+              })
+              beforeComplete ++
+            },
+            afterComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 100,
+                name,
+                error: null,
+                status: ECACHE_STATUS.fulfilled,
+                total: FILE_SIZE,
+                current: FILE_SIZE
+              })
+              afterComplete ++
+            }
+          }
         })
 
-        const result = await upload.emit(tasks)
+        upload.deal(tasks)
 
-        emitExpect(result, 'fulfilled')
+      })
+
+      test('watch api success and stop', (done) => {
+
+        let tasks
+        let afterStop = 0
+
+        //返回正确的参数
+        [ tasks ] = upload.add({
+          file: {
+            file
+          },
+          request: {
+            uploadFn: (data) => {
+              this.stop(tasks)
+            },
+            completeFn,
+            callback(error) {
+              expect(!!error).toBeTruthy
+              expect(afterStop).toBe(1)
+              done()
+            }
+          },
+          lifecycle: {
+            afterStop({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: FILE_SIZE,
+                current: 0
+              })
+              afterStop ++
+            }
+          }
+        })
+
+        const names = upload.deal(tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
+
+      })
+
+      test('watch api success and cancel', (done) => {
+
+        let tasks
+        let afterCancel = 0
+
+        //返回正确的参数
+        [ tasks ] = upload.add({
+          file: {
+            file
+          },
+          request: {
+            uploadFn: (data) => {
+              this.stop(tasks)
+            },
+            completeFn,
+            callback(error) {
+              expect(!!error).toBeTruthy
+              expect(afterCancel).toBe(1)
+              done()
+            }
+          },
+          lifecycle: {
+            afterCancel({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: FILE_SIZE,
+                current: 0
+              })
+              afterCancel ++
+            }
+          }
+        })
+
+        const names = upload.deal(tasks)
+        expect(names).toBeInstanceOf(Array)
+        expect(names.length).toBe(1)
 
       })
 
@@ -788,297 +2428,120 @@ describe('upload chunk test', () => {
 
     let upload
 
-    const getUpload = (config={}) => {
+    const getUpload = (lifecycle={}) => {
       upload = new Upload({
-        lifecycle: {
-          ...lifecycle,
-          ...config
-        }
+        lifecycle
       })
     }
 
     describe('lifecycle success test', () => {
 
-      test('lifecycle success', async() => {
+      test('lifecycle success', (done) => {
 
         let beforeRead = 0
         let reading = 0
+        let uploading = 0
+        let beforeCheck = 0
+        let afterCheck = 0
+        let beforeComplete = 0
+        let afterComplete = 0
 
         getUpload({
           beforeRead: ({ name, task }) => {
             beforeRead ++
           },
-          reading: ({ name, task, start, end }) => {
-            expect(start).toBe(reading * config.chunkSize)
+          reading: ({ name, task, current, total }) => {
+            expect(total).toBe(totalChunks)
             const endSize = (reading + 1) * config.chunkSize
-            expect(end).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
+            expect(current).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
             reading ++
           },
-          beforeUpload({  }) {
-            return false
+          beforeCheck({ name, task }) {
+            expect(task.file.md5).toBe(md5)
+            beforeCheck ++
+          },
+          afterCheck({ name, task, isExists }) {
+            expect(isExists).toBeFalsy
+            afterCheck ++
+          },
+          uploading({ name, current, total, complete }) {
+            expect(current).toBe(uploading)
+            expect(total).toBe(totalChunks)
+            expect(complete).toEqual(uploading)
+            uploading ++
+          },
+          beforeComplete({ isExists }) {
+            expect(isExists).toBeFalsy
+            beforeComplete ++
           },
           afterComplete: ({ name, task, success }) => {
-            expect(success).toBe(false)
+            expect(success).toBeTruthy
+            afterComplete ++
           }
         })
 
-        const tasks = upload.on({
-          file,
-          exitDataFn,
-          uploadFn,
-          completeFn
+        const tasks = upload.add({
+          file: {
+            file
+          },
+          request: {
+            exitDataFn,
+            uploadFn,
+            completeFn,
+            callback(error) {
+              expect(!!error).toBeFalsy
+              expect(beforeRead).toBe(1)
+              expect(reading).toBe(totalChunks)
+              expect(uploading).toBe(totalChunks)
+              expect(beforeCheck).toBe(1)
+              expect(afterCheck).toBe(1)
+              expect(beforeComplete).toBe(1)
+              expect(afterComplete).toBe(1)
+              done()
+            }
+          }
         })
 
-        const result = await upload.emit(tasks)
-        emitExpect(result, 'stopping')
-        expect(beforeRead).toBe(1)
+        const result = upload.deal(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
 
       })
 
-      test('lifecycle stop the task in reading with file', async () => {
-
+      test('lifecycle success and stop the process the next lifecycle not performance', (done) => {
         let reading = 0
 
         getUpload({
-          reading() {
-            if(reading > 3) {
-              return false
+          reading: ({  }) => {
+            uploading ++
+            throw new Error()
+          },
+        })
+
+        const tasks = upload.add({
+          file: {
+            file
+          },
+          request: {
+            exitDataFn,
+            uploadFn,
+            completeFn,
+            callback(error) {
+              expect(!!error).toBeTruthy
+              expect(reading).toBe(1)
+              done()
             }
-            reading ++
           },
-          afterComplete({ success }) {
-            expect(success).toBe(false)
-          }
-        })
-
-        await upload.upload({
-          exitDataFn,
-          file,
-          uploadFn,
-          completeFn,
-          mime
-        })
-
-        expect(reading).toBe(4)
-
-      })
-
-      test('lifecycle stop the task in reading with arraybuffer file', async () => {
-
-        let reading = 0
-
-        getUpload({
-          reading() {
-            if(reading > 3) {
-              return false
+          lifecycle: {
+            reading() {
+              uploading ++
             }
-            reading ++
-          },
-          afterComplete({ success }) {
-            expect(success).toBe(false)
           }
         })
 
-        await upload.upload({
-          exitDataFn,
-          file: arrayBufferFile,
-          uploadFn,
-          completeFn,
-          mime
-        })
-
-        expect(reading).toBe(4)
-
-      })
-
-      test('lifecycle stop the task in reading width base64 file', async () => {
-
-        getUpload({
-          reading() {
-            return false
-          },
-          afterComplete({ success }) {
-            expect(success).toBe(false)
-          }
-        })
-
-        await upload.upload({
-          exitDataFn,
-          file: base64File,
-          uploadFn,
-          completeFn,
-          mime
-        })
-
-      })
-
-      test('lifecycle stop the task in reading width chunks file', async () => {
-
-        getUpload({
-          reading() {
-            return false
-          },
-          afterComplete({ success }) {
-            expect(success).toBe(false)
-          }
-        })
-
-        await upload.upload({
-          exitDataFn,
-          chunks,
-          uploadFn,
-          completeFn,
-          mime
-        })
-
-      })
-
-      test('lifecycle stop the task before red', async () => {
-
-        getUpload({
-          beforeUpload() {
-            return false
-          },  
-          afterComplete({ success }) {
-            expect(success).toBeFalsy
-          }
-        })
-
-        const tasks = upload.on({
-          file,
-          exitDataFn,
-          uploadFn,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'stopping')
-
-      })
-
-      test('lifecycle stop the task before check', async () => {
-
-        getUpload({
-          beforeUpload() {
-            return false
-          },  
-          afterComplete({ success }) {
-            expect(success).toBeFalsy
-          }
-        })
-
-        const tasks = upload.on({
-          file,
-          exitDataFn,
-          uploadFn,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'stopping')
-
-      })
-
-      test('lifecycle stop the task after check', async () => {
-
-        getUpload({
-          beforeUpload() {
-            return false
-          },  
-          afterComplete({ success }) {
-            expect(success).toBeFalsy
-          }
-        })
-
-        const tasks = upload.on({
-          file,
-          exitDataFn,
-          uploadFn,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'stopping')
-
-      })
-
-      test('lifecycle stop the task uploading', async () => {
-
-        getUpload({
-          beforeUpload() {
-            return false
-          },  
-          afterComplete({ success }) {
-            expect(success).toBeFalsy
-          }
-        })
-
-        const tasks = upload.on({
-          file,
-          exitDataFn,
-          uploadFn,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'stopping')
-
-      })
-
-      test('lifecycle stop the task before complete', async () => {
-
-        getUpload({
-          beforeUpload() {
-            return false
-          },  
-          afterComplete({ success }) {
-            expect(success).toBeFalsy
-          }
-        })
-
-        const tasks = upload.on({
-          file,
-          exitDataFn,
-          uploadFn,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'stopping')
-
-      })
-
-      test('lifecycle stop the task after complete', async () => {
-
-        getUpload({
-          beforeUpload() {
-            return false
-          },  
-          afterComplete({ success }) {
-            expect(success).toBeFalsy
-          }
-        })
-
-        const tasks = upload.on({
-          file,
-          exitDataFn,
-          uploadFn,
-          completeFn
-        })
-
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'stopping')
-
-      })
-
-      test('lifecycle stop the task on retry', async () => {
-
+        const result = upload.deal(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
       })
 
     })
@@ -1092,18 +2555,27 @@ describe('upload chunk test', () => {
       let times = 0
       let count = 0
 
-      test('error retry success', async () => {
+      test('error retry success', (done) => {
 
         //错误自动重试
-        const tasks = upload.on({
-          file,
-          completeFn,
-          uploadFn: (formData) => {
-            if(times < 3) {
-              times ++
-              throw new Error('retry test error')
-            }else {
-              return true
+        const tasks = upload.add({
+          file: {
+            file
+          },
+          request: {
+            completeFn,
+            uploadFn: (formData) => {
+              if(times < 3) {
+                times ++
+                throw new Error('retry test error')
+              }else {
+                return true
+              }
+            },
+            callback(error) {
+              expect(!!error).toBeFalsy
+              expect(count).toBe(3)
+              done()
             }
           },
           config: {
@@ -1118,29 +2590,73 @@ describe('upload chunk test', () => {
           }
         })
 
-        const result = await upload.emit(tasks)
-
-        emitExpect(result, 'fulfilled')
-        expect(count).toBe(3)
+        const result = upload.deal(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
 
       })
 
-      test('error retry success and all the upload times all fail', async () => {
+      test('error retry success and all the upload times all fail', (done) => {
 
         //错误自动重试
-        const tasks = upload.on({
-          file,
-          completeFn,
-          uploadFn: (data) => {
-            throw new Error('retry test all fail error')
+        const tasks = upload.add({
+          file: {
+            file
+          },
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              throw new Error('retry test all fail error')
+            },
+            callback(error) {
+              expect(!!error).toBeTruthy
+              done()
+            }
           },
           config,
         })
 
-        const result = await upload.emit(tasks)
+        const result = upload.deal(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
 
-        emitExpect(result, 'rejected')
+      })
 
+      test('error retry success and in retry lifecycle stop the performance', (done) => {
+
+        let count = 0
+
+        //错误自动重试
+        const tasks = upload.add({
+          file: {
+            file
+          },
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              if(count == 0) {
+                throw new Error('retry test all fail error')
+              }
+              count ++
+            },
+            callback(error) {
+              expect(!!error).toBeFalsy
+              expect(count).toBe(1)
+              done()
+            }
+          },
+          lifecycle: {
+            retry({ name }) {
+              this.stop(name)
+              count ++
+            }
+          },
+          config,
+        })
+
+        const result = upload.deal(tasks)
+        expect(result).toBeInstanceOf(Array)
+        expect(result.length).toBe(1)
       })
 
     })
@@ -1149,28 +2665,81 @@ describe('upload chunk test', () => {
 
   describe('install api', () => {
 
-    test('install success', () => {
+    let ignoreReader = false
+    let ignoreSlicer = false
+    let readerCount = 0
+    let slicerCount = 0
+    let readerIgnoreCount = 0
+    let slicerIgnoreCount = 0
+    let _Upload = Upload
+
+    const reader = (context) => {
+      if(!ignoreReader) {
+        readerCount ++
+      }else {
+        readerIgnoreCount ++
+      }
+    }
+
+    const slicer = (context) => {
+      context.on('slicer', () => {
+        if(!ignoreSlicer) {
+          slicerCount ++
+        }else {
+          slicerIgnoreCount ++
+        }
+      })
+    }
+
+    beforeAll(() => {
+      _Upload.install('slicer', slicer)
+      _Upload.install('reader', reader)
+    })
+
+    afterAll(() => {
+      _Upload = undefined
+    })
+
+    test('install success', (done) => {
+
+      const upload = new _Upload()
+      upload.add({
+        file: {
+          file,
+        },
+        request: {
+          uploadFn() {
+
+          }
+        },
+        callback(error) {
+          expect(!!error).toBeFalsy
+          expect(slicerCount).toBe(1)
+          expect(readerCount)
+        }
+      })
 
     })
 
-    test('install success and ignore the plguin', () => {
-
-    })
-
-  })
-
-  describe('reader plugin test', () => {
-
-    test('reader plugin success deal test', () => {
-
-    })
-
-  })
-
-  describe('slicer plguin test', () => {
-
-    test('slicer plguin success deal test', () => {
-
+    test('install success and ignore the plugin', (done) => {
+      ignoreSlicer = true
+      ignoreReader = true
+      const upload = new _Upload({
+        ignores: ['reader', 'slicer']
+      })
+      upload.add({
+        file: {
+          file,
+        },
+        request: {
+          uploadFn() {}
+        },
+        callback(error) {
+          expect(!!error).toBeFalsy
+          expect(slicerIgnoreCount).toBe(0)
+          expect(readerIgnoreCount).toBe(0)
+        }
+      })
     })
 
   })

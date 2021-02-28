@@ -163,12 +163,14 @@ export default class Emitter {
     return this.dealDoingTaskStatus(ECACHE_STATUS.cancel, ...names)
   }
 
-  public off(...names: Symbol[]) {
+  public off(...names: Symbol[]): Symbol[] {
+    const tasks = this.tasks
     if(!names.length) {
       this.clean()
-      return 
+      return tasks.map(task => task.symbol)
     }
     this.tasks = this.tasks.filter(task => !names.includes(task.symbol))
+    return []
   }
 
   public clean() {
