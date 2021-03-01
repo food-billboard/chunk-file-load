@@ -1,147 +1,248 @@
+import SparkMd5 from 'spark-md5'
 import { WeUpload } from '../src'
+import { arrayBufferToBase64, base64ToArrayBuffer } from '../src/utils/tool'
+
+const uploadFn = (data) => {}
+
+const config = {
+  retry: {
+    times: 3
+  },
+  chunkSize: 1024 * 500
+}
+
+const FILE_SIZE = 1024 * 1024 * 20
+const BASE_SIZE = 1024 * 500
+
+const arrayBufferFile = new ArrayBuffer(FILE_SIZE)
+const base64File = arrayBufferToBase64(new ArrayBuffer(BASE_SIZE))
+const file = new File([arrayBufferFile], 'image/jpeg')
+const slice = ArrayBuffer.prototype.slice
+
+const prevLen = Math.floor(FILE_SIZE / 4 / config.chunkSize)
+
+const chunks = [
+  ...(new Array(prevLen).fill(0).map((_, index) => {
+    return new File([slice.call(arrayBufferFile, index * config.chunkSize, (index + 1) * config.chunkSize)], 'chunk-test')
+  })),
+  ...(new Array(prevLen).fill(0).map((_, index) => {
+    return new Blob([slice.call(arrayBufferFile, (index + prevLen) * config.chunkSize, (index + 1 + prevLen) * config.chunkSize)])
+  })),
+  ...(new Array(prevLen).fill(0).map((_, index) => {
+    return slice.call(arrayBufferFile, (index + prevLen * 2) * config.chunkSize, (index + 1 + prevLen * 2) * config.chunkSize)
+  })),
+  ...(new Array((Math.ceil((FILE_SIZE - (prevLen * 3 * config.chunkSize)) / config.chunkSize))).fill(0).map((_, index) => {
+    return arrayBufferToBase64(slice.call(arrayBufferFile, (index + prevLen * 3) * config.chunkSize, (index + 1 + prevLen * 3) * config.chunkSize))
+  }))
+]
+
+const mime = 'image/jpeg'
+
+let currentChunk = 0,
+    totalChunks = Math.ceil(FILE_SIZE / config.chunkSize)
+const spark = new SparkMd5.ArrayBuffer()
+while(currentChunk < totalChunks) {
+  let start = currentChunk * config.chunkSize,
+      end = currentChunk + 1 === totalChunks ? FILE_SIZE : ( currentChunk + 1 ) * config.chunkSize
+  const _chunks = slice.call(arrayBufferFile, start, end)
+
+  currentChunk ++
+  spark.append(_chunks)
+}
+
+const md5 = spark.end()
+spark.destroy()
 
 describe('weapp upload chunk test', () => {
 
+  let _File = window.File
+  let _Blob = window.Blob
+  let _FileReader = window.FileReader
+  let _FormData = window.FormData
+
+  beforeAll((done) => {
+    window.File = undefined
+    window.Blob = undefined
+    window.FileReader = undefined
+    window.FormData = undefined
+  })
+
+  afterAll(() => {
+    window.File = _File
+    window.Blob = _Blob
+    window.FileReader = _FileReader
+    window.FormData = _FormData
+  })
+
   describe('weapp upload chunk success test', () => {
 
-    it('weapp upload chunk success', () => {
+    let upload 
+    let _WeUpload 
+
+    beforeAll((done) => {
+      _WeUpload = WeUpload
+      _WeUpload.setOptions({
+        arrayBufferToBase64,
+        base64ToArrayBuffer
+      })
+      upload = new _WeUpload()
+    })
+
+    it('weapp upload chunk success', (done) => {
+
+      let tasks 
+
+      [ tasks ] = upload.add({
+        file: {
+          file
+        },
+        request: {
+          uploadFn,
+          callback(error) {
+            expect(!!error).toBeFalsy
+            done()
+          }
+        }
+      })
+
+      upload.deal(tasks)
 
     })
 
-    it('weapp uplopad chunk success and upload the base64 file', () => {
+    it('weapp uplopad chunk success and upload the base64 file', (done) => {
+      let tasks 
+      let times = 0
 
+      [ tasks ] = upload.add({
+        file: {
+          file: base64File
+        },
+        request: {
+          uploadFn,
+          callback(error) {
+            expect(!!error).toBeFalsy
+            expect(times).toBe(totalChunks)
+            done()
+          }
+        },
+        lifecycle: {
+          reading({ name, task }) {
+            times ++
+          },
+        }
+      })
+
+      upload.deal(tasks)
     })
 
-    it('weapp upload chunk success and upload the arraybuffer file', () => {
+    it('weapp upload chunk success and upload the arraybuffer file', (done) => {
+      let tasks 
 
+      [ tasks ] = upload.add({
+        file: {
+          file: arrayBufferFile
+        },
+        request: {
+          uploadFn,
+          callback(error) {
+            expect(!!error).toBeFalsy
+            done()
+          }
+        }
+      })
+
+      upload.deal(tasks)
     })
 
-    it('weapp upload chunk success and upload the chunks file', () => {
-      
+    it('weapp upload chunk success and upload the chunks file', (done) => {
+      let tasks 
+
+      [ tasks ] = upload.add({
+        file: {
+          chunks,
+          mime,
+          md5
+        },
+        request: {
+          uploadFn,
+          callback(error) {
+            expect(!!error).toBeFalsy
+            done()
+          }
+        }
+      })
+
+      upload.deal(tasks)
     })
 
   })
 
   describe('weapp upload chunk fail test', () => {
+
+    let upload 
+    let _WeUpload 
+
+    beforeAll((done) => {
+      _WeUpload = WeUpload
+      upload = new _WeUpload()
+    })
     
-    it('weapp upload chunk fail because the slice function is not support', () => {
+    it('weapp upload chunk fail because the slice function is not support', (done) => {
+
+      let tasks 
+
+      [ tasks ] = upload.add({
+        file: {
+          file
+        },
+        request: {
+          uploadFn,
+          callback(error) {
+            expect(!!error).toBeTruthy
+            done()
+          }
+        }
+      })
+
+      upload.deal(tasks)
+
+    })
+
+  })
+
+  describe('add api test', () => {
+
+    let upload 
+    let _WeUpload 
+
+    beforeAll((done) => {
+      _WeUpload = WeUpload
+      _WeUpload.setOptions({
+        arrayBufferToBase64,
+        base64ToArrayBuffer
+      })
+      upload = new _WeUpload()
+    })
+
+    test('add api success test', (done) => {
+
+      let tasks
+      [ tasks ] = upload.add({
+        file: {
+          file
+        },
+        uploadFn({ file }) {
+          expect(file).toBeInstanceOf(String)
+        },
+        callback(error) {
+          expect(!!error).toBeFalsy
+        }
+      })
+
+      upload.deal(tasks)
 
     })
 
   })
 
 })
-
-
-  // describe('mini app analog', () => {
-
-  //   //临时保存全局变量模拟小程序环境
-  //   let Blob = window.Blob
-  //   let File = window.File
-  //   let FileReader = window.FileReader
-  //   // let atob = window.atob
-  //   let upload
-
-  //   beforeAll(() => {
-  //     window.Blob = undefined
-  //     window.File = undefined
-  //     window.FileReader = undefined
-  //     // window.atob = undefined
-  //     upload = new Upload({
-  //       //模拟小程序的arraybuffer与base64互相转换的方法
-  //       base64ToArrayBuffer,
-  //       arrayBufferToBase64
-  //     })
-  //   })
-
-  //   afterAll(() => {
-  //     window.Blob = Blob
-  //     window.File = File
-  //     window.FileReader = FileReader
-  //     // window.atob = atob
-  //   })
-
-  //   describe('mini app analog success test', () => {
-
-  //     test('mini app analog with arraybuffer success', async () => {
-
-  //       const tasks = upload.on({
-  //         uploadFn,
-  //         file: arrayBufferFile,
-  //         completeFn,
-  //         mime
-  //       })
-
-  //       const result = await upload.emit(tasks) 
-        
-  //       emitExpect(result, 'fulfilled')
-
-  //     })
-
-  //     test('mini app analog with base64 success', async () => {
-
-  //       const tasks = upload.on({
-  //         uploadFn,
-  //         file: base64File,
-  //         mime,
-  //         completeFn
-  //       })
-
-  //       const result = await upload.emit(tasks)
-
-  //       emitExpect(result, 'fulfilled')
-
-  //     })
-
-  //     test('mini app analog with chunks success', async () => {
-
-  //       let chunks = []
-
-  //       let totalChunks = Math.ceil(FILE_SIZE / config.chunkSize),
-  //           bufferSlice = ArrayBuffer.prototype.slice
-
-  //       while(chunks.length < totalChunks) {
-  //         let start = currentChunk * config.chunkSize,
-  //             end = currentChunk + 1 === totalChunks ? FILE_SIZE : ( currentChunk + 1 ) * config.chunkSize
-  //         const chunk = bufferSlice.call(arrayBufferFile, start, end)
-
-  //         chunks.push(chunk)
-  //       }
-
-  //       const tasks = upload.on({
-  //         uploadFn,
-  //         chunks,
-  //         mime,
-  //         completeFn
-  //       })
-
-  //       const result = await upload.emit(tasks)
-
-  //       emitExpect(result, 'fulfilled')
-
-  //     })
-
-  //   })
-
-  //   describe('mini app analog fail test', () => {
-
-  //     let upload = new Upload()
-
-  //     test('mini app analog fail becasue lack of the file transform api', () => {
-  //       //未指定base64转换方法相关
-
-  //       const result = upload.on({
-  //         exitDataFn,
-  //         file: base64File,
-  //         mime,
-  //         completeFn
-  //       })
-
-  //       expect(result).toBeInstanceOf(Array)
-  //       expect(result).toHaveLength(0)
-
-  //     })
-
-  //   })
-
-  // })

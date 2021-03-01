@@ -1,7 +1,7 @@
 import { Upload, ECACHE_STATUS } from '../src'
-import { base64ToArrayBuffer, arrayBufferToBase64, isSymbol } from '../src/utils/tool'
+import { arrayBufferToBase64, isSymbol } from '../src/utils/tool'
 import SparkMd5 from 'spark-md5'
-import merge from 'lodash/merge'
+import { merge } from 'lodash'
 
 const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLength }) => {
   return false
@@ -17,7 +17,7 @@ const config = {
   retry: {
     times: 3
   },
-  chunkSize: 1024 * 1024 * 5
+  chunkSize: 1024 * 500
 }
 
 const callback = (done) => (error) => {
@@ -72,22 +72,6 @@ const md5 = spark.end()
 spark.destroy()
 
 let upload = new Upload()
-
-const emitExpect = (target, targetKey) => {
-  expect(target).toBeInstanceOf(Object)
-
-  const { history, ...nextTarget } = target
-
-  Object.keys(nextTarget).forEach(key => {
-    if(key !== targetKey) {
-      expect(nextTarget[key]).toBeInstanceOf(Array)
-      expect(nextTarget[key]).toHaveLength(0)
-    }else {
-      expect(nextTarget[key]).toBeInstanceOf(Array)
-      expect(nextTarget[key]).toHaveLength(1)
-    }
-  })
-}
 
 describe('upload chunk test', () => {
 
@@ -510,7 +494,7 @@ describe('upload chunk test', () => {
     describe('start api success test', () => {
 
       test('start api success', (done) => {
-        const tasks = upload.on({
+        const tasks = upload.add({
           request: {
             exitDataFn,
             completeFn,
@@ -2669,6 +2653,7 @@ describe('upload chunk test', () => {
     let ignoreSlicer = false
     let readerCount = 0
     let slicerCount = 0
+    let slicerIndex = 0
     let readerIgnoreCount = 0
     let slicerIgnoreCount = 0
     let _Upload = Upload
@@ -2682,9 +2667,17 @@ describe('upload chunk test', () => {
     }
 
     const slicer = (context) => {
-      context.on('slicer', () => {
+      context.on('slicer', (start, end, file, complete) => {
         if(!ignoreSlicer) {
+          expect(start).toEqual(slicerIndex * config.chunkSize)
+          let _end = slicerIndex * config.chunkSize
+          _end = _end >= FILE_SIZE ? FILE_SIZE : _end
+          expect(end).toEqual(_end)
+          expect(file instanceof ArrayBuffer || file instanceof Blob || typeof file === 'string').toBeTruthy
+          expect(typeof complete).toBe('function')
           slicerCount ++
+          slicerIndex ++
+          if(slicerIndex == times) slicerIndex = 0
         }else {
           slicerIgnoreCount ++
         }
@@ -2714,8 +2707,9 @@ describe('upload chunk test', () => {
         },
         callback(error) {
           expect(!!error).toBeFalsy
-          expect(slicerCount).toBe(1)
-          expect(readerCount)
+          expect(slicerCount).toBe(times * 2)
+          expect(slicerIndex).toBe(0)
+          expect(readerCount).toBe(times)
         }
       })
 
@@ -2740,6 +2734,42 @@ describe('upload chunk test', () => {
           expect(readerIgnoreCount).toBe(0)
         }
       })
+    })
+
+  })
+
+  describe('upload file without worker api', () => {
+
+    describe('upload file without worker api success test', () => {
+
+      let _Worker = window.Worker
+      let upload 
+
+      beforeAll(() => {
+        window.Worker = undefined
+        upload = new Upload()
+      })
+
+      afterAll(() => {
+        window.Worker = _Worker
+      })
+
+      test('upload file without worker api load file', () => {
+
+        upload.add({
+          file: {
+            file
+          },
+          request: {
+            uploadFn,
+            callback(error) {
+              expect(!!error).toBeFalsy
+            }
+          }
+        })
+
+      })
+
     })
 
   })

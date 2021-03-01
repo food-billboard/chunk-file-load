@@ -2,7 +2,7 @@ import merge from 'lodash/merge'
 import noop from 'lodash/noop'
 import { Remote, wrap, releaseProxy } from 'comlink'
 import Queue from '../queue'
-import Worker from './file.worker'
+import FileWorker from './file.worker'
 import { Tasker } from './tasker'
 import { TWrapperTask } from '../../upload/type'
 
@@ -71,7 +71,7 @@ class WorkerPool {
     }
     
     if(WorkerPool.support()) {
-      const worker: Remote<any> = wrap<Tasker>(new (Worker as any)())
+      const worker: Remote<any> = wrap<Tasker>(new (FileWorker as any)())
       const instance = await new (worker as any)()
       baseThread = merge(baseThread, {
         worker: instance,

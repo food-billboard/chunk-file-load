@@ -69,7 +69,7 @@ export default class Emitter {
   private taskValid(task: Ttask) {
     if(isObject(task)) {
       //参数验证
-      if(!task?.file?.file) {
+      if(!task?.file?.file && !task?.file?.chunks) {
         console.warn('the params is not verify')
         return false
       }
@@ -103,7 +103,7 @@ export default class Emitter {
     .reduce((acc: TWrapperTask[], task: Ttask) => {
       const { file } = task
       let newTask = task as TWrapperTask
-      if(Array.isArray(file.chunks) && !!file.chunks.length) {
+      if(Array.isArray(file?.chunks) && !!file?.chunks.length) {
         newTask = merge(newTask, { file: merge(file, { _cp_: true }) })
       }
 

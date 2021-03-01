@@ -13,7 +13,7 @@ class WeUpload extends Upload {
 			context.on('slicer', (_, __, file, complete) => {
 				//在这里处理分片
 				if(typeof file === 'string') {
-					return WeUpload.atob(file)
+					complete(WeUpload.atob(file))
 				}else if(file instanceof ArrayBuffer) {
 					complete(file)
 				}else {
