@@ -21,7 +21,7 @@ class WorkerPool {
 
   public static support() {
     try {
-      return !!(typeof window.Worker)
+      return !!(typeof window.Worker != 'undefined')
     }catch(err) {
       return false
     }

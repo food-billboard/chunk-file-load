@@ -1,4 +1,5 @@
 import { ArrayBuffer as SparkMD5ArrayBuffer } from 'spark-md5'
+import WrokerPool from './worker.pool'
 
 export class Tasker {
 
@@ -37,11 +38,12 @@ export class Tasker {
   }
 
   public clean() {
+    console.log(222222222)
     this.init()
   }
 
   public close() {
-    self.close()
+    if(WrokerPool.support()) return self.close()
   }
 
   public cacheExists(length?: number) {

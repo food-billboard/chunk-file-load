@@ -56,7 +56,7 @@ module.exports = merge(commonConfig, {
     ],
     devServer: {
         proxy: {
-            '/api': `http://${getIp()}:3000`
+            '/api': `http://${getIp()}:4000`
         },
         contentBase: path.join(__dirname, "dist"),
         compress: true,

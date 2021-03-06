@@ -221,7 +221,6 @@ export default class Upload extends EventEmitter {
           const { error, name, remove } = response
           let callbackError = null
           let needRetry = error && retry.times > 0
-
           if(needRetry) {
             callbackError = {
               error,
@@ -245,7 +244,14 @@ export default class Upload extends EventEmitter {
             this.deal(symbol)
           }
         })
+        .catch(err => {
+          console.error(err)
+          callback && callback(err, null)
+        })
       }))
+    })
+    .catch(err => {
+      console.error(err)
     })
   }
 

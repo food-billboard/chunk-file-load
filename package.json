@@ -5,7 +5,7 @@
   "private": false,
   "main": "./lib/index.js",
   "scripts": {
-    "test": "jest --config=jest.config.js",
+    "test": "jest --config=jest.config.js --verbose",
     "server": "nodemon ./src/test/index.js",
     "start": "webpack-dev-server --config ./webpack.dev.config.js --open",
     "build": "webpack --config ./webpack.prod.config.js"
@@ -68,7 +68,8 @@
     "webpack-cli": "^3.3.11",
     "webpack-dev-server": "^3.10.3",
     "webpack-merge": "^5.1.4",
-    "worker-loader": "^3.0.7"
+    "worker-loader": "^3.0.7",
+    "workerloader-jest-transformer": "^0.0.2"
   },
   "sideEffects": false
 }

@@ -53,7 +53,7 @@ while(currentChunk < totalChunks) {
 const md5 = spark.end()
 spark.destroy()
 
-describe('weapp upload chunk test', () => {
+describe.skip('weapp upload chunk test', () => {
 
   let _File = window.File
   let _Blob = window.Blob
