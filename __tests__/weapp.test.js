@@ -11,6 +11,14 @@ const config = {
   chunkSize: 1024 * 500
 }
 
+const callback = (done) => (error) => {
+  if(error) {
+    done(error)
+  }else {
+    done()
+  }
+}
+
 const FILE_SIZE = 1024 * 1024 * 20
 const BASE_SIZE = 1024 * 500
 
@@ -99,8 +107,12 @@ describe.skip('weapp upload chunk test', () => {
         request: {
           uploadFn,
           callback(error) {
-            expect(!!error).toBeFalsy
-            done()
+            try {
+              expect(!!error).toBeFalsy
+              done()
+            }catch(err) {
+              done(err)
+            }
           }
         }
       })
@@ -120,9 +132,13 @@ describe.skip('weapp upload chunk test', () => {
         request: {
           uploadFn,
           callback(error) {
-            expect(!!error).toBeFalsy
-            expect(times).toBe(totalChunks)
-            done()
+            try {
+              expect(!!error).toBeFalsy
+              expect(times).toBe(totalChunks)
+              done()
+            }catch(err) {
+              done(err)
+            }
           }
         },
         lifecycle: {
@@ -145,8 +161,12 @@ describe.skip('weapp upload chunk test', () => {
         request: {
           uploadFn,
           callback(error) {
-            expect(!!error).toBeFalsy
-            done()
+            try {
+              expect(!!error).toBeFalsy
+              done()
+            }catch(err) {
+              done(err)
+            }
           }
         }
       })
@@ -166,8 +186,12 @@ describe.skip('weapp upload chunk test', () => {
         request: {
           uploadFn,
           callback(error) {
-            expect(!!error).toBeFalsy
-            done()
+            try {
+              expect(!!error).toBeFalsy
+              done()
+            }catch(err) {
+              done(err)
+            }
           }
         }
       })
@@ -198,8 +222,12 @@ describe.skip('weapp upload chunk test', () => {
         request: {
           uploadFn,
           callback(error) {
-            expect(!!error).toBeTruthy
-            done()
+            try {
+              expect(!!error).toBeTruthy
+              done()
+            }catch(err) {
+              done(err)
+            }
           }
         }
       })
@@ -234,9 +262,7 @@ describe.skip('weapp upload chunk test', () => {
         uploadFn({ file }) {
           expect(file).toBeInstanceOf(String)
         },
-        callback(error) {
-          expect(!!error).toBeFalsy
-        }
+        callback: callback(done)
       })
 
       upload.deal(tasks)

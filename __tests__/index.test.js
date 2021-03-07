@@ -327,11 +327,15 @@ describe('upload chunk test', () => {
             times ++
           },
           callback: (error) => {
-            if(error) {
-              done(error)
-            }else {
-              expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
-              done()
+            try {
+              if(error) {
+                done(error)
+              }else {
+                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
+                done()
+              }
+            }catch(err) {
+              done(err)
             }
           }
         })
@@ -357,11 +361,15 @@ describe('upload chunk test', () => {
               times ++
             },
             callback: (error) => {
-              if(error) {
-                done(error)
-              }else {
-                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
-                done()
+              try{
+                if(error) {
+                  done(error)
+                }else {
+                  expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           }
@@ -388,11 +396,15 @@ describe('upload chunk test', () => {
               times ++
             },
             callback: (error) => {
-              if(error) {
-                done(error)
-              }else {
-                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-                done()
+              try {
+                if(error) {
+                  done(error)
+                }else {
+                  expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           }
@@ -419,11 +431,15 @@ describe('upload chunk test', () => {
               times ++
             },
             callback: (error) => {
-              if(error) {
-                done(error)
-              }else {
-                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-                done()
+              try {
+                if(error) {
+                  done(error)
+                }else {
+                  expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           }
@@ -450,11 +466,15 @@ describe('upload chunk test', () => {
               times ++
             },
             callback: (error) => {
-              if(error) {
-                done(error)
-              }else {
-                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-                done()
+              try {
+                if(error) {
+                  done(error)
+                }else {
+                  expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           }
@@ -481,11 +501,15 @@ describe('upload chunk test', () => {
               times ++
             },
             callback: (error) => {
-              if(error) {
-                done(error)
-              }else {
-                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
-                done()
+              try {
+                if(error) {
+                  done(error)
+                }else {
+                  expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           }
@@ -515,9 +539,13 @@ describe('upload chunk test', () => {
           },
           request: {
             callback: (error) => {
-              expect(!!error).toBe(true)
-              expect(times).toBe(0)
-              done()
+              try {
+                expect(!!error).toBe(true)
+                expect(times).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             },
           },
           lifecycle: {
@@ -585,14 +613,18 @@ describe('upload chunk test', () => {
               count ++
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                upload.start(tasks)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(count).toEqual(times)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  upload.start(tasks)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(count).toEqual(times)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -630,17 +662,21 @@ describe('upload chunk test', () => {
               count ++
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                const nextTasks = upload.start(tasks)
-                expect(nextTasks).toBeInstanceOf(Array)
-                expect(nextTasks.length).toBe(1)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(count).toEqual(times)
-                expect(reading).toBe(times)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  const nextTasks = upload.start(tasks)
+                  expect(nextTasks).toBeInstanceOf(Array)
+                  expect(nextTasks.length).toBe(1)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(count).toEqual(times)
+                  expect(reading).toBe(times)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -680,16 +716,20 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                const nextTasks = upload.start(tasks)
-                expect(nextTasks).toBeInstanceOf(Array)
-                expect(nextTasks.length).toBe(1)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(count).toEqual(times + 1)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  const nextTasks = upload.start(tasks)
+                  expect(nextTasks).toBeInstanceOf(Array)
+                  expect(nextTasks.length).toBe(1)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(count).toEqual(times + 1)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -727,16 +767,20 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                const nextTasks = upload.start(tasks)
-                expect(nextTasks).toBeInstanceOf(Array)
-                expect(nextTasks.length).toBe(1)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(count).toEqual(2)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  const nextTasks = upload.start(tasks)
+                  expect(nextTasks).toBeInstanceOf(Array)
+                  expect(nextTasks.length).toBe(1)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(count).toEqual(2)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -775,17 +819,21 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                const nextTasks = upload.start(tasks)
-                expect(nextTasks).toBeInstanceOf(Array)
-                expect(nextTasks.length).toBe(1)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(beforeCheck).toEqual(2)
-                expect(reading).toBe(times)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  const nextTasks = upload.start(tasks)
+                  expect(nextTasks).toBeInstanceOf(Array)
+                  expect(nextTasks.length).toBe(1)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(beforeCheck).toEqual(2)
+                  expect(reading).toBe(times)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -827,15 +875,19 @@ describe('upload chunk test', () => {
               uploadCount ++
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                upload.start(tasks)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(uploadCount).toEqual(times)
-                expect(reading).toBe(times)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  upload.start(tasks)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(uploadCount).toEqual(times)
+                  expect(reading).toBe(times)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -1198,14 +1250,18 @@ describe('upload chunk test', () => {
               count ++
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                upload.start(tasks)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(count).toEqual(times)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  upload.start(tasks)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(count).toEqual(times)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -1242,14 +1298,18 @@ describe('upload chunk test', () => {
               count ++
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                upload.start(tasks)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(count).toEqual(times)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  upload.start(tasks)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(count).toEqual(times)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -1286,14 +1346,18 @@ describe('upload chunk test', () => {
               count ++
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                upload.start(tasks)
-              }else {
-                expect(!!error).toBeFalsy
-                expect(count).toEqual(times)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  upload.start(tasks)
+                }else {
+                  expect(!!error).toBeFalsy
+                  expect(count).toEqual(times)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -1392,11 +1456,15 @@ describe('upload chunk test', () => {
             completeFn,
             uploadFn,
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const result = upload.start(...tasks)
-              expect(result).toBeInstanceOf(Array)
-              expect(result.length).toBe(0)
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                const result = upload.start(...tasks)
+                expect(result).toBeInstanceOf(Array)
+                expect(result.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1425,11 +1493,15 @@ describe('upload chunk test', () => {
             completeFn,
             uploadFn,
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const result = upload.start(...tasks)
-              expect(result).toBeInstanceOf(Array)
-              expect(result.length).toBe(0)
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                const result = upload.start(...tasks)
+                expect(result).toBeInstanceOf(Array)
+                expect(result.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1461,13 +1533,17 @@ describe('upload chunk test', () => {
              
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                const nextTasks = upload.start(tasks)
-                expect(nextTasks).toBeInstanceOf(Array)
-                expect(nextTasks.length).toBe(0)
-                done()
+              try {
+                if(stop) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  const nextTasks = upload.start(tasks)
+                  expect(nextTasks).toBeInstanceOf(Array)
+                  expect(nextTasks.length).toBe(0)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -1505,13 +1581,17 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              if(cancel) {
-                expect(!!error).toBeTruthy
-                stop = false
-                const nextTasks = upload.start(tasks)
-                expect(nextTasks).toBeInstanceOf(Array)
-                expect(nextTasks.length).toBe(0)
-                done()
+              try {
+                if(cancel) {
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  const nextTasks = upload.start(tasks)
+                  expect(nextTasks).toBeInstanceOf(Array)
+                  expect(nextTasks.length).toBe(0)
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
             }
           },
@@ -1547,11 +1627,15 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1584,11 +1668,15 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1621,11 +1709,15 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1658,11 +1750,15 @@ describe('upload chunk test', () => {
               uploadCount ++
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1688,6 +1784,7 @@ describe('upload chunk test', () => {
 
         let tasks
         let stop = true
+        const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
           request: {
@@ -1696,17 +1793,21 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              if(stop) {
-                expect(!!error).toBeTruthy
-                stop = false
-                const nextTasks = upload.start(tasks)
-                expect(nextTasks).toBeInstanceOf(Array)
-                expect(nextTasks.length).toBe(1)
-              }else {
-                expect(!!error).toBeFalsy
-                done()
+              try {
+                if(stop) {
+                  emit()
+                  expect(!!error).toBeTruthy
+                  stop = false
+                  const nextTasks = upload.start(tasks)
+                  expect(nextTasks).toBeInstanceOf(Array)
+                  expect(nextTasks.length).toBe(1)
+                }else {
+                  expect(!!error).toBeFalsy
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
-            }
           },
           file: {
             file
@@ -1719,8 +1820,10 @@ describe('upload chunk test', () => {
             },
             afterStop({ name }) {
               const names = this.cancel(name)
-              expect(names).toBeInstanceOf(Array)
-              expect(names.length).toBe(0)
+              collection(() => {
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(0)
+              })
             },
           }
         })
@@ -1737,6 +1840,7 @@ describe('upload chunk test', () => {
       test('cancel api success and cancel in afterCancel and not use', (done) => {
 
         let tasks
+        const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
           request: {
@@ -1745,11 +1849,16 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
-              done()
+              try {
+                emit()
+                expect(!!error).toBeTruthy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1761,8 +1870,10 @@ describe('upload chunk test', () => {
             },
             afterCancel({ name }) {
               const names = this.cancel(name)
-              expect(names).toBeInstanceOf(Array)
-              expect(names.length).toBe(0)
+              collection(() => {
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(0)
+              })
             },
           }
         })
@@ -1779,6 +1890,7 @@ describe('upload chunk test', () => {
       test('cancel api success and cancel in beforeComplete', (done) => {
 
         let tasks
+        const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
           request: {
@@ -1787,11 +1899,16 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
-              done()
+              try {
+                emit()
+                expect(!!error).toBeTruthy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1800,8 +1917,10 @@ describe('upload chunk test', () => {
           lifecycle: {
             beforeComplete({ name }) {
               const names = this.cancel(name)
-              expect(names).toBeInstanceOf(Array)
-              expect(names.length).toBe(0)
+              collection(() => {
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(0)
+              })
             },
           }
         })
@@ -1818,6 +1937,7 @@ describe('upload chunk test', () => {
       test('cancel api success and cancel in afterComplete', (done) => {
 
         let tasks
+        const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
           request: {
@@ -1826,11 +1946,16 @@ describe('upload chunk test', () => {
               
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
-              done()
+              try {
+                emit()
+                expect(!!error).toBeTruthy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1839,8 +1964,10 @@ describe('upload chunk test', () => {
           lifecycle: {
             afterComplete({ name }) {
               const names = this.cancel(name)
-              expect(names).toBeInstanceOf(Array)
-              expect(names.length).toBe(1)
+              collection(() => {
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(1)
+              })
             },
           }
         })
@@ -1857,6 +1984,7 @@ describe('upload chunk test', () => {
       test('cancel api success and cancel in retry', (done) => {
 
         let tasks
+        const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
           request: {
@@ -1865,11 +1993,17 @@ describe('upload chunk test', () => {
               throw new Error()
             },
             callback: (error) => {
-              expect(!!error).toBeTruthy
-              expect(error.retry).toBeFalsy
-              const nextTasks = upload.start(tasks)
-              expect(nextTasks).toBeInstanceOf(Array)
-              expect(nextTasks.length).toBe(0)
+              try{
+                emit()
+                expect(!!error).toBeTruthy
+                expect(error.retry).toBeFalsy
+                const nextTasks = upload.start(tasks)
+                expect(nextTasks).toBeInstanceOf(Array)
+                expect(nextTasks.length).toBe(0)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1878,8 +2012,10 @@ describe('upload chunk test', () => {
           lifecycle: {
             retry({ name }) {
               const names = this.cancel(name)
-              expect(names).toBeInstanceOf(Array)
-              expect(names.length).toBe(1)
+              collection(() => {
+                expect(names).toBeInstanceOf(Array)
+                expect(names.length).toBe(1)
+              })
             },
           }
         })
@@ -1950,6 +2086,7 @@ describe('upload chunk test', () => {
       test('cancelAdd api fail because the task is uploading', (done) => {
 
         let times = 0
+        const { collection, emit } = emitterCollection()
 
         const tasks = upload.upload({
           request: {
@@ -1959,9 +2096,14 @@ describe('upload chunk test', () => {
             },
             exitDataFn,
             callback(error) {
-              expect(!!error).toBeFalsy
-              expect(times).toBe(totalChunks)
-              done()
+              try {
+                emit()
+                expect(!!error).toBeFalsy
+                expect(times).toBe(totalChunks)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -1970,8 +2112,10 @@ describe('upload chunk test', () => {
           lifecycle: {
             uploading({ name }) {
               const _result = this.cancelAdd(name)
-              expect(_result).toBeInstanceOf(Array)
-              expect(_result).toHaveLength(0)
+              collection(() => {
+                expect(_result).toBeInstanceOf(Array)
+                expect(_result).toHaveLength(0)
+              })
             }
           }
         })   
@@ -2103,9 +2247,12 @@ describe('upload chunk test', () => {
       test('getStatus api success', (done) => {
 
         let name
+        const { collection, emit } = emitterCollection()
         const expectStatus = (expectValue) => {
           const status = upload.getStatus(name)
-          expect(status).toEqual(expectValue)
+          collection(() => {
+            expect(status).toEqual(expectValue)
+          })
         }
 
         [ name ] = upload.add({
@@ -2120,8 +2267,13 @@ describe('upload chunk test', () => {
               expectStatus(ECACHE_STATUS.uploading)
             },
             callback() {
-              expectStatus(ECACHE_STATUS.fulfilled)
-              done()
+              try {
+                expectStatus(ECACHE_STATUS.fulfilled)
+                emit()
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           file: {
@@ -2171,9 +2323,13 @@ describe('upload chunk test', () => {
               throw new Error()
             },
             callback(error) {
-              const status = upload.getStatus(name)
-              expect(status).toEqual(ECACHE_STATUS.rejected)
-              done()
+              try {
+                const status = upload.getStatus(name)
+                expect(status).toEqual(ECACHE_STATUS.rejected)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           }
         })
@@ -2195,9 +2351,13 @@ describe('upload chunk test', () => {
               this.stop(name)
             },
             callback(error) {
-              const status = upload.getStatus(name)
-              expect(status).toEqual(ECACHE_STATUS.stopping)
-              done()
+              try {
+                const status = upload.getStatus(name)
+                expect(status).toEqual(ECACHE_STATUS.stopping)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           }
         })
@@ -2219,9 +2379,13 @@ describe('upload chunk test', () => {
               this.cancel(name)
             },
             callback(error) {
-              const status = upload.getStatus(name)
-              expect(status).toEqual(ECACHE_STATUS.cancel)
-              done()
+              try {
+                const status = upload.getStatus(name)
+                expect(status).toEqual(ECACHE_STATUS.cancel)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           }
         })
@@ -2245,20 +2409,22 @@ describe('upload chunk test', () => {
 
     describe('watch api success test', () => {
 
-      const expectWatch = (value, property) => {
-        expect(value).toBeInstanceOf(Object)
-        expect(value).toHaveProperty('progress')
-        expect(value.progress).toEqual(property.progress)
-        expect(value).toHaveProperty('name')
-        expect(value.name).toEqual(property.name)
-        expect(value).toHaveProperty('error')
-        expect(value.error).toEqual(property.error)
-        expect(value).toHaveProperty('status')
-        expect(value.status).toEqual(property.status)
-        expect(value).toHaveProperty('total')
-        expect(value.total).toEqual(property.total)
-        expect(value).toHaveProperty('current')
-        expect(value.current).toEqual(property.current)
+      const expectWatch = (value, property, collection) => {
+        collection(() => {
+          expect(value).toBeInstanceOf(Object)
+          expect(value).toHaveProperty('progress')
+          expect(value.progress).toEqual(property.progress)
+          expect(value).toHaveProperty('name')
+          expect(value.name).toEqual(property.name)
+          expect(value).toHaveProperty('error')
+          expect(value.error).toEqual(property.error)
+          expect(value).toHaveProperty('status')
+          expect(value.status).toEqual(property.status)
+          expect(value).toHaveProperty('total')
+          expect(value.total).toEqual(property.total)
+          expect(value).toHaveProperty('current')
+          expect(value.current).toEqual(property.current)
+        })
       }
 
       const progress = (target) => {
@@ -2275,6 +2441,7 @@ describe('upload chunk test', () => {
         let uploading = 0
         let beforeComplete = 0
         let afterComplete = 0
+        const { collection, emit } = emitterCollection()
 
         //返回正确的参数
         const [tasks] = upload.add({
@@ -2285,15 +2452,20 @@ describe('upload chunk test', () => {
             uploadFn: (data) => {},
             completeFn,
             callback(error) {
-              expect(!!error).toBeFalsy
-              expect(beforeRead).toBe(1)
-              expect(reading).toBe(totalChunks)
-              expect(beforeCheck).toBe(1)
-              expect(afterCheck).toBe(1)
-              expect(uploading).toBe(totalChunks)
-              expect(beforeComplete).toBe(1)
-              expect(afterComplete).toBe(1)
-              done()
+              try {
+                emit()
+                expect(!!error).toBeFalsy
+                expect(beforeRead).toBe(1)
+                expect(reading).toBe(totalChunks)
+                expect(beforeCheck).toBe(1)
+                expect(afterCheck).toBe(1)
+                expect(uploading).toBe(totalChunks)
+                expect(beforeComplete).toBe(1)
+                expect(afterComplete).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           lifecycle: {
@@ -2306,7 +2478,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.waiting,
                 total: 0,
                 current: 0
-              })
+              }, collection)
               beforeRead ++
             },
             reading({ name, current, total }) {
@@ -2318,7 +2490,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.reading,
                 total,
                 current: current == 0 ? 0 : current - config.chunkSize
-              })
+              }, collection)
               reading ++
             },
             beforeCheck({ name }) {
@@ -2330,7 +2502,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.reading,
                 total: FILE_SIZE,
                 current: FILE_SIZE
-              })
+              }, collection)
               beforeCheck ++
             },
             afterCheck({ name }) {
@@ -2342,7 +2514,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.reading,
                 total: FILE_SIZE,
                 current: 0
-              })
+              }, collection)
               afterCheck ++
             },
             uploading({ name, current, total, complete }) {
@@ -2354,7 +2526,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.uploading,
                 total: FILE_SIZE,
                 current: current == 0 ? 0 : current
-              })
+              }, collection)
               uploading ++
             },
             beforeComplete({ name }) {
@@ -2366,7 +2538,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.uploading,
                 total: FILE_SIZE,
                 current: FILE_SIZE
-              })
+              }, collection)
               beforeComplete ++
             },
             afterComplete({ name }) {
@@ -2378,7 +2550,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.fulfilled,
                 total: FILE_SIZE,
                 current: FILE_SIZE
-              })
+              }, collection)
               afterComplete ++
             }
           }
@@ -2394,6 +2566,7 @@ describe('upload chunk test', () => {
 
         let afterStop = 0
         let tasks
+        const { collection, emit } = emitterCollection()
 
         //返回正确的参数
         [ tasks ] = upload.add({
@@ -2406,9 +2579,14 @@ describe('upload chunk test', () => {
             },
             completeFn,
             callback(error) {
-              expect(!!error).toBeTruthy
-              expect(afterStop).toBe(1)
-              done()
+              try {
+                emit()
+                expect(!!error).toBeTruthy
+                expect(afterStop).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           lifecycle: {
@@ -2421,7 +2599,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.reading,
                 total: FILE_SIZE,
                 current: 0
-              })
+              }, collection)
               afterStop ++
             }
           }
@@ -2437,6 +2615,7 @@ describe('upload chunk test', () => {
 
         let afterCancel = 0
         let tasks
+        const { collection, emit } = emitterCollection()
 
         //返回正确的参数
         [ tasks ] = upload.add({
@@ -2449,9 +2628,14 @@ describe('upload chunk test', () => {
             },
             completeFn,
             callback(error) {
-              expect(!!error).toBeTruthy
-              expect(afterCancel).toBe(1)
-              done()
+              try {
+                emit()
+                expect(!!error).toBeTruthy
+                expect(afterCancel).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           lifecycle: {
@@ -2464,7 +2648,7 @@ describe('upload chunk test', () => {
                 status: ECACHE_STATUS.reading,
                 total: FILE_SIZE,
                 current: 0
-              })
+              }, collection)
               afterCancel ++
             }
           }
@@ -2497,18 +2681,6 @@ describe('upload chunk test', () => {
 
   describe.skip('lifecycle test', () => {
 
-    let lifecycle = {
-      afterCheck: ({ name, task, isExists }) => {
-        expect(isExists).toBeFalsy
-      },
-      beforeComplete: ({ name, task, isExists }) => {
-        expect(isExists).toBeFalsy
-      },
-      afterComplete: ({ name, task, success }) => {
-        expect(success).toBe(true)
-      }
-    }
-
     let upload
 
     const getUpload = (lifecycle={}) => {
@@ -2528,37 +2700,50 @@ describe('upload chunk test', () => {
         let afterCheck = 0
         let beforeComplete = 0
         let afterComplete = 0
+        const { collection, emit } = emitterCollection()
 
         getUpload({
           beforeRead: ({ name, task }) => {
             beforeRead ++
           },
           reading: ({ name, task, current, total }) => {
-            expect(total).toBe(totalChunks)
-            const endSize = (reading + 1) * config.chunkSize
-            expect(current).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
+            collection(() => {
+              expect(total).toBe(totalChunks)
+              const endSize = (reading + 1) * config.chunkSize
+              expect(current).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
+            })
             reading ++
           },
           beforeCheck({ name, task }) {
-            expect(task.file.md5).toBe(md5)
+            collection(() => {
+              expect(task.file.md5).toBe(md5)
+            })
             beforeCheck ++
           },
           afterCheck({ name, task, isExists }) {
-            expect(isExists).toBeFalsy
+            collection(() => {
+              expect(isExists).toBeFalsy
+            })
             afterCheck ++
           },
           uploading({ name, current, total, complete }) {
-            expect(current).toBe(uploading)
-            expect(total).toBe(totalChunks)
-            expect(complete).toEqual(uploading)
+            collection(() => {
+              expect(current).toBe(uploading)
+              expect(total).toBe(totalChunks)
+              expect(complete).toEqual(uploading)
+            })
             uploading ++
           },
           beforeComplete({ isExists }) {
-            expect(isExists).toBeFalsy
+            collection(() => {
+              expect(isExists).toBeFalsy
+            })
             beforeComplete ++
           },
           afterComplete: ({ name, task, success }) => {
-            expect(success).toBeTruthy
+            collection(() => {
+              expect(success).toBeTruthy
+            })
             afterComplete ++
           }
         })
@@ -2572,15 +2757,20 @@ describe('upload chunk test', () => {
             uploadFn,
             completeFn,
             callback(error) {
-              expect(!!error).toBeFalsy
-              expect(beforeRead).toBe(1)
-              expect(reading).toBe(totalChunks)
-              expect(uploading).toBe(totalChunks)
-              expect(beforeCheck).toBe(1)
-              expect(afterCheck).toBe(1)
-              expect(beforeComplete).toBe(1)
-              expect(afterComplete).toBe(1)
-              done()
+              try{
+                emit()
+                expect(!!error).toBeFalsy
+                expect(beforeRead).toBe(1)
+                expect(reading).toBe(totalChunks)
+                expect(uploading).toBe(totalChunks)
+                expect(beforeCheck).toBe(1)
+                expect(afterCheck).toBe(1)
+                expect(beforeComplete).toBe(1)
+                expect(afterComplete).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           }
         })
@@ -2610,9 +2800,13 @@ describe('upload chunk test', () => {
             uploadFn,
             completeFn,
             callback(error) {
-              expect(!!error).toBeTruthy
-              expect(reading).toBe(1)
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                expect(reading).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           lifecycle: {
@@ -2656,9 +2850,13 @@ describe('upload chunk test', () => {
               }
             },
             callback(error) {
-              expect(!!error).toBeFalsy
-              expect(count).toBe(3)
-              done()
+              try {
+                expect(!!error).toBeFalsy
+                expect(count).toBe(3)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           config: {
@@ -2692,8 +2890,12 @@ describe('upload chunk test', () => {
               throw new Error('retry test all fail error')
             },
             callback(error) {
-              expect(!!error).toBeTruthy
-              done()
+              try {
+                expect(!!error).toBeTruthy
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           config,
@@ -2723,9 +2925,13 @@ describe('upload chunk test', () => {
               count ++
             },
             callback(error) {
-              expect(!!error).toBeFalsy
-              expect(count).toBe(1)
-              done()
+              try {
+                expect(!!error).toBeFalsy
+                expect(count).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
             }
           },
           lifecycle: {
@@ -2805,11 +3011,15 @@ describe('upload chunk test', () => {
           }
         },
         callback(error) {
-          expect(!!error).toBeFalsy
-          expect(slicerCount).toBe(times * 2)
-          expect(slicerIndex).toBe(0)
-          expect(readerCount).toBe(times)
-          done()
+          try {
+            expect(!!error).toBeFalsy
+            expect(slicerCount).toBe(times * 2)
+            expect(slicerIndex).toBe(0)
+            expect(readerCount).toBe(times)
+            done()
+          }catch(err) {
+            done(err)
+          }
         }
       })
 
@@ -2833,10 +3043,14 @@ describe('upload chunk test', () => {
           uploadFn() {}
         },
         callback(error) {
-          expect(!!error).toBeFalsy
-          expect(slicerIgnoreCount).toBe(0)
-          expect(readerIgnoreCount).toBe(0)
-          done()
+          try {
+            expect(!!error).toBeFalsy
+            expect(slicerIgnoreCount).toBe(0)
+            expect(readerIgnoreCount).toBe(0)
+            done()
+          }catch(err) {
+            done(err)
+          }
         }
       })
       const names = upload.deal(tasks)
@@ -2862,19 +3076,19 @@ describe('upload chunk test', () => {
       //   window.Worker = _Worker
       // })
 
-      test('upload file without worker api load file', () => {
+      test('upload file without worker api load file', (done) => {
 
-        upload.add({
+        const [tasks] = upload.add({
           file: {
             file
           },
           request: {
             uploadFn,
-            callback(error) {
-              expect(!!error).toBeFalsy
-            }
+            callback: callback(done)
           }
         })
+
+        upload.deal(tasks)
 
       })
 
