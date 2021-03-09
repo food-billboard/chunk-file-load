@@ -24,7 +24,7 @@ export default class Upload extends EventEmitter {
 
   protected lifecycle: LifeCycle = new LifeCycle()
 
-  protected emitter: Emitter = new Emitter()
+  protected emitter: Emitter = new Emitter(this)
 
   protected reader!: Reader
 
@@ -130,7 +130,7 @@ export default class Upload extends EventEmitter {
 
   //取消任务执行
   public cancel(...names: Symbol[]): Symbol[] {
-    return this.emitter.stop(...names)
+    return this.emitter.cancel(...names)
   }
 
   //预加密上传
@@ -185,9 +185,10 @@ export default class Upload extends EventEmitter {
   //任务执行
   private performanceTask(tasks: TWrapperTask[]) {
     this.workerPool.enqueue(...tasks.map(task => task.symbol))
-    .then(processes => {
+    .then(async (processes) => {
       return allSettled(processes.map(async (process: string) => {
         const target = WorkerPool.getProcess(process)
+  
         const taskName = target!.task
         const [ , task ] = this.emitter.getTask(taskName!)
         const { request: { callback }, symbol, config: { retry }, lifecycle } = task!
@@ -197,51 +198,71 @@ export default class Upload extends EventEmitter {
           return {
             remove: true,
             name: symbol,
-            error: null
+            error: null,
+            retry: false 
           }
         })
-        .catch(err => {
+        .catch(async (err) => {
           console.warn(err)
-          const response = {
+          let response = {
             error: err,
             name: symbol,
-            remove: false
+            remove: true,
+            retry: false
           }
 
           const { status } = task!
 
+          //retry
           if(status !== ECACHE_STATUS.stopping && status !== ECACHE_STATUS.cancel) {
             this.emitter.setState(symbol, { status: ECACHE_STATUS.rejected })
+            response.retry = retry?.times > 0
+            if(response.retry) {
+              try {
+                await this.LIFECYCLE_EMIT('retry', {
+                  name: symbol,
+                  status: ECACHE_STATUS.pending,
+                  rest: retry.times - 1
+                })
+              }catch(err) {
+                response.retry = false
+              }finally {
+                response.remove = !response.retry
+                const status = this.getStatus(symbol)
+                if(status === ECACHE_STATUS.stopping) {
+                  response.retry = false
+                  response.remove = false 
+                }
+              }
+            }
+          }else {
+            let lifecycle!: keyof TLifecycle
+            if(status === ECACHE_STATUS.stopping) {
+              lifecycle = 'afterStop'
+              response.remove = false
+            }else {
+              lifecycle = 'afterCancel'
+            }
           }
 
           return response
         })
         .then(async (response) => {
           WorkerPool.worker_clean(process)
-          const { error, name, remove } = response
-          let callbackError = null
-          let needRetry = error && retry.times > 0
-          if(needRetry) {
-            callbackError = {
-              error,
-              retry: true
-            }
-            try {
-              await this.LIFECYCLE_EMIT('retry', {
-                name: symbol,
-                status: ECACHE_STATUS.pending,
-                rest: retry.times - 1
-              })
-            }catch(err) {
-              callbackError.retry = false
-            }
-          }
-          callback && callback(callbackError, name)
+          const { error, name, remove, retry } = response
+          let callbackError = error ? {
+            error,
+            retry
+          } : null
+
           this.lifecycle.onWithObject(lifecycle, name, 'off')
-          if(remove || !!!callbackError?.retry) {
+          if(remove) {
             this.emitter.off(symbol)
-          }else if(needRetry && !!callbackError?.retry) {
+            callback && callback(callbackError, name)
+          }else if(retry) {
             this.deal(symbol)
+          }else {
+            callback && callback(callbackError, name)
           }
         })
         .catch(err => {
@@ -259,7 +280,7 @@ export default class Upload extends EventEmitter {
   private LIFECYCLE_EMIT: TProcessLifeCycle = async (lifecycle, params) => {
     const { name, status } = params
     const [ , task ] = this.emitter.getTask(name)
-    const { status: originStatus, symbol } = task!
+    const { symbol } = task!
     let state: SuperPartial<TWrapperTask> = {
       status
     }
@@ -274,31 +295,27 @@ export default class Upload extends EventEmitter {
     }catch(err) {
       error = err
     }finally {
-      if(originStatus === ECACHE_STATUS.stopping || originStatus === ECACHE_STATUS.cancel) {
-        if(originStatus === ECACHE_STATUS.stopping) {
-          try {
-            await this.lifecycle.emit('afterStop', {
-              name: symbol,
-              status: ECACHE_STATUS.stopping,
-              current: task!.process.current,
-              task
-            })
-          }catch(err) {}
+      const status = this.getStatus(name)
+      if(status === ECACHE_STATUS.stopping || status === ECACHE_STATUS.cancel) {
+        let lifecycle!: keyof TLifecycle
+        if(status === ECACHE_STATUS.stopping) {
           error = 'stop'
+          lifecycle = 'afterStop'
         }
-        if(originStatus === ECACHE_STATUS.cancel) {
-          try {
-            await this.lifecycle.emit('afterStop', {
-              name: symbol,
-              status: ECACHE_STATUS.cancel,
-              current: task!.process.current,
-              task
-            })
-          }catch(err) {}
-
+        if(status === ECACHE_STATUS.cancel) {
           error = 'cancel'
+          lifecycle = 'afterCancel'
         }
-        state.status = originStatus
+        try {
+          const [target] = this.watch(symbol)
+          await this.lifecycle.emit(lifecycle, {
+            name: symbol,
+            status,
+            current: target?.current,
+            task
+          })
+        }catch(err) {}
+        state.status = status
       }
 
       this.emitter.setState(name, state)

@@ -1,10 +1,17 @@
 import merge from 'lodash/merge'
 import mergeWith from 'lodash/mergeWith'
+import Upload from '../../upload/index'
 import { flat, isObject, base64Size } from '../tool'
 import { DEFAULT_CONFIG, ECACHE_STATUS, EActionType } from '../constant'
-import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial } from '../../upload/type'
+import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial, TLifecycle } from '../../upload/type'
 
 export default class Emitter {
+
+  constructor(context: Upload) {
+    this.context = context
+  }
+
+  private context: Upload
 
   public tasks: TWrapperTask[] = []
 
@@ -66,6 +73,19 @@ export default class Emitter {
 
   }
 
+  private lifecycleBiding = (lifecycle:TLifecycle ={}) => {
+    const entries = Object.entries(lifecycle) as [
+      keyof TLifecycle, TLifecycle[keyof TLifecycle]
+    ][]
+    return entries.reduce<{
+      [K in keyof TLifecycle]: TLifecycle[K]
+    }>((acc, cur) => {
+      const [ key, value ] = cur 
+      acc[key] = value!.bind(this.context) as any
+      return acc
+    }, {})
+  }
+
   private taskValid(task: Ttask) {
     if(isObject(task)) {
       //参数验证
@@ -86,7 +106,7 @@ export default class Emitter {
         current: 0,
         complete: 0
       },
-      lifecycle: lifecycle || {},
+      lifecycle: this.lifecycleBiding(lifecycle || {}),
       file: this.FILE_TYPE(file),
       config: merge(DEFAULT_CONFIG, config),
       symbol,

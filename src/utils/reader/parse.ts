@@ -93,8 +93,8 @@ export default class extends Proxy {
       //文件内容读取
       async function loadNext() {
         let start: number = currentChunk * chunkSize,
-          end: number = currentChunk + 1 === totalChunks ? size : (currentChunk + 1) * chunkSize,
-          chunks: ArrayBuffer
+            end: number = currentChunk + 1 === totalChunks ? size : (currentChunk + 1) * chunkSize,
+            chunks: ArrayBuffer
         try {
           chunks = await blobSlicer.slice(start, end) as ArrayBuffer
           await that.dealLifecycle('reading', {

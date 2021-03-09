@@ -1,5 +1,5 @@
 import SparkMd5 from 'spark-md5'
-import { merge } from 'lodash'
+import { merge, omit } from 'lodash'
 import Emitter from 'eventemitter3'
 import { Upload, ECACHE_STATUS } from '../src'
 import { arrayBufferToBase64, isSymbol } from '../src/utils/tool'
@@ -91,6 +91,11 @@ const emitterCollection = () => {
   }
 }
 
+const dealResultExpect = (result) => {
+  expect(result).toBeInstanceOf(Array)
+  expect(result.length).toBe(1)
+}
+
 window.Worker = undefined
 
 describe('upload chunk test', () => {
@@ -107,7 +112,7 @@ describe('upload chunk test', () => {
     done()
   })
 
-  describe('upload api', () => {
+  describe.skip('upload api', () => {
 
     describe('upload api success test', () => {
 
@@ -125,6 +130,7 @@ describe('upload chunk test', () => {
             result
 
         result = upload.upload({
+          config,
           request: {
             exitDataFn,
             uploadFn,
@@ -159,10 +165,11 @@ describe('upload chunk test', () => {
             beforeRead({ name, task }) {
               beforeRead ++
             },
-            reading({ name, task, start, end }) {
+            reading({ name, task, current, total }) {
               collection(() => {
-                expect(start).toBe((reading ++) * config.chunkSize)
-                expect(end).toBe(reading * config.chunkSize > FILE_SIZE ? FILE_SIZE : reading * config.chunkSize)
+                expect(current).toBe((reading ++) * config.chunkSize)
+                expect(total).toBe(FILE_SIZE)
+                // expect(end).toBe(reading * config.chunkSize > FILE_SIZE ? FILE_SIZE : reading * config.chunkSize)
               })
             },
             beforeCheck({ name, task }) {
@@ -174,10 +181,13 @@ describe('upload chunk test', () => {
                 expect(isExists).toBe(false)
               })
             },
-            uploading({ name, task, index, success }) {
-              collection(() => {
-                expect(index).toBe(uploading)
-              })
+            uploading({ name, task, current, total, complete }) {
+              const expectFn = (uploading) => {
+                expect(current).toBe(uploading)
+                expect(total).toBe(totalChunks)
+                expect(complete).toBe(uploading)
+              }
+              collection(expectFn.bind(this, uploading))
               uploading ++
             },
             beforeComplete({ name, task, isExists }) {
@@ -205,13 +215,14 @@ describe('upload chunk test', () => {
 
   })
 
-  describe('add api', () => {
+  describe.skip('add api', () => {
 
     describe('add api success test', () => {
 
       it('add api success', () => {
 
         const tasks = upload.add({
+          config,
           upload: {
             exitDataFn,
             uploadFn,
@@ -238,13 +249,16 @@ describe('upload chunk test', () => {
 
     let tasks 
     let _config = {
-      exitDataFn,
-      uploadFn,
-      completeFn,
+      request: {
+        exitDataFn,
+        uploadFn,
+        completeFn,
+      },
+      config
     }
 
     const add = (config={}) => {
-      tasks = upload.add(merge({}, _config, config))
+      [tasks] = upload.add(merge({}, _config, config))
     }
 
     describe('deal api success test', () => {
@@ -259,7 +273,8 @@ describe('upload chunk test', () => {
             callback: callback(done)
           }, 
         })
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success with file', (done) => {
@@ -271,7 +286,8 @@ describe('upload chunk test', () => {
             callback: callback(done)
           }
         })
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success with blob', (done) => {
@@ -284,7 +300,8 @@ describe('upload chunk test', () => {
             callback: callback(done)
           }
         })
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success with arraybuffer', (done) => {
@@ -297,7 +314,8 @@ describe('upload chunk test', () => {
             callback: callback(done) 
           }
         })
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success with chunks list file', (done) => {
@@ -311,36 +329,42 @@ describe('upload chunk test', () => {
             callback: callback(done)
           }
         })
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success but the exitFn return the not verify data and all the chunks need upload', (done) => {
         let times = 0
 
         add({
-          ...config,
-          file,
-          exitDataFn: () => {
-            return null
+          file: {
+            file,
           },
-          uploadFn: (data) => {
-            times ++
-          },
-          callback: (error) => {
-            try {
-              if(error) {
-                done(error)
-              }else {
-                expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
-                done()
+          request: {
+            exitDataFn: () => {
+              return null
+            },
+            uploadFn: (data) => {
+              times ++
+            },
+            callback: (error) => {
+              try {
+                if(error) {
+                  done(error)
+                }else {
+                  expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize))
+                  done()
+                }
+              }catch(err) {
+                done(err)
               }
-            }catch(err) {
-              done(err)
             }
           }
         })
 
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
+
       })
 
       test('deal api success but the exitFn return the not verify data and all the chunks need upload', (done) => {
@@ -375,13 +399,14 @@ describe('upload chunk test', () => {
           }
         }))
 
-        upload.deal(tasks)
+        const result =upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success and exitFn return the number list uploaded chunk', (done) => {
         let times = 0
 
-        add(merge({
+        add({
           config,
           file: {
             file
@@ -389,7 +414,7 @@ describe('upload chunk test', () => {
           request: {
             exitDataFn: () => {
               return {
-                data: [0]
+                data: new Array(totalChunks - 1).fill(0).map((_, index) => index + 1)
               }
             },
             uploadFn: (data) => {
@@ -400,7 +425,7 @@ describe('upload chunk test', () => {
                 if(error) {
                   done(error)
                 }else {
-                  expect(times).toBe(Math.ceil(FILE_SIZE / config.chunkSize) - 1)
+                  expect(times).toBe(totalChunks - 1)
                   done()
                 }
               }catch(err) {
@@ -408,9 +433,10 @@ describe('upload chunk test', () => {
               }
             }
           }
-        }))
+        })
 
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success and exitFn return the string list uploaded chunk', async () => {
@@ -445,7 +471,8 @@ describe('upload chunk test', () => {
           }
         }))
 
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success and exitFn return the number of next need upload chunk', (done) => {
@@ -480,7 +507,8 @@ describe('upload chunk test', () => {
           }
         }))
 
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       test('deal api success and uploadFn return the string of next need upload chunk', (done) => {
@@ -515,7 +543,8 @@ describe('upload chunk test', () => {
           }
         }))
 
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
       // test('deal api success and uploadFn no response', async () => {
@@ -527,18 +556,19 @@ describe('upload chunk test', () => {
     describe('deal api fail test', () => {
 
       test('deal api fail because the task name is not found', () => {
-        const result = upload.emit(null)
+        const result = upload.deal(null)
         expect(result.length).toBe(0)
       })
 
       test('deal api fail because the task not the uploadFn', (done) => {
         let times = 0
         const names = upload.add({
+          config,
           file: {
             file
           },
           request: {
-            callback: (error) => {
+            callback: (error, value) => {
               try {
                 expect(!!error).toBe(true)
                 expect(times).toBe(0)
@@ -571,7 +601,8 @@ describe('upload chunk test', () => {
     describe('start api success test', () => {
 
       test('start api success', (done) => {
-        const tasks = upload.add({
+        const [tasks] = upload.add({
+          config,
           request: {
             exitDataFn,
             completeFn,
@@ -583,32 +614,37 @@ describe('upload chunk test', () => {
           },
         })
 
-        upload.start(tasks)
-
-        expect(tasks.length).toBe(0)
+        const result = upload.start(tasks)
+        dealResultExpect(result)
       })
 
     })
 
   })
 
-  describe.skip('stop api', () => {
+  describe('stop api', () => {
 
     describe('stop api success test', () => {
 
       const total = Math.ceil(FILE_SIZE / config.chunkSize)
       let times = Array.from({ length: total }, (_, index) => index)
 
-      test('stop api success and with api', (done) => {
+      test.skip('stop api success and with api', (done) => {
 
-        let count = 0
-        let tasks
-        let stop = true
+        let count = 0,
+            tasks,
+            stop = true;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
+            exitDataFn: () => {
+              if(stop) return false 
+              return {
+                data: config.chunkSize
+              }
+            },
             uploadFn: (data) => {
               count ++
             },
@@ -617,10 +653,12 @@ describe('upload chunk test', () => {
                 if(stop) {
                   expect(!!error).toBeTruthy
                   stop = false
-                  upload.start(tasks)
+                  const result = upload.start(tasks)
+                  expect(result).toBeInstanceOf(Array)
+                  expect(result.length).toBe(1)
                 }else {
                   expect(!!error).toBeFalsy
-                  expect(count).toEqual(times)
+                  expect(count).toEqual(times.length)
                   done()
                 }
               }catch(err) {
@@ -640,22 +678,20 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and stop in uploading', (done) => {
+      test.skip('stop api success and stop in uploading', (done) => {
 
-        let count = 0
-        let reading = 0
-        let tasks
-        let stop = true
+        let count = 0,
+            reading = 0,
+            stop = true,
+            tasks;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -671,8 +707,8 @@ describe('upload chunk test', () => {
                   expect(nextTasks.length).toBe(1)
                 }else {
                   expect(!!error).toBeFalsy
-                  expect(count).toEqual(times)
-                  expect(reading).toBe(times)
+                  expect(count).toEqual(times.length + 1)
+                  expect(reading).toBe(times.length)
                   done()
                 }
               }catch(err) {
@@ -695,21 +731,20 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and stop in reading', (done) => {
+      test.skip('stop api success and stop in reading', (done) => {
 
-        let count = 0
-        let tasks
-        let stop = true
+        let count = 0,
+            tasks,
+            stop = true;
 
         //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -721,11 +756,10 @@ describe('upload chunk test', () => {
                   expect(!!error).toBeTruthy
                   stop = false
                   const nextTasks = upload.start(tasks)
-                  expect(nextTasks).toBeInstanceOf(Array)
-                  expect(nextTasks.length).toBe(1)
+                  dealResultExpect(nextTasks)
                 }else {
                   expect(!!error).toBeFalsy
-                  expect(count).toEqual(times + 1)
+                  expect(count).toEqual(times.length + 1)
                   done()
                 }
               }catch(err) {
@@ -746,21 +780,19 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and stop in beforeRead', (done) => {
+      test.skip('stop api success and stop in beforeRead', (done) => {
 
-        let count = 0
-        let tasks
-        let stop = true
+        let count = 0,
+            tasks,
+            stop = true;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -797,22 +829,19 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
-
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
-      test('stop api success and stop in beforeCheck', (done) => {
+      test.skip('stop api success and stop in beforeCheck', (done) => {
 
-        let beforeCheck = 0
-        let reading = 0
-        let tasks
-        let stop = true
+        let beforeCheck = 0,
+            reading = 0,
+            tasks,
+            stop = true;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -829,7 +858,7 @@ describe('upload chunk test', () => {
                 }else {
                   expect(!!error).toBeFalsy
                   expect(beforeCheck).toEqual(2)
-                  expect(reading).toBe(times)
+                  expect(reading).toBe(times.length)
                   done()
                 }
               }catch(err) {
@@ -853,22 +882,20 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and stop in afterCheck', (done) => {
+      test.skip('stop api success and stop in afterCheck', (done) => {
 
-        let uploadCount = 0
-        let reading = 0
-        let tasks
-        let stop = true
+        let uploadCount = 0,
+            reading = 0,
+            tasks,
+            stop = true;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -882,8 +909,8 @@ describe('upload chunk test', () => {
                   upload.start(tasks)
                 }else {
                   expect(!!error).toBeFalsy
-                  expect(uploadCount).toEqual(times)
-                  expect(reading).toBe(times)
+                  expect(uploadCount).toEqual(times.length)
+                  expect(reading).toBe(2)
                   done()
                 }
               }catch(err) {
@@ -895,7 +922,7 @@ describe('upload chunk test', () => {
             file
           },
           lifecycle: {
-            reading({ name }) {
+            afterCheck({ name }) {
               if(stop) {
                 this.stop(name)
               }
@@ -904,23 +931,20 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
-
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
       })
 
-      test('stop api success and stop in afterStop and not use', (done) => {
+      test.skip('stop api success and stop in afterStop and not use', (done) => {
 
         const { collection, emit } = emitterCollection()
 
-        let count = 0
-        let tasks
-        let stop = true
+        let count = 0,
+            tasks,
+            stop = true;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -967,23 +991,21 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and stop in afterCancel and not use', (done) => {
+      test.skip('stop api success and stop in afterCancel and not use', (done) => {
 
         const { collection, emit } = emitterCollection()
-        let count = 0
-        let tasks
-        let cancel = true
-        let reading = 0
+        let count = 0,
+            tasks,
+            stop = true,
+            reading = 0;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config: omit(config, ['retry']),
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -997,8 +1019,9 @@ describe('upload chunk test', () => {
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
-                  expect(nextTasks.length).toBe(1)
+                  expect(nextTasks.length).toBe(0)
                   expect(reading).toBe(1)
+                  done()
                 }else {
                   expect(count).toBe(1)
                   expect(reading).toBe(1)
@@ -1015,13 +1038,13 @@ describe('upload chunk test', () => {
           },
           lifecycle: {
             reading({ name }) {
-              if(cancel) {
+              if(stop) {
                 this.cancel(name)
               }
               reading ++
             },
             afterCancel({ name }) {
-              if(cancel) {
+              if(stop) {
                 const names = this.stop(name)
                 collection(() => {
                   expect(names).toBeInstanceOf(Array)
@@ -1033,23 +1056,21 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and stop in beforeComplete', (done) => {
+      test.skip('stop api success and stop in beforeComplete', (done) => {
         const { collection, emit } = emitterCollection()
-        let count = 0
-        let tasks
-        let stop = true
-        let reading = 0
-        let uploading = 0
+        let count = 0,
+            tasks,
+            stop = true,
+            reading = 0,
+            uploading = 0;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1064,8 +1085,8 @@ describe('upload chunk test', () => {
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
-                  expect(reading).toBe(times)
-                  expect(uploading).toBe(times)
+                  expect(reading).toBe(totalChunks)
+                  expect(uploading).toBe(totalChunks)
                 }else {
                   expect(count).toBe(2)
                   expect(!!error).toBeFalsy
@@ -1099,23 +1120,21 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and stop in afterComplete', (done) => {
+      test.skip('stop api success and stop in afterComplete', (done) => {
         const { collection, emit } = emitterCollection()
-        let count = 0
-        let tasks
-        let stop = true
-        let reading = 0
-        let uploading = 0
+        let count = 0,
+            tasks,
+            stop = true,
+            reading = 0,
+            uploading = 0;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1130,8 +1149,8 @@ describe('upload chunk test', () => {
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
-                  expect(reading).toBe(times)
-                  expect(uploading).toBe(times)
+                  expect(reading).toBe(totalChunks)
+                  expect(uploading).toBe(totalChunks)
                 }else {
                   expect(count).toBe(2)
                   expect(!!error).toBeFalsy
@@ -1165,22 +1184,20 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
       test('stop api success and stop in retry', (done) => {
         const { collection, emit } = emitterCollection()
-        let count = 0
-        let tasks
-        let stop = true
-        let uploading = 0
+        let count = 0,
+            tasks,
+            stop = true,
+            uploading = 0;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1201,7 +1218,7 @@ describe('upload chunk test', () => {
                 }else {
                   expect(count).toBe(1)
                   expect(!!error).toBeFalsy
-                  expect(uploading).toBe(times)
+                  expect(uploading).toBe(times.length)
                   done()
                 }
               }catch(err) {
@@ -1229,21 +1246,19 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and with error', (done) => {
+      test.skip('stop api success and with error', (done) => {
 
-        let count = 0
-        let tasks
-        stop = true
+        let count = 0,
+            tasks;
+        stop = true;
 
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1277,21 +1292,20 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and with boolean', (done) => {
+      test.skip('stop api success and with boolean', (done) => {
 
-        let count = 0
-        let tasks
-        stop = true
+        let count = 0,
+            tasks,
+            stop = true;
 
         //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1325,21 +1339,20 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('stop api success and with promise', (done) => {
+      test.skip('stop api success and with promise', (done) => {
 
-        let count = 0
-        let tasks
-        let stop = true
+        let count = 0,
+            tasks,
+            stop = true;
 
         //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
+        [tasks] = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1374,16 +1387,14 @@ describe('upload chunk test', () => {
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        upload.deal(...tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
     })
 
-    describe('stop api fail test', () => {
+    describe.skip('stop api fail test', () => {
 
       test('stop api fail because the task name is not found', () => {
 
@@ -1409,6 +1420,7 @@ describe('upload chunk test', () => {
         const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
+          config,
           request: {
             exitDataFn,
             completeFn,
@@ -1451,6 +1463,7 @@ describe('upload chunk test', () => {
         let tasks
 
         tasks = upload.add({
+          config,
           request: {
             exitDataFn,
             completeFn,
@@ -1488,6 +1501,7 @@ describe('upload chunk test', () => {
         let tasks
 
         tasks = upload.add({
+          config,
           request: {
             exitDataFn,
             completeFn,
@@ -1527,6 +1541,7 @@ describe('upload chunk test', () => {
 
         //在emit中的stop中能找到当前指定队列名称任务
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1575,6 +1590,7 @@ describe('upload chunk test', () => {
         let cancel = true
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1621,6 +1637,7 @@ describe('upload chunk test', () => {
         let tasks
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1662,6 +1679,7 @@ describe('upload chunk test', () => {
         let tasks
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1703,6 +1721,7 @@ describe('upload chunk test', () => {
         let tasks
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1744,6 +1763,7 @@ describe('upload chunk test', () => {
         let tasks
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1787,6 +1807,7 @@ describe('upload chunk test', () => {
         const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1808,6 +1829,7 @@ describe('upload chunk test', () => {
               }catch(err) {
                 done(err)
               }
+            },
           },
           file: {
             file
@@ -1843,6 +1865,7 @@ describe('upload chunk test', () => {
         const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1893,6 +1916,7 @@ describe('upload chunk test', () => {
         const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1940,6 +1964,7 @@ describe('upload chunk test', () => {
         const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1987,6 +2012,7 @@ describe('upload chunk test', () => {
         const { collection, emit } = emitterCollection()
 
         tasks = upload.add({
+          config,
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -2054,6 +2080,7 @@ describe('upload chunk test', () => {
       test('cancelAdd api success', (done) => {
 
         const [tasks] = upload.add({
+          config,
           request: {
             exitDataFn,
             completeFn,
@@ -2089,6 +2116,7 @@ describe('upload chunk test', () => {
         const { collection, emit } = emitterCollection()
 
         const tasks = upload.upload({
+          config,
           request: {
             completeFn,
             uploadFn(data) {
@@ -2174,6 +2202,7 @@ describe('upload chunk test', () => {
 
       beforeAll((done) => {
         [ name ] = upload.add({
+          config,
           request: {
             uploadFn,
             completeFn
@@ -2213,6 +2242,7 @@ describe('upload chunk test', () => {
 
       beforeAll((done) => {
         [ name ] = upload.add({
+          config,
           request: {
             uploadFn,
             completeFn
@@ -2256,6 +2286,7 @@ describe('upload chunk test', () => {
         }
 
         [ name ] = upload.add({
+          config,
           request: {
             uploadFn() {
               expectStatus(ECACHE_STATUS.uploading)
@@ -2315,6 +2346,7 @@ describe('upload chunk test', () => {
         let name
 
         [ name ] = upload.add({
+          config,
           file: {
             file
           },
@@ -2343,6 +2375,7 @@ describe('upload chunk test', () => {
         let name
 
         [ name ] = upload.add({
+          config,
           file: {
             file
           },
@@ -2371,6 +2404,7 @@ describe('upload chunk test', () => {
         let name
 
         [ name ] = upload.add({
+          config,
           file: {
             file
           },
@@ -2445,6 +2479,7 @@ describe('upload chunk test', () => {
 
         //返回正确的参数
         const [tasks] = upload.add({
+          config,
           file: {
             file
           },
@@ -2570,6 +2605,7 @@ describe('upload chunk test', () => {
 
         //返回正确的参数
         [ tasks ] = upload.add({
+          config,
           file: {
             file
           },
@@ -2619,6 +2655,7 @@ describe('upload chunk test', () => {
 
         //返回正确的参数
         [ tasks ] = upload.add({
+          config,
           file: {
             file
           },
@@ -2749,6 +2786,7 @@ describe('upload chunk test', () => {
         })
 
         const [tasks] = upload.add({
+          config,
           file: {
             file
           },
@@ -2792,6 +2830,7 @@ describe('upload chunk test', () => {
         })
 
         const [tasks] = upload.add({
+          config,
           file: {
             file
           },
@@ -2836,6 +2875,7 @@ describe('upload chunk test', () => {
 
         //错误自动重试
         const [tasks] = upload.add({
+          config,
           file: {
             file
           },
@@ -2881,6 +2921,7 @@ describe('upload chunk test', () => {
 
         //错误自动重试
         const [tasks] = upload.add({
+          config,
           file: {
             file
           },
@@ -2913,6 +2954,7 @@ describe('upload chunk test', () => {
 
         //错误自动重试
         const [tasks] = upload.add({
+          config,
           file: {
             file
           },
@@ -3002,6 +3044,7 @@ describe('upload chunk test', () => {
 
       const upload = new _Upload()
       const [ tasks ] = upload.add({
+        config,
         file: {
           file,
         },
@@ -3036,6 +3079,7 @@ describe('upload chunk test', () => {
         ignores: ['reader', 'slicer']
       })
       const [ tasks ] = upload.add({
+        config,
         file: {
           file,
         },
@@ -3079,6 +3123,7 @@ describe('upload chunk test', () => {
       test('upload file without worker api load file', (done) => {
 
         const [tasks] = upload.add({
+          config,
           file: {
             file
           },

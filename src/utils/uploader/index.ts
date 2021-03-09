@@ -34,7 +34,7 @@ export default class Uploader extends Reader {
   }
 
   private getUnCompleteIndexs(task: TWrapperTask, response: TExitDataFnReturnValue): number[] {
-    const { data } = response
+    const { data } = response || { data: 0 }
     const { file: { size }, config: { chunkSize }, symbol } = task
     const chunksLength = Math.ceil(size / chunkSize)
     let unComplete = []
@@ -82,7 +82,7 @@ export default class Uploader extends Reader {
       status: ECACHE_STATUS.uploading
     })
 
-    if(typeof exitDataFn !== 'function') return { data: [] }
+    if(typeof exitDataFn !== 'function') return { data: 0 }
 
     const params = {
       filename: name ?? '',
@@ -103,7 +103,6 @@ export default class Uploader extends Reader {
      *  list: [每一分片的索引]
      * } | nextIndex 下一分片索引
      */
-    const { data, ...nextRes } = res || {}
     const [, task] = this.getState(process?.task!)
     const unComplete = this.getUnCompleteIndexs(task!, res)
     const isExists = !unComplete.length
@@ -129,6 +128,7 @@ export default class Uploader extends Reader {
       })
     }
     else {
+      const { data, ...nextRes } = res || {}
       return this.dealLifecycle('beforeComplete', lifecycleParams)
       .then(_ => nextRes) 
     }
@@ -193,7 +193,7 @@ export default class Uploader extends Reader {
           status: ECACHE_STATUS.uploading,
           current: i,
           total,
-          complete: total - newUnUploadChunks.length,
+          complete: total - newUnUploadChunks.length - 1,
         })
 
         if(!!response) {
@@ -215,7 +215,7 @@ export default class Uploader extends Reader {
   //文件上传完成
   private async completeFn({ task, response }: { task: TWrapperTask, response: TExitDataFnReturnValue }) {
     const { file: { md5 }, symbol, request: { completeFn } } = task
-    return typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }) : Promise.resolve(response)
+    return Promise.resolve(typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }) : response)
     .then(_ => this.dealLifecycle('afterComplete', {
       success: true,
       name: symbol,

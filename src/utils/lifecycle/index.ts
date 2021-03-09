@@ -120,6 +120,7 @@ export default class LifeCycle {
     const index = this.lifecycleMap[eventName].findIndex((item: any) => item.key == name)
 
     if(action === 'off' || action === 'removeListener') {
+      if(!~index) return 
       this.lifecycleMap[eventName].splice(index, 1)
     }else {
       let lifecycleState = {

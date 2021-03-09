@@ -91,7 +91,7 @@ class WorkerPool {
   private static process:TProcess[] = WorkerPool.initProcessPool()
 
   //入队
-  public enqueue(...tasks: Symbol[]): Promise<string[]> {
+  public async enqueue (...tasks: Symbol[]): Promise<string[]> {
     tasks.forEach(task => {
       WorkerPool.QUEUE.enqueue(task as any)
     })
