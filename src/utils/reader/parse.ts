@@ -100,7 +100,7 @@ export default class extends Proxy {
           await that.dealLifecycle('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
-            current: start,
+            current: end,
             // end,
             total: size
             // chunk: chunks
@@ -152,7 +152,7 @@ export default class extends Proxy {
           await that.dealLifecycle('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
-            current: start,
+            current: end,
             // end,
             total: size
             // chunk: chunks

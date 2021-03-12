@@ -2,7 +2,7 @@ import SparkMd5 from 'spark-md5'
 import { merge, omit } from 'lodash'
 import Emitter from 'eventemitter3'
 import { Upload, ECACHE_STATUS } from '../src'
-import { arrayBufferToBase64, isSymbol } from '../src/utils/tool'
+import { arrayBufferToBase64, base64Size, isSymbol } from '../src/utils/tool'
 
 const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLength }) => {
   return false
@@ -622,14 +622,14 @@ describe('upload chunk test', () => {
 
   })
 
-  describe('stop api', () => {
+  describe.skip('stop api', () => {
 
-    describe('stop api success test', () => {
+    describe.skip('stop api success test', () => {
 
       const total = Math.ceil(FILE_SIZE / config.chunkSize)
       let times = Array.from({ length: total }, (_, index) => index)
 
-      test.skip('stop api success and with api', (done) => {
+      test('stop api success and with api', (done) => {
 
         let count = 0,
             tasks,
@@ -683,7 +683,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and stop in uploading', (done) => {
+      test('stop api success and stop in uploading', (done) => {
 
         let count = 0,
             reading = 0,
@@ -736,7 +736,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and stop in reading', (done) => {
+      test('stop api success and stop in reading', (done) => {
 
         let count = 0,
             tasks,
@@ -785,7 +785,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and stop in beforeRead', (done) => {
+      test('stop api success and stop in beforeRead', (done) => {
 
         let count = 0,
             tasks,
@@ -833,7 +833,7 @@ describe('upload chunk test', () => {
         dealResultExpect(result)
       })
 
-      test.skip('stop api success and stop in beforeCheck', (done) => {
+      test('stop api success and stop in beforeCheck', (done) => {
 
         let beforeCheck = 0,
             reading = 0,
@@ -887,7 +887,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and stop in afterCheck', (done) => {
+      test('stop api success and stop in afterCheck', (done) => {
 
         let uploadCount = 0,
             reading = 0,
@@ -935,7 +935,7 @@ describe('upload chunk test', () => {
         dealResultExpect(result)
       })
 
-      test.skip('stop api success and stop in afterStop and not use', (done) => {
+      test('stop api success and stop in afterStop and not use', (done) => {
 
         const { collection, emit } = emitterCollection()
 
@@ -996,7 +996,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and stop in afterCancel and not use', (done) => {
+      test('stop api success and stop in afterCancel and not use', (done) => {
 
         const { collection, emit } = emitterCollection()
         let count = 0,
@@ -1061,7 +1061,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and stop in beforeComplete', (done) => {
+      test('stop api success and stop in beforeComplete', (done) => {
         const { collection, emit } = emitterCollection()
         let count = 0,
             tasks,
@@ -1125,7 +1125,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and stop in afterComplete', (done) => {
+      test('stop api success and stop in afterComplete', (done) => {
         const { collection, emit } = emitterCollection()
         let count = 0,
             tasks,
@@ -1189,7 +1189,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test('stop api success and stop in retry', (done) => {
+      test('stop api success and stop in retry and no use', (done) => {
         const { collection, emit } = emitterCollection()
         let count = 0,
             tasks,
@@ -1205,7 +1205,7 @@ describe('upload chunk test', () => {
                 throw new Error()
               }
             },
-            callback: (error) => {
+            callback(error) {
               try {
                 if(stop) {
                   emit()
@@ -1214,7 +1214,8 @@ describe('upload chunk test', () => {
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
-                  expect(nextTasks.length).toBe(1)
+                  expect(nextTasks.length).toBe(0)
+                  done()
                 }else {
                   expect(count).toBe(1)
                   expect(!!error).toBeFalsy
@@ -1238,7 +1239,7 @@ describe('upload chunk test', () => {
                 const names = this.stop(name)
                 collection(() => {
                   expect(names).toBeInstanceOf(Array)
-                  expect(names.length).toBe(1)
+                  expect(names.length).toBe(0)
                 })
               }
               count ++
@@ -1251,14 +1252,13 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and with error', (done) => {
+      test('stop api success and with error and can not start', (done) => {
 
         let count = 0,
             tasks;
-        stop = true;
 
         [tasks] = upload.add({
-          config,
+          config: omit(config, ['retry']),
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1266,15 +1266,11 @@ describe('upload chunk test', () => {
             },
             callback: (error) => {
               try {
-                if(stop) {
-                  expect(!!error).toBeTruthy
-                  stop = false
-                  upload.start(tasks)
-                }else {
-                  expect(!!error).toBeFalsy
-                  expect(count).toEqual(times)
-                  done()
-                }
+                expect(!!error).toBeTruthy
+                stop = false
+                const result = upload.start(tasks)
+                expect(result.length).toBe(0)
+                done()
               }catch(err) {
                 done(err)
               }
@@ -1285,9 +1281,7 @@ describe('upload chunk test', () => {
           },
           lifecycle: {
             uploading({ name }) {
-              if(stop) {
-                throw new Error()
-              }
+              throw new Error()
             },
           }
         })
@@ -1297,7 +1291,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and with boolean', (done) => {
+      test('stop api success and with boolean', (done) => {
 
         let count = 0,
             tasks,
@@ -1305,7 +1299,7 @@ describe('upload chunk test', () => {
 
         //在emit中的stop中能找到当前指定队列名称任务
         [tasks] = upload.add({
-          config,
+          config: omit(config, ['retry']),
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1316,10 +1310,11 @@ describe('upload chunk test', () => {
                 if(stop) {
                   expect(!!error).toBeTruthy
                   stop = false
-                  upload.start(tasks)
+                  const result = upload.start(tasks)
+                  dealResultExpect(result)
                 }else {
                   expect(!!error).toBeFalsy
-                  expect(count).toEqual(times)
+                  expect(count).toEqual(totalChunks + 1)
                   done()
                 }
               }catch(err) {
@@ -1344,15 +1339,14 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('stop api success and with promise', (done) => {
+      test('stop api success and with promise', (done) => {
 
         let count = 0,
             tasks,
             stop = true;
 
-        //在emit中的stop中能找到当前指定队列名称任务
         [tasks] = upload.add({
-          config,
+          config: omit(config, ['retry']),
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -1363,10 +1357,11 @@ describe('upload chunk test', () => {
                 if(stop) {
                   expect(!!error).toBeTruthy
                   stop = false
-                  upload.start(tasks)
+                  const result = upload.start(tasks)
+                  dealResultExpect(result)
                 }else {
                   expect(!!error).toBeFalsy
-                  expect(count).toEqual(times)
+                  expect(count).toEqual(totalChunks + 1)
                   done()
                 }
               }catch(err) {
@@ -1379,8 +1374,8 @@ describe('upload chunk test', () => {
           },
           lifecycle: {
             async uploading({ name }) {
-              await new Promise((resolve) => setTimeout(resolve, 1000))
               if(stop) {
+                await new Promise((resolve) => setTimeout(resolve, 1000))
                 return false
               }
             },
@@ -1394,7 +1389,7 @@ describe('upload chunk test', () => {
 
     })
 
-    describe.skip('stop api fail test', () => {
+    describe('stop api fail test', () => {
 
       test('stop api fail because the task name is not found', () => {
 
@@ -1414,12 +1409,12 @@ describe('upload chunk test', () => {
 
     describe('cancel api success test', () => {
 
-      test('cancel api success with api', async () => {
+      test('cancel api success with api', async (done) => {
 
         let tasks
-        const { collection, emit } = emitterCollection()
+        const { collection, emit } = emitterCollection();
 
-        tasks = upload.add({
+        [tasks] = upload.add({
           config,
           request: {
             exitDataFn,
@@ -1427,8 +1422,9 @@ describe('upload chunk test', () => {
             uploadFn,
             callback: (error) => {
               try {
+                emit()
                 expect(!!error).toBeTruthy
-                const result = upload.start(...tasks)
+                const result = upload.start(tasks)
                 expect(result).toBeInstanceOf(Array)
                 expect(result.length).toBe(0)
                 done()
@@ -1453,16 +1449,15 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
 
       })
 
       test('cancel api success with error', (done) => {
 
-        let tasks
+        let tasks;
 
-        tasks = upload.add({
+        [tasks] = upload.add({
           config,
           request: {
             exitDataFn,
@@ -1471,7 +1466,7 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 expect(!!error).toBeTruthy
-                const result = upload.start(...tasks)
+                const result = upload.start(tasks)
                 expect(result).toBeInstanceOf(Array)
                 expect(result.length).toBe(0)
                 done()
@@ -1490,99 +1485,11 @@ describe('upload chunk test', () => {
           }
         })
 
-        const result = upload.emit(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
-      test('cancel api success with boolean', (done) => {
-
-        let tasks
-
-        tasks = upload.add({
-          config,
-          request: {
-            exitDataFn,
-            completeFn,
-            uploadFn,
-            callback: (error) => {
-              try {
-                expect(!!error).toBeTruthy
-                const result = upload.start(...tasks)
-                expect(result).toBeInstanceOf(Array)
-                expect(result.length).toBe(0)
-                done()
-              }catch(err) {
-                done(err)
-              }
-            }
-          },
-          file: {
-            file,
-          },
-          lifecycle: {
-            uploading({ name }) {
-              return false
-            }
-          }
-        })
-
-        const result = upload.emit(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
-
-      })
-
-      test('cancel api success and with promise', (done) => {
-
-        let tasks
-        let cancel = true
-
-        //在emit中的stop中能找到当前指定队列名称任务
-        tasks = upload.add({
-          config,
-          request: {
-            completeFn,
-            uploadFn: (data) => {
-             
-            },
-            callback: (error) => {
-              try {
-                if(stop) {
-                  expect(!!error).toBeTruthy
-                  stop = false
-                  const nextTasks = upload.start(tasks)
-                  expect(nextTasks).toBeInstanceOf(Array)
-                  expect(nextTasks.length).toBe(0)
-                  done()
-                }
-              }catch(err) {
-                done(err)
-              }
-            }
-          },
-          file: {
-            file
-          },
-          lifecycle: {
-            async uploading({ name }) {
-              await new Promise((resolve) => setTimeout(resolve, 1000))
-              if(stop) {
-                return false
-              }
-            },
-          }
-        })
-
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
-
-        const names = upload.deal(...tasks)
-        expect(names).toBeInstanceOf(Array)
-        expect(names.length).toBe(0)
-
-      })
 
       test('cancel api success and cancel in uploading', (done) => {
 
@@ -1819,7 +1726,7 @@ describe('upload chunk test', () => {
                   emit()
                   expect(!!error).toBeTruthy
                   stop = false
-                  const nextTasks = upload.start(tasks)
+                  const nextTasks = upload.start(...tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
                 }else {
@@ -1854,8 +1761,7 @@ describe('upload chunk test', () => {
         expect(tasks).toHaveLength(1)
 
         const names = upload.deal(...tasks)
-        expect(names).toBeInstanceOf(Array)
-        expect(names.length).toBe(1)
+        dealResultExpect(names)
 
       })
 
@@ -1909,11 +1815,12 @@ describe('upload chunk test', () => {
         expect(names.length).toBe(1)
 
       })
+      
 
       test('cancel api success and cancel in beforeComplete', (done) => {
 
         let tasks
-        const { collection, emit } = emitterCollection()
+        const { collection, emit } = emitterCollection();
 
         tasks = upload.add({
           config,
@@ -1926,7 +1833,7 @@ describe('upload chunk test', () => {
               try {
                 emit()
                 expect(!!error).toBeTruthy
-                const nextTasks = upload.start(tasks)
+                const nextTasks = upload.start(...tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
                 done()
@@ -1943,7 +1850,7 @@ describe('upload chunk test', () => {
               const names = this.cancel(name)
               collection(() => {
                 expect(names).toBeInstanceOf(Array)
-                expect(names.length).toBe(0)
+                expect(names.length).toBe(1)
               })
             },
           }
@@ -1953,8 +1860,7 @@ describe('upload chunk test', () => {
         expect(tasks).toHaveLength(1)
 
         const names = upload.deal(...tasks)
-        expect(names).toBeInstanceOf(Array)
-        expect(names.length).toBe(1)
+        dealResultExpect(names)
 
       })
 
@@ -1974,7 +1880,7 @@ describe('upload chunk test', () => {
               try {
                 emit()
                 expect(!!error).toBeTruthy
-                const nextTasks = upload.start(tasks)
+                const nextTasks = upload.start(...tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
                 done()
@@ -2001,18 +1907,17 @@ describe('upload chunk test', () => {
         expect(tasks).toHaveLength(1)
 
         const names = upload.deal(...tasks)
-        expect(names).toBeInstanceOf(Array)
-        expect(names.length).toBe(1)
+        dealResultExpect(names)
 
       })
 
-      test('cancel api success and cancel in retry', (done) => {
+      test('cancel api success and cancel in retry and no use', (done) => {
 
         let tasks
-        const { collection, emit } = emitterCollection()
+        const { collection, emit } = emitterCollection();
 
         tasks = upload.add({
-          config,
+          config: omit(config, ['retry']),
           request: {
             completeFn,
             uploadFn: (data) => {
@@ -2023,7 +1928,7 @@ describe('upload chunk test', () => {
                 emit()
                 expect(!!error).toBeTruthy
                 expect(error.retry).toBeFalsy
-                const nextTasks = upload.start(tasks)
+                const nextTasks = upload.start(...tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
                 done()
@@ -2040,18 +1945,16 @@ describe('upload chunk test', () => {
               const names = this.cancel(name)
               collection(() => {
                 expect(names).toBeInstanceOf(Array)
-                expect(names.length).toBe(1)
+                expect(names.length).toBe(0)
               })
             },
           }
         })
 
-        expect(tasks).toBeInstanceOf(Array)
-        expect(tasks).toHaveLength(1)
+        dealResultExpect(tasks)
 
         const names = upload.deal(...tasks)
-        expect(names).toBeInstanceOf(Array)
-        expect(names.length).toBe(1)
+        dealResultExpect(names)
 
       })
 
@@ -2092,10 +1995,9 @@ describe('upload chunk test', () => {
         })
 
         const cancelResult = upload.cancelAdd(tasks)
-
         expect(cancelResult).toBeInstanceOf(Array)
         expect(cancelResult).toHaveLength(1)
-        expect(cancelResult[0]).toEqual(tasks[0])
+        expect(cancelResult[0]).toEqual(tasks)
 
         //无法继续上传，需要重新订阅
         const result = upload.deal(tasks)
@@ -2147,6 +2049,8 @@ describe('upload chunk test', () => {
             }
           }
         })   
+
+        dealResultExpect(tasks)
 
       })
 
@@ -2299,7 +2203,6 @@ describe('upload chunk test', () => {
             },
             callback() {
               try {
-                expectStatus(ECACHE_STATUS.fulfilled)
                 emit()
                 done()
               }catch(err) {
@@ -2315,13 +2218,13 @@ describe('upload chunk test', () => {
               expectStatus(ECACHE_STATUS.reading)
             },
             beforeRead({ name }) {
-              expectStatus(ECACHE_STATUS.waiting)
+              expectStatus(ECACHE_STATUS.reading)
             },
             beforeCheck({ name }) {
-              expectStatus(ECACHE_STATUS.reading)
+              expectStatus(ECACHE_STATUS.uploading)
             },
             afterCheck({ name }) {
-              expectStatus(ECACHE_STATUS.reading)
+              expectStatus(ECACHE_STATUS.uploading)
             },
             uploading({ name }) {
               expectStatus(ECACHE_STATUS.uploading)
@@ -2330,101 +2233,15 @@ describe('upload chunk test', () => {
               expectStatus(ECACHE_STATUS.uploading)
             },
             afterComplete({ name }) {
-              expectStatus(ECACHE_STATUS.uploading)
+              expectStatus(ECACHE_STATUS.fulfilled)
             }
           }
         })
 
         expectStatus(ECACHE_STATUS.pending)
 
-        upload.deal(name)
-
-      })
-
-      test('getStatus api success and in other situation', (done) => {
-
-        let name
-
-        [ name ] = upload.add({
-          config,
-          file: {
-            file
-          },
-          request: {
-            uploadFn() {
-              throw new Error()
-            },
-            callback(error) {
-              try {
-                const status = upload.getStatus(name)
-                expect(status).toEqual(ECACHE_STATUS.rejected)
-                done()
-              }catch(err) {
-                done(err)
-              }
-            }
-          }
-        })
-
-        upload.deal(name)
-
-      })
-
-      test('getStatus api success and stop', (done) => {
-
-        let name
-
-        [ name ] = upload.add({
-          config,
-          file: {
-            file
-          },
-          request: {
-            uploadFn() {
-              this.stop(name)
-            },
-            callback(error) {
-              try {
-                const status = upload.getStatus(name)
-                expect(status).toEqual(ECACHE_STATUS.stopping)
-                done()
-              }catch(err) {
-                done(err)
-              }
-            }
-          }
-        })
-
-        upload.deal(name)
-
-      })
-
-      test('getStatus api success and cancel', (done) => {
-
-        let name
-
-        [ name ] = upload.add({
-          config,
-          file: {
-            file
-          },
-          request: {
-            uploadFn() {
-              this.cancel(name)
-            },
-            callback(error) {
-              try {
-                const status = upload.getStatus(name)
-                expect(status).toEqual(ECACHE_STATUS.cancel)
-                done()
-              }catch(err) {
-                done(err)
-              }
-            }
-          }
-        })
-
-        upload.deal(name)
+        const result = upload.deal(name)
+        dealResultExpect(result)
 
       })
 
@@ -2439,7 +2256,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('watch api', () => {
+  describe('watch api', () => {
 
     describe('watch api success test', () => {
 
@@ -2461,12 +2278,20 @@ describe('upload chunk test', () => {
         })
       }
 
-      const progress = (target) => {
-        const { progress: { complete, total } } = target
-        return parseFloat((complete - 1 / total).toFixed(4))
+      const readingProgress = (target) => {
+        const { complete, total, progress } = target
+        if(total == 0) return 0
+        // console.log(complete, total)
+        return parseFloat((complete / total).toFixed(4))
       }
 
-      test('watch api success', (done) => {
+      const uploadingProgress = (target) => {
+        const { complete, total, progress } = target
+        if(total == 0) return 0
+        return parseFloat((complete / total).toFixed(4))
+      }
+
+      test.skip('watch api success', (done) => {
 
         let reading = 0
         let beforeRead = 0
@@ -2510,7 +2335,7 @@ describe('upload chunk test', () => {
                 progress: 0,
                 name,
                 error: null,
-                status: ECACHE_STATUS.waiting,
+                status: ECACHE_STATUS.reading,
                 total: 0,
                 current: 0
               }, collection)
@@ -2519,22 +2344,22 @@ describe('upload chunk test', () => {
             reading({ name, current, total }) {
               const [ result ] = upload.watch(name)
               expectWatch(result, {
-                progress: progress(result),
+                progress: readingProgress(result),
                 name,
                 error: null,
                 status: ECACHE_STATUS.reading,
-                total,
-                current: current == 0 ? 0 : current - config.chunkSize
+                total: reading == 0 ? 0 : total,
+                current: (reading == totalChunks) ? FILE_SIZE : (reading * config.chunkSize)
               }, collection)
               reading ++
             },
             beforeCheck({ name }) {
               const [ result ] = upload.watch(name)
               expectWatch(result, {
-                progress: 100,
+                progress: 1,
                 name,
                 error: null,
-                status: ECACHE_STATUS.reading,
+                status: ECACHE_STATUS.uploading,
                 total: FILE_SIZE,
                 current: FILE_SIZE
               }, collection)
@@ -2546,8 +2371,8 @@ describe('upload chunk test', () => {
                 progress: 0,
                 name,
                 error: null,
-                status: ECACHE_STATUS.reading,
-                total: FILE_SIZE,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
                 current: 0
               }, collection)
               afterCheck ++
@@ -2555,36 +2380,36 @@ describe('upload chunk test', () => {
             uploading({ name, current, total, complete }) {
               const [ result ] = upload.watch(name)
               expectWatch(result, {
-                progress: progress(result),
+                progress: uploadingProgress(result),
                 name,
                 error: null,
                 status: ECACHE_STATUS.uploading,
-                total: FILE_SIZE,
-                current: current == 0 ? 0 : current
+                total: totalChunks,
+                current: current - 1
               }, collection)
               uploading ++
             },
             beforeComplete({ name }) {
               const [ result ] = upload.watch(name)
               expectWatch(result, {
-                progress: 100,
+                progress: 1,
                 name,
                 error: null,
                 status: ECACHE_STATUS.uploading,
-                total: FILE_SIZE,
-                current: FILE_SIZE
+                total: totalChunks,
+                current: totalChunks
               }, collection)
               beforeComplete ++
             },
             afterComplete({ name }) {
               const [ result ] = upload.watch(name)
               expectWatch(result, {
-                progress: 100,
+                progress: 1,
                 name,
                 error: null,
                 status: ECACHE_STATUS.fulfilled,
-                total: FILE_SIZE,
-                current: FILE_SIZE
+                total: totalChunks,
+                current: totalChunks
               }, collection)
               afterComplete ++
             }
@@ -2592,12 +2417,403 @@ describe('upload chunk test', () => {
         })
 
         const names = upload.deal(tasks)
-        expect(names).toBeInstanceOf(Array)
-        expect(names.length).toEqual(1)
+        dealResultExpect(names)
 
       })
 
-      test('watch api success and stop', (done) => {
+      test('watch api success and upload chunks', (done) => {
+
+        let reading = 0
+        let beforeRead = 0
+        let beforeCheck = 0
+        let afterCheck = 0
+        let uploading = 0
+        let beforeComplete = 0
+        let afterComplete = 0
+        const { collection, emit } = emitterCollection()
+
+        //返回正确的参数
+        const [tasks] = upload.add({
+          config,
+          file: {
+            chunks,
+            mime,
+          },
+          request: {
+            uploadFn: (data) => {},
+            completeFn,
+            callback(error) {
+              try {
+                emit()
+                expect(!!error).toBeFalsy
+                expect(beforeRead).toBe(1)
+                expect(reading).toBe(totalChunks)
+                expect(beforeCheck).toBe(1)
+                expect(afterCheck).toBe(1)
+                expect(uploading).toBe(totalChunks)
+                expect(beforeComplete).toBe(1)
+                expect(afterComplete).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
+            }
+          },
+          lifecycle: {
+            beforeRead({ name, task }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: 0,
+                current: 0
+              }, collection)
+              beforeRead ++
+            },
+            reading({ name, current, total }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: readingProgress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: reading == 0 ? 0 : total,
+                current: (reading == totalChunks) ? FILE_SIZE : (reading * config.chunkSize)
+              }, collection)
+              reading ++
+            },
+            beforeCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: FILE_SIZE,
+                current: FILE_SIZE
+              }, collection)
+              beforeCheck ++
+            },
+            afterCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: 0
+              }, collection)
+              afterCheck ++
+            },
+            uploading({ name, current, total, complete }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: uploadingProgress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: current - 1
+              }, collection)
+              uploading ++
+            },
+            beforeComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: totalChunks
+              }, collection)
+              beforeComplete ++
+            },
+            afterComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.fulfilled,
+                total: totalChunks,
+                current: totalChunks
+              }, collection)
+              afterComplete ++
+            }
+          }
+        })
+
+        const names = upload.deal(tasks)
+        dealResultExpect(names)
+
+      })
+
+      test.skip('watch api success adn upload arraybuffer', (done) => {
+
+        let reading = 0
+        let beforeRead = 0
+        let beforeCheck = 0
+        let afterCheck = 0
+        let uploading = 0
+        let beforeComplete = 0
+        let afterComplete = 0
+        const { collection, emit } = emitterCollection()
+
+        //返回正确的参数
+        const [tasks] = upload.add({
+          config,
+          file: {
+            file: arrayBufferFile
+          },
+          request: {
+            uploadFn: (data) => {},
+            completeFn,
+            callback(error) {
+              try {
+                emit()
+                expect(!!error).toBeFalsy
+                expect(beforeRead).toBe(1)
+                expect(reading).toBe(totalChunks)
+                expect(beforeCheck).toBe(1)
+                expect(afterCheck).toBe(1)
+                expect(uploading).toBe(totalChunks)
+                expect(beforeComplete).toBe(1)
+                expect(afterComplete).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
+            }
+          },
+          lifecycle: {
+            beforeRead({ name, task }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: 0,
+                current: 0
+              }, collection)
+              beforeRead ++
+            },
+            reading({ name, current, total }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: readingProgress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: reading == 0 ? 0 : total,
+                current: (reading == totalChunks) ? FILE_SIZE : (reading * config.chunkSize)
+              }, collection)
+              reading ++
+            },
+            beforeCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: FILE_SIZE,
+                current: FILE_SIZE
+              }, collection)
+              beforeCheck ++
+            },
+            afterCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: 0
+              }, collection)
+              afterCheck ++
+            },
+            uploading({ name, current, total, complete }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: uploadingProgress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: current - 1
+              }, collection)
+              uploading ++
+            },
+            beforeComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: totalChunks
+              }, collection)
+              beforeComplete ++
+            },
+            afterComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.fulfilled,
+                total: totalChunks,
+                current: totalChunks
+              }, collection)
+              afterComplete ++
+            }
+          }
+        })
+
+        const names = upload.deal(tasks)
+        dealResultExpect(names)
+
+      })
+
+      test.skip('watch api success and upload base64', (done) => {
+
+        let reading = 0
+        let beforeRead = 0
+        let beforeCheck = 0
+        let afterCheck = 0
+        let uploading = 0
+        let beforeComplete = 0
+        let afterComplete = 0
+        const totalChunks = BASE_SIZE / BASE_SIZE
+        const { collection, emit } = emitterCollection()
+
+        //返回正确的参数
+        const [tasks] = upload.add({
+          config,
+          file: {
+            file: base64File
+          },
+          request: {
+            uploadFn: (data) => {},
+            completeFn,
+            callback(error) {
+              try {
+                emit()
+                expect(!!error).toBeFalsy
+                expect(beforeRead).toBe(1)
+                expect(reading).toBe(totalChunks)
+                expect(beforeCheck).toBe(1)
+                expect(afterCheck).toBe(1)
+                expect(uploading).toBe(totalChunks)
+                expect(beforeComplete).toBe(1)
+                expect(afterComplete).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
+            }
+          },
+          lifecycle: {
+            beforeRead({ name, task }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: 0,
+                current: 0
+              }, collection)
+              beforeRead ++
+            },
+            reading({ name, current, total }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: readingProgress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.reading,
+                total: reading == 0 ? 0 : total,
+                current: (reading == totalChunks) ? FILE_SIZE : (reading * config.chunkSize)
+              }, collection)
+              reading ++
+            },
+            beforeCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: FILE_SIZE,
+                current: FILE_SIZE
+              }, collection)
+              beforeCheck ++
+            },
+            afterCheck({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 0,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: 0
+              }, collection)
+              afterCheck ++
+            },
+            uploading({ name, current, total, complete }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: uploadingProgress(result),
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: current - 1
+              }, collection)
+              uploading ++
+            },
+            beforeComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.uploading,
+                total: totalChunks,
+                current: totalChunks
+              }, collection)
+              beforeComplete ++
+            },
+            afterComplete({ name }) {
+              const [ result ] = upload.watch(name)
+              expectWatch(result, {
+                progress: 1,
+                name,
+                error: null,
+                status: ECACHE_STATUS.fulfilled,
+                total: totalChunks,
+                current: totalChunks
+              }, collection)
+              afterComplete ++
+            }
+          }
+        })
+
+        const names = upload.deal(tasks)
+        dealResultExpect(names)
+
+      })
+
+      test.skip('watch api success and stop', (done) => {
 
         let afterStop = 0
         let tasks
@@ -2647,7 +2863,7 @@ describe('upload chunk test', () => {
 
       })
 
-      test('watch api success and cancel', (done) => {
+      test.skip('watch api success and cancel', (done) => {
 
         let afterCancel = 0
         let tasks
@@ -2699,7 +2915,7 @@ describe('upload chunk test', () => {
 
     })
 
-    describe('watch api fail test', () => {
+    describe.skip('watch api fail test', () => {
 
       test('watch api fail because the task name is not found', () => {
 

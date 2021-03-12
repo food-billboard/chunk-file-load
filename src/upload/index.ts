@@ -120,7 +120,7 @@ export default class Upload extends EventEmitter {
 
   //取消绑定的任务
   public cancelAdd(...names: Symbol[]) {
-    return this.emitter.off(...names)
+    return this.emitter.cancelAdd(...names)
   }
 
   //停止任务执行
@@ -146,7 +146,7 @@ export default class Upload extends EventEmitter {
   }
 
   //进度查看
-  public watch(...names: Symbol[]): ({ error: string | null, name: Symbol, progress: number, status: ECACHE_STATUS, total: number, current: number } | null)[] {
+  public watch(...names: Symbol[]): ({ complete: number, error: string | null, name: Symbol, progress: number, status: ECACHE_STATUS, total: number, current: number } | null)[] {
     const tasks = this.emitter.tasks
     return names.map(name => {
       const target = tasks.find(task => task.symbol == name)
@@ -156,6 +156,7 @@ export default class Upload extends EventEmitter {
         error: null,
         name,
         status,
+        complete,
         progress: parseFloat((complete / total).toFixed(4)) || 0,
         total: total || 0,
         current: current || 0
@@ -179,7 +180,7 @@ export default class Upload extends EventEmitter {
   //任务状态
   public getStatus(name: Symbol): ECACHE_STATUS | null {
     const task = this.getTask(name)
-    return task?.status || null
+    return task?.status ?? null
   }
 
   //任务执行
@@ -236,12 +237,8 @@ export default class Upload extends EventEmitter {
               }
             }
           }else {
-            let lifecycle!: keyof TLifecycle
             if(status === ECACHE_STATUS.stopping) {
-              lifecycle = 'afterStop'
               response.remove = false
-            }else {
-              lifecycle = 'afterCancel'
             }
           }
 
@@ -254,7 +251,6 @@ export default class Upload extends EventEmitter {
             error,
             retry
           } : null
-
           this.lifecycle.onWithObject(lifecycle, name, 'off')
           if(remove) {
             this.emitter.off(symbol)
@@ -288,9 +284,11 @@ export default class Upload extends EventEmitter {
     let error: unknown = false
     let response
     try {
+      this.emitter.setState(name, state)
+      state = {}
       response = await this.lifecycle.emit(lifecycle, { ...params, task })
       if((response as any) instanceof Object) {
-        state = merge(state, response)
+        this.emitter.setState(name, response)
       }
     }catch(err) {
       error = err

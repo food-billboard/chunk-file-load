@@ -40,7 +40,18 @@ export default class LifeCycle {
           }
         } })
       ],
-      beforeCheck: [],
+      beforeCheck: [
+        merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ task }: { task: TWrapperTask }) {
+          const total = Math.ceil(task.process.total / task.config.chunkSize)
+          return {
+            process: {
+              current: 0,
+              complete: 0,
+              total
+            }
+          }
+        } })
+      ],
       afterCheck: [],
       uploading: [
         merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ current, total, complete }: { current: number, total: number, complete: number }) {
@@ -87,7 +98,7 @@ export default class LifeCycle {
       }
       try {
         const value = await eventFunc(params)
-        if(value == false) state = merge(state, { status: ECACHE_STATUS.stopping, error: true })
+        if(value == false) state = merge(state, { status: ECACHE_STATUS.stopping })
       }catch(err) {
         state.error = true
       }finally {

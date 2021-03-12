@@ -22,6 +22,7 @@ export default class Uploader extends Reader {
   public async start(worker_id: string): Promise<any> {
 
     const process = WorkerPool.getProcess(worker_id)
+
     if(!process) {
       this.clean(worker_id)
       return Promise.reject('process not found')
@@ -66,6 +67,10 @@ export default class Uploader extends Reader {
     this.setState(symbol, {
       file: {
         unComplete
+      },
+      process: {
+        complete: chunksLength - (unComplete?.length || chunksLength),
+        current: 0
       }
     })
 
@@ -166,7 +171,7 @@ export default class Uploader extends Reader {
     for(let i = 0; i < total; i ++) {
 
       let currentIndex = newUnUploadChunks.indexOf(i)
-    
+
       if(!!~currentIndex) {
         newUnUploadChunks.splice(currentIndex, 1)
         const chunk = await getChunkMethod(i)
@@ -191,9 +196,9 @@ export default class Uploader extends Reader {
         await this.dealLifecycle('uploading', {
           name: symbol,
           status: ECACHE_STATUS.uploading,
-          current: i,
+          current: i + 1,
           total,
-          complete: total - newUnUploadChunks.length - 1,
+          complete: total - newUnUploadChunks.length,
         })
 
         if(!!response) {

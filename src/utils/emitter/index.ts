@@ -101,14 +101,16 @@ export default class Emitter {
   private generateTask(task: Ttask): TWrapperTask{
     const symbol: unique symbol = Symbol()
     const { config={}, file, lifecycle, ...nextTask } = task
+    const realConfig = merge({}, DEFAULT_CONFIG, config)
     return merge(nextTask, {
       process: {
         current: 0,
-        complete: 0
+        complete: 0,
+        total: 0
       },
       lifecycle: this.lifecycleBiding(lifecycle || {}),
       file: this.FILE_TYPE(file),
-      config: merge(DEFAULT_CONFIG, config),
+      config: realConfig,
       symbol,
       status: ECACHE_STATUS.pending
     }) as TWrapperTask
@@ -183,14 +185,22 @@ export default class Emitter {
     return this.dealDoingTaskStatus(ECACHE_STATUS.cancel, ...names)
   }
 
+  public cancelAdd(...names: Symbol[]): Symbol[] {
+    const tasks = this.tasks 
+    const dealTasks = tasks.filter(task => task.status === ECACHE_STATUS.pending && names.includes(task.symbol))
+    if(!dealTasks.length) return []
+    return this.off(...dealTasks.map(task => task.symbol))
+  }
+
   public off(...names: Symbol[]): Symbol[] {
     const tasks = this.tasks
     if(!names.length) {
+      const names = tasks.map(task => task.symbol)
       this.clean()
-      return tasks.map(task => task.symbol)
+      return names
     }
     this.tasks = this.tasks.filter(task => !names.includes(task.symbol))
-    return []
+    return names
   }
 
   public clean() {
