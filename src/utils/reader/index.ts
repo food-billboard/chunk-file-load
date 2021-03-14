@@ -95,7 +95,7 @@ class FileReader extends Proxy {
 
   //获取MD5(分片已预先完成)
   private async GET_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
-    this.setState(task.symbol, { file: { chunks: [] } })  
+    // this.setState(task.symbol, { file: { chunks: [] } })  
     return fileParse.files(task)
   }
 

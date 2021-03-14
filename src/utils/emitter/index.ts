@@ -1,9 +1,10 @@
 import merge from 'lodash/merge'
 import mergeWith from 'lodash/mergeWith'
+import { STATUS_MAP } from './status.map'
 import Upload from '../../upload/index'
 import { flat, isObject, base64Size } from '../tool'
 import { DEFAULT_CONFIG, ECACHE_STATUS, EActionType } from '../constant'
-import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial, TLifecycle } from '../../upload/type'
+import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial, TLifecycle, TRequestType } from '../../upload/type'
 
 export default class Emitter {
 
@@ -73,7 +74,7 @@ export default class Emitter {
 
   }
 
-  private lifecycleBiding = (lifecycle:TLifecycle ={}) => {
+  private lifecycleBinding = (lifecycle:TLifecycle ={}) => {
     const entries = Object.entries(lifecycle) as [
       keyof TLifecycle, TLifecycle[keyof TLifecycle]
     ][]
@@ -84,6 +85,17 @@ export default class Emitter {
       acc[key] = value!.bind(this.context) as any
       return acc
     }, {})
+  }
+
+  private requestBinding = (request: TRequestType) => {
+    const requestList = Object.entries(request) as [ keyof TRequestType, TRequestType[keyof TRequestType] ][]
+    return requestList.reduce<{
+      [K in keyof TRequestType]: TRequestType[K]
+    }>((acc, cur) => {
+      const [ key, value ] = cur
+      acc[key] = value?.bind(this.context) as any
+      return acc
+    }, {} as { [K in keyof TRequestType]: TRequestType[K] })
   }
 
   private taskValid(task: Ttask) {
@@ -100,15 +112,17 @@ export default class Emitter {
 
   private generateTask(task: Ttask): TWrapperTask{
     const symbol: unique symbol = Symbol()
-    const { config={}, file, lifecycle, ...nextTask } = task
+    const { config={}, file, lifecycle, request, ...nextTask } = task
     const realConfig = merge({}, DEFAULT_CONFIG, config)
+
     return merge(nextTask, {
+      request: this.requestBinding(request),
       process: {
         current: 0,
         complete: 0,
         total: 0
       },
-      lifecycle: this.lifecycleBiding(lifecycle || {}),
+      lifecycle: this.lifecycleBinding(lifecycle || {}),
       file: this.FILE_TYPE(file),
       config: realConfig,
       symbol,
@@ -147,6 +161,7 @@ export default class Emitter {
     let tasks: TWrapperTask[] = []
     names.forEach(name => {
       const [ index, task ] = this.getTask(name)
+      console.log(task)
       if(task?.status === ECACHE_STATUS.pending && task?.symbol === name) {
         this.statusChange(ECACHE_STATUS.waiting, index)
         tasks.push(task)
@@ -215,7 +230,10 @@ export default class Emitter {
 
   public setState = (name: Symbol, value: SuperPartial<TWrapperTask>={}): TWrapperTask => {
     const [ index, task ] = this.getTask(name)
-    this.tasks[index] = mergeWith(task, value, this.customerMergeMethod)
+    const nowStatus = task?.status
+    const nextStatus = value.status
+    let status = nextStatus ? STATUS_MAP[nowStatus!](nextStatus, task) ?? nowStatus : nowStatus
+    this.tasks[index] = mergeWith(task, value, { status }, this.customerMergeMethod)
     return this.tasks[index]
   }
 

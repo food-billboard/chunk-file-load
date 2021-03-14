@@ -7,7 +7,9 @@ import {
   Uploader, 
   WorkerPool,
   allSettled,
-  ECACHE_STATUS
+  ECACHE_STATUS,
+  base64ToArrayBuffer as internalBase64ToArrayBuffer,
+  arrayBufferToBase64 as internalArrayBufferToBase64
 } from '../utils'
 import { TLifecycle, Ttask, TFileType, TWrapperTask, TProcessLifeCycle, SuperPartial, TPlugins } from './type'
 
@@ -31,6 +33,33 @@ export default class Upload extends EventEmitter {
   protected uploader!: Uploader
 
   protected workerPool!: WorkerPool
+
+  public static btoa = internalArrayBufferToBase64
+	public static atob = internalBase64ToArrayBuffer
+  public static file2Blob() {
+
+  }
+  public static blob2file() {
+
+  }
+  public static file2arraybuffer() {
+
+  }
+  public static blob2arraybuffer() {
+
+  }
+  public static file2base64() {
+
+  }
+  public static blob2base64() {
+
+  }
+  public static arraybuffer2file() {
+
+  }
+  public static arraybuffer2blob() {
+
+  }
 
   constructor(options?: {
     lifecycle?: TLifecycle,
@@ -256,7 +285,14 @@ export default class Upload extends EventEmitter {
             this.emitter.off(symbol)
             callback && callback(callbackError, name)
           }else if(retry) {
-            this.deal(symbol)
+            const tasks = this.deal(symbol)
+            if(!tasks.length) {
+              this.emitter.off(symbol)
+              callback && callback(merge({}, callbackError, { error: {
+                error: callbackError?.error,
+                description: 'unknown error'
+              }, retry: false }), name)
+            }
           }else {
             callback && callback(callbackError, name)
           }
@@ -277,15 +313,16 @@ export default class Upload extends EventEmitter {
     const { name, status } = params
     const [ , task ] = this.emitter.getTask(name)
     const { symbol } = task!
-    let state: SuperPartial<TWrapperTask> = {
-      status
-    }
+    let state: SuperPartial<TWrapperTask> = {}
     if(!task) return Promise.reject('not found the task')
     let error: unknown = false
     let response
     try {
-      this.emitter.setState(name, state)
-      state = {}
+      const currentStatus = this.getStatus(name)
+      // this.emitter.setState(name, {
+      //   status: currentStatus! >= ECACHE_STATUS.pending ? status : currentStatus!
+      // })
+      this.emitter.setState(name, { status })
       response = await this.lifecycle.emit(lifecycle, { ...params, task })
       if((response as any) instanceof Object) {
         this.emitter.setState(name, response)

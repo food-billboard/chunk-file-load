@@ -145,7 +145,7 @@ export default class Uploader extends Reader {
     const { task: taskName, worker } = process
     const [, task] = this.getState(taskName!)
 
-    const { symbol, file: { md5, unComplete, size, file }, request: { uploadFn }, config: { chunkSize } } = task!
+    const { symbol, file: { md5, unComplete, size, file, _cp_, chunks }, request: { uploadFn }, config: { chunkSize } } = task!
     let newUnUploadChunks = [...unComplete]
     const total = Math.ceil(size / chunkSize)
 
@@ -159,12 +159,19 @@ export default class Uploader extends Reader {
       }
     }else {
       const slicer = new FilesSlicer(this.context)
-      getChunkMethod = async (index) => {
-        const start = index * chunkSize
-        let end = start + chunkSize
-        end = end >= size ? size : end
-        const buffer = await slicer.slice(file, start, end)
-        return typeof Blob === 'undefined' ? buffer : new Blob([buffer])
+      if(_cp_) {
+        getChunkMethod = async (index) => {
+          const buffer = await slicer.slice(chunks[index])
+          return typeof Blob === 'undefined' ? buffer : new Blob([buffer])
+        }
+      }else {
+        getChunkMethod = async (index) => {
+          const start = index * chunkSize
+          let end = start + chunkSize
+          end = end >= size ? size : end
+          const buffer = await slicer.slice(file, start, end)
+          return typeof Blob === 'undefined' ? buffer : new Blob([buffer])
+        }
       }
     }
 

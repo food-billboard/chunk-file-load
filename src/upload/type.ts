@@ -119,20 +119,22 @@ import Upload from './index'
     symbol: symbol
     status: ECACHE_STATUS
   }
+
+  export type TRequestType = {
+    exitDataFn?: TExitDataFn
+    uploadFn: TUploadFn
+    completeFn?: (params : { name: Symbol, md5: string }) => any
+    callback?: (err: {
+      retry?: boolean
+      error: any
+    } | null, data: any) => any
+  }
   
   export interface Ttask<T=TFileType> {
     config: TConfig
     lifecycle: TLifecycle
     file: TFile<T>
-    request: {
-      exitDataFn?: TExitDataFn
-      uploadFn: TUploadFn
-      completeFn?: ({ name, md5 } : { name: Symbol, md5: string }) => any
-      callback?: (err: {
-        retry?: boolean
-        error: any
-      } | null, data: any) => any
-    }
+    request: TRequestType
   }
 
   export type TFileParseProcess = ({ name, start, end, chunk }: { name: Symbol, start: number, end: number, chunk: Blob }, stop: () =>  void) => Promise<void>

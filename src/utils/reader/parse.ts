@@ -4,7 +4,7 @@ import noop from 'lodash/noop'
 import merge from 'lodash/merge'
 import Upload from '../../upload'
 import Proxy from '../proxy'
-import { base64ToArrayBuffer, isMd5 } from '../tool'
+import { isMd5 } from '../tool'
 import WorkerPool, { TProcess } from '../worker/worker.pool'
 import { TWrapperTask } from '../../upload/type'
 import { ECACHE_STATUS } from '../constant'
@@ -146,9 +146,9 @@ export default class extends Proxy {
         let start: number = currentChunk * chunkSize,
           end: number = currentChunk + 1 === totalChunks ? size : ( currentChunk + 1 ) * chunkSize,
           chunks: ArrayBuffer
-
         try {
           chunks = await arraybufferSlicer.slice(start, end)
+
           await that.dealLifecycle('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
@@ -183,7 +183,7 @@ export default class extends Proxy {
 
   public async base64(task: TWrapperTask): Promise<string> {
     const { file } = task
-    const bufferFile = base64ToArrayBuffer(file.file as string)
+    const bufferFile = Upload.atob(file.file as string)
     return this.arraybuffer(merge(task, { file: merge(file, { file: bufferFile }) }))
   }
 
@@ -191,13 +191,14 @@ export default class extends Proxy {
 
     const that = this
 
-    const { file: { chunks, md5 }, symbol, config: { chunkSize } } = task
+    const { file: { chunks, md5, size }, symbol, config: { chunkSize } } = task
 
     let completeChunks:number = 0
     let totalChunks = chunks!.length
     let currentChunk:number = 0
     const filesSlicer = new FilesSlicer(this.context)
-    const total = chunkSize * chunks.length
+    const total = typeof size === 'number' && size > 0 ? size : chunkSize * chunks.length
+    let realTotal = 0
 
     let sparkMethod = this.sparkMethod()
 
@@ -210,16 +211,16 @@ export default class extends Proxy {
       }
 
       async function loadNext() {
-
         try {
           const chunk = chunks![currentChunk]
           const data = await filesSlicer.slice(chunk)
           let size: number = data.byteLength
+          realTotal += size
           completeChunks += (Number.isNaN(size) ? 0 : size)
           await that.dealLifecycle('reading', {
             name: symbol,
             status: ECACHE_STATUS.reading,
-            start: completeChunks,
+            current: completeChunks,
             // end: completeChunks += (Number.isNaN(size) ? 0 : size),
             total, //暂时无法知道总的文件大小
             // chunk: new Blob([data])
@@ -232,6 +233,11 @@ export default class extends Proxy {
           if(++currentChunk < totalChunks) {
             next = loadNext
           }else {
+            that.setState(symbol, {
+              file: {
+                size: realTotal
+              }
+            })
             done = resolve
           }
 

@@ -1,9 +1,5 @@
 import merge from 'lodash/merge'
 import Upload from './index'
-import {
-    arrayBufferToBase64 as internalArrayBufferToBase64,
-    base64ToArrayBuffer as internalBase64ToArrayBuffer, 
-} from '../utils/tool'
 import { TLifecycle, TPlugins, Ttask, TFileType, TUploadFormData } from './type'
 
 class WeUpload extends Upload {
@@ -30,7 +26,6 @@ class WeUpload extends Upload {
 		arrayBufferToBase64: (chunk: ArrayBuffer) => string,
 		base64ToArrayBuffer: (chunk: string) => ArrayBuffer
 	}) {
-
 		WeUpload.btoa = arrayBufferToBase64
 		WeUpload.atob = base64ToArrayBuffer
 	}
@@ -41,9 +36,6 @@ class WeUpload extends Upload {
 	}) {
 		super(options)
 	}
-
-	public static btoa = internalArrayBufferToBase64
-	public static atob = internalBase64ToArrayBuffer
 
   //添加任务
   public add(...tasks: Ttask<TFileType>[]): Symbol[] {

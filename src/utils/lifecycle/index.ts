@@ -73,7 +73,6 @@ export default class LifeCycle {
           return {
             config: {
               retry: {
-                retring: true,
                 times: rest
               }
             }

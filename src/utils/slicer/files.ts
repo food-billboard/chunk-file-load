@@ -18,17 +18,18 @@ export default class {
 
   public async slice(file: TFileType, _start?: number, _end?: number) {
 
-    const start = _start || 0
-    const end = _end
+    let start = _start || 0
+    let end = _end
 
     if(typeof file === 'string') {
       return (this.base64 as any).slice(start, end, file)
-    }else if(file instanceof ArrayBuffer) {
+    }else if(Object.prototype.toString.call(file) === '[object ArrayBuffer]') {
       return this.arraybuffer.slice(start, end, file)
-    }else if(file instanceof File || file instanceof Blob){
+    }else if(file instanceof File || file instanceof Blob) {
       return this.blob.slice(start, end, file)
     }
-    return Promise.reject()
+
+    return Promise.reject('the file type is not support')
 
   }
 

@@ -1,11 +1,20 @@
 import Upload from '../../upload'
-import ArrayBufferSlicer from './base'
-import { base64ToArrayBuffer } from '../tool'
+import Slicer, { TSlice } from './base'
+import ArrayBufferSlicer from './arraybuffer'
+export default class extends Slicer<string> {
 
-export default class extends ArrayBufferSlicer<ArrayBuffer> {
+  constructor(context: Upload) {
+    super(context)
+    this.slicer = new ArrayBufferSlicer(context)
+  }
 
-  constructor(context: Upload, file?: string) {
-    super(context, file ? base64ToArrayBuffer(file) : undefined)
+  private slicer:ArrayBufferSlicer
+
+  public slice: TSlice<Promise<ArrayBuffer>> = async(start, end, file) => {
+    const _start = start ?? 0
+    let _file = Upload.atob(file as string)
+    const _end = end ?? _file.byteLength
+    return this.slicer.slice(_start, _end, _file)
   }
 
 }
