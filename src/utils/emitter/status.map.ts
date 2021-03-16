@@ -48,7 +48,6 @@ export const STATUS_MAP: {
   }, 
   [ECACHE_STATUS.rejected](status: ECACHE_STATUS, _: TWrapperTask) {
     const target = map.rejected.includes(status)
-    console.log(target)
     return target ? status : undefined
   }, 
 }

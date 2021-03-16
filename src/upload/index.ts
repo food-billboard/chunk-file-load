@@ -9,7 +9,8 @@ import {
   allSettled,
   ECACHE_STATUS,
   base64ToArrayBuffer as internalBase64ToArrayBuffer,
-  arrayBufferToBase64 as internalArrayBufferToBase64
+  arrayBufferToBase64 as internalArrayBufferToBase64,
+  isBase64
 } from '../utils'
 import { TLifecycle, Ttask, TFileType, TWrapperTask, TProcessLifeCycle, SuperPartial, TPlugins } from './type'
 
@@ -36,29 +37,57 @@ export default class Upload extends EventEmitter {
 
   public static btoa = internalArrayBufferToBase64
 	public static atob = internalBase64ToArrayBuffer
-  public static file2Blob() {
-
+  public static async file2Blob(file: File, options?: BlobPropertyBag | undefined): Promise<Blob> {
+    if(!(file instanceof File)) return file
+    const buffer = await Upload.file2arraybuffer(file)
+    return new Blob([buffer as ArrayBuffer], options)
   }
-  public static blob2file() {
-
+  public static blob2file(file: Blob, fileName: string, options?: FilePropertyBag | undefined): File {
+    if(!(file instanceof Blob)) return file
+    return new File([file], fileName, options)
   }
-  public static file2arraybuffer() {
-
+  public static async file2arraybuffer(file: File): Promise<unknown> {
+    if(!(file instanceof File)) return file
+    return Upload.blob2arraybuffer(file.slice(0, file.size))
   }
-  public static blob2arraybuffer() {
-
+  public static blob2arraybuffer(file: Blob): Promise<unknown> {
+    if(!(file instanceof Blob)) return file
+    return new Promise((resolve, reject) => {
+      const fileReader = new FileReader()
+      fileReader.onload = function(e) {
+        resolve(e.target?.result)
+      }
+      fileReader.onerror = reject
+      fileReader.readAsArrayBuffer(file)
+    })
   }
-  public static file2base64() {
-
+  public static async file2base64(file: File) {
+    if(!(file instanceof File)) return file
+    const buffer = await Upload.file2arraybuffer(file)
+    return Upload.btoa(buffer as ArrayBuffer)
   }
-  public static blob2base64() {
-
+  public static async blob2base64(file: File) {
+    if(!(file instanceof Blob)) return file
+    const buffer = await Upload.blob2arraybuffer(file)
+    return Upload.btoa(buffer as ArrayBuffer)
   }
-  public static arraybuffer2file() {
-
+  public static arraybuffer2file(file: ArrayBuffer, fileName: string, options?: FilePropertyBag | undefined): File {
+    if(!(file instanceof ArrayBuffer)) return file
+    return new File([file], fileName, options)
   }
-  public static arraybuffer2blob() {
-
+  public static arraybuffer2blob(file: ArrayBuffer, options?: BlobPropertyBag | undefined) {
+    if(!(file instanceof ArrayBuffer)) return file
+    return new Blob([file], options)
+  }
+  public static base642blob(file: string, options?: BlobPropertyBag | undefined) {
+    if(!isBase64(file)) return file 
+    const buffer = Upload.atob(file)
+    return new Blob([buffer], options)
+  }
+  public static base642file(file: string, fileName: string, options?: FilePropertyBag | undefined) {
+    if(!isBase64(file)) return file 
+    const buffer = Upload.atob(file)
+    return new File([buffer], fileName, options)
   }
 
   constructor(options?: {

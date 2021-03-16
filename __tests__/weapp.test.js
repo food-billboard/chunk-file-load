@@ -12,7 +12,8 @@ import {
   chunks,
   mime,
   getFileMd5,
-  dealResultExpect
+  dealResultExpect,
+  totalChunks
 } from './constants'
 
 const slice = ArrayBuffer.prototype.slice
@@ -89,9 +90,10 @@ describe('weapp upload chunk test', () => {
 
     })
 
-    test.skip('weapp uplopad chunk success and upload the base64 file', (done) => {
-      let tasks 
-      let times = 0
+    test('weapp upload chunk success and upload the base64 file', (done) => {
+      let tasks;
+      let times = 0;
+      const totalChunks = 1;
 
       [ tasks ] = upload.add({
         file: {
@@ -119,10 +121,13 @@ describe('weapp upload chunk test', () => {
       upload.deal(tasks)
     })
 
-    test.skip('weapp upload chunk success and upload the arraybuffer file', (done) => {
-      let tasks 
+    test('weapp upload chunk success and upload the arraybuffer file', (done) => {
+      let tasks;
 
       [ tasks ] = upload.add({
+        config: {
+          chunkSize: BASE_SIZE
+        },
         file: {
           file: arrayBufferFile
         },
@@ -139,13 +144,17 @@ describe('weapp upload chunk test', () => {
         }
       })
 
-      upload.deal(tasks)
+      const names = upload.deal(tasks)
+      dealResultExpect(names)
     })
 
-    test.skip('weapp upload chunk success and upload the chunks file', (done) => {
-      let tasks 
+    test('weapp upload chunk success and upload the chunks file', (done) => {
+      let tasks;
 
       [ tasks ] = upload.add({
+        config: {
+          chunkSize: BASE_SIZE
+        },
         file: {
           chunks,
           mime,
@@ -164,12 +173,13 @@ describe('weapp upload chunk test', () => {
         }
       })
 
-      upload.deal(tasks)
+      const names = upload.deal(tasks)
+      dealResultExpect(names)
     })
 
   })
 
-  describe.skip('weapp upload chunk fail test', () => {
+  describe('weapp upload chunk fail test', () => {
 
     let upload 
     let _WeUpload 
@@ -177,15 +187,16 @@ describe('weapp upload chunk test', () => {
     beforeAll((done) => {
       _WeUpload = WeUpload
       upload = new _WeUpload()
+      done()
     })
     
     test('weapp upload chunk fail because the slice function is not support', (done) => {
 
-      let tasks 
+      let tasks;
 
       [ tasks ] = upload.add({
         file: {
-          file
+          file: base64File
         },
         request: {
           uploadFn,
@@ -200,13 +211,14 @@ describe('weapp upload chunk test', () => {
         }
       })
 
-      upload.deal(tasks)
+      const names = upload.deal(tasks)
+      dealResultExpect(names)
 
     })
 
   })
 
-  describe.skip('add api test', () => {
+  describe('add api test', () => {
 
     let upload 
     let _WeUpload 
@@ -218,22 +230,26 @@ describe('weapp upload chunk test', () => {
         base64ToArrayBuffer
       })
       upload = new _WeUpload()
+      done()
     })
 
     test('add api success test', (done) => {
 
-      let tasks
+      let tasks;
       [ tasks ] = upload.add({
         file: {
-          file
+          file: base64File
         },
-        uploadFn({ file }) {
-          expect(file).toBeInstanceOf(String)
-        },
-        callback: callback(done)
+        request: {
+          uploadFn({ file }) {
+            expect(typeof file).toBe('string')
+          },
+          callback: callback(done)
+        }
       })
 
-      upload.deal(tasks)
+      const names = upload.deal(tasks)
+      dealResultExpect(names)
 
     })
 

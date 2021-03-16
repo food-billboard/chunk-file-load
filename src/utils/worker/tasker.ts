@@ -38,7 +38,6 @@ export class Tasker {
   }
 
   public clean() {
-    console.log(222222222)
     this.init()
   }
 

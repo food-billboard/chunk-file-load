@@ -31,7 +31,7 @@ let upload = new Upload()
 
 window.Worker = undefined
 
-describe.skip('upload chunk test', () => {
+describe('upload chunk test', () => {
 
   let _Worker = window.Worker
 
@@ -3036,7 +3036,6 @@ describe.skip('upload chunk test', () => {
           },
           beforeCheck({ name, task }) {
             collection(() => {
-              console.log(task.file.md5, base64Md5)
               expect(task.file.md5).toBe(base64Md5)
             })
             beforeCheck ++
