@@ -161,7 +161,6 @@ export default class Emitter {
     let tasks: TWrapperTask[] = []
     names.forEach(name => {
       const [ index, task ] = this.getTask(name)
-      console.log(task)
       if(task?.status === ECACHE_STATUS.pending && task?.symbol === name) {
         this.statusChange(ECACHE_STATUS.waiting, index)
         tasks.push(task)
@@ -232,7 +231,7 @@ export default class Emitter {
     const [ index, task ] = this.getTask(name)
     const nowStatus = task?.status
     const nextStatus = value.status
-    let status = nextStatus ? STATUS_MAP[nowStatus!](nextStatus, task) ?? nowStatus : nowStatus
+    let status = typeof nextStatus === 'number' ? STATUS_MAP[nowStatus!](nextStatus, task) ?? nowStatus : nowStatus
     this.tasks[index] = mergeWith(task, value, { status }, this.customerMergeMethod)
     return this.tasks[index]
   }

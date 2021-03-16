@@ -1,104 +1,37 @@
-import SparkMd5 from 'spark-md5'
 import { merge, omit } from 'lodash'
-import Emitter from 'eventemitter3'
 import { Upload, ECACHE_STATUS } from '../src'
-import { arrayBufferToBase64, base64Size, isSymbol } from '../src/utils/tool'
+import { isSymbol } from '../src/utils/tool'
+import { 
+  exitDataFn, 
+  uploadFn, 
+  completeFn, 
+  config, 
+  callback, 
+  FILE_SIZE,
+  BASE_SIZE,
+  arrayBufferFile,
+  base64File,
+  file,
+  blobFile,
+  chunks,
+  mime,
+  totalChunks,
+  getFileMd5,
+  getBase64Md5,
+  emitterCollection,
+  dealResultExpect,
+} from './constants'
 
-const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLength }) => {
-  return false
-}
-
-const uploadFn = (data) => {
- 
-}
-
-const completeFn = ({ name: md5 }) => {}
-
-const config = {
-  retry: {
-    times: 3
-  },
-  chunkSize: 1024 * 500
-}
-
-const callback = (done) => (error) => {
-  if(error) {
-    done(error)
-  }else {
-    done()
-  }
-}
-
-const FILE_SIZE = 1024 * 1024 * 20
-const BASE_SIZE = 1024 * 500
-
-const arrayBufferFile = new ArrayBuffer(FILE_SIZE)
-const base64File = arrayBufferToBase64(new ArrayBuffer(BASE_SIZE))
-const file = new File([arrayBufferFile], 'image/jpeg')
-const blobFile = new Blob([arrayBufferFile])
-const slice = ArrayBuffer.prototype.slice
-
-const prevLen = Math.floor(FILE_SIZE / 4 / config.chunkSize)
-
-const chunks = [
-  ...(new Array(prevLen).fill(0).map((_, index) => {
-    return new File([slice.call(arrayBufferFile, index * config.chunkSize, (index + 1) * config.chunkSize)], 'chunk-test')
-  })),
-  ...(new Array(prevLen).fill(0).map((_, index) => {
-    return new Blob([slice.call(arrayBufferFile, (index + prevLen) * config.chunkSize, (index + 1 + prevLen) * config.chunkSize)])
-  })),
-  ...(new Array(prevLen).fill(0).map((_, index) => {
-    return slice.call(arrayBufferFile, (index + prevLen * 2) * config.chunkSize, (index + 1 + prevLen * 2) * config.chunkSize)
-  })),
-  ...(new Array((Math.ceil((FILE_SIZE - (prevLen * 3 * config.chunkSize)) / config.chunkSize))).fill(0).map((_, index) => {
-    return arrayBufferToBase64(slice.call(arrayBufferFile, (index + prevLen * 3) * config.chunkSize, (index + 1 + prevLen * 3) * config.chunkSize))
-  }))
-]
-
-const mime = 'image/jpeg'
-
-let currentChunk = 0,
-    totalChunks = Math.ceil(FILE_SIZE / config.chunkSize)
-const spark = new SparkMd5.ArrayBuffer()
-while(currentChunk < totalChunks) {
-  let start = currentChunk * config.chunkSize,
-      end = currentChunk + 1 === totalChunks ? FILE_SIZE : ( currentChunk + 1 ) * config.chunkSize
-  const _chunks = slice.call(arrayBufferFile, start, end)
-
-  currentChunk ++
-  spark.append(_chunks)
-}
-
-const md5 = spark.end()
-spark.destroy()
+const md5 = getFileMd5()
+const base64Md5 = getBase64Md5()
 
 let upload = new Upload()
 
 // jest.mock('../src/utils/worker/__mocks__/file.worker.js')
 
-const emitter = new Emitter()
-let index = 0
-const emitterCollection = () => {
-  index ++
-  const name = index.toString()
-  return {
-    collection: function(method) {
-      emitter.once(name, method)
-    },
-    emit: () => {
-      emitter.emit(name)
-    }
-  }
-}
-
-const dealResultExpect = (result) => {
-  expect(result).toBeInstanceOf(Array)
-  expect(result.length).toBe(1)
-}
-
 window.Worker = undefined
 
-describe('upload chunk test', () => {
+describe.skip('upload chunk test', () => {
 
   let _Worker = window.Worker
 
@@ -112,7 +45,7 @@ describe('upload chunk test', () => {
     done()
   })
 
-  describe.skip('upload api', () => {
+  describe('upload api', () => {
 
     describe('upload api success test', () => {
 
@@ -166,8 +99,10 @@ describe('upload chunk test', () => {
               beforeRead ++
             },
             reading({ name, task, current, total }) {
+              const _reading = ++ reading
               collection(() => {
-                expect(current).toBe((reading ++) * config.chunkSize)
+                const _current = _reading * config.chunkSize
+                expect(current).toBe(_reading == totalChunks ? FILE_SIZE : _current)
                 expect(total).toBe(FILE_SIZE)
                 // expect(end).toBe(reading * config.chunkSize > FILE_SIZE ? FILE_SIZE : reading * config.chunkSize)
               })
@@ -187,8 +122,8 @@ describe('upload chunk test', () => {
                 expect(total).toBe(totalChunks)
                 expect(complete).toBe(uploading)
               }
-              collection(expectFn.bind(this, uploading))
               uploading ++
+              collection(expectFn.bind(this, uploading))
             },
             beforeComplete({ name, task, isExists }) {
               beforeComplete ++
@@ -215,7 +150,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('add api', () => {
+  describe('add api', () => {
 
     describe('add api success test', () => {
 
@@ -223,7 +158,7 @@ describe('upload chunk test', () => {
 
         const tasks = upload.add({
           config,
-          upload: {
+          request: {
             exitDataFn,
             uploadFn,
             completeFn,
@@ -245,7 +180,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('deal api', () => {
+  describe('deal api', () => {
 
     let tasks 
     let _config = {
@@ -596,7 +531,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('start api', () => {
+  describe('start api', () => {
 
     describe('start api success test', () => {
 
@@ -622,9 +557,9 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('stop api', () => {
+  describe('stop api', () => {
 
-    describe.skip('stop api success test', () => {
+    describe('stop api success test', () => {
 
       const total = Math.ceil(FILE_SIZE / config.chunkSize)
       let times = Array.from({ length: total }, (_, index) => index)
@@ -1405,7 +1340,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('cancel api', () => {
+  describe('cancel api', () => {
 
     describe('cancel api success test', () => {
 
@@ -1976,7 +1911,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('cancelAdd api', () => {
+  describe('cancelAdd api', () => {
 
     describe('cancelAdd api success test', () => {
 
@@ -2068,7 +2003,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('isSupport api', () => {
+  describe('isSupport api', () => {
 
     describe('isSupport api success test', () => {
 
@@ -2098,7 +2033,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('getTask api', () => {
+  describe('getTask api', () => {
 
     describe('getTask api success test', () => {
 
@@ -2138,7 +2073,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('getOriginFile api', () => {
+  describe('getOriginFile api', () => {
     
     describe('getOriginFile api success test', () => {
 
@@ -2174,7 +2109,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('getStatus api', () => {
+  describe('getStatus api', () => {
     
     describe('getStatus api success test', () => {
 
@@ -2256,7 +2191,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('watch api', () => {
+  describe('watch api', () => {
 
     describe('watch api success test', () => {
 
@@ -2942,7 +2877,7 @@ describe('upload chunk test', () => {
 
     describe('lifecycle success test', () => {
 
-      test.skip('lifecycle success', (done) => {
+      test('lifecycle success', (done) => {
 
         let beforeRead = 0
         let reading = 0
@@ -3039,13 +2974,13 @@ describe('upload chunk test', () => {
 
         getUpload({
           reading: ({  }) => {
-            uploading ++
+            reading ++
             throw new Error('11111111')
           },
         })
 
         const [tasks] = upload.add({
-          config,
+          config: omit(config, ['retry']),
           file: {
             file
           },
@@ -3075,7 +3010,7 @@ describe('upload chunk test', () => {
         expect(result.length).toBe(1)
       })
 
-      test.skip('lifecycle upload base64 file success', (done) => {
+      test('lifecycle upload base64 file success', (done) => {
 
         let beforeRead = 0
         let reading = 0
@@ -3085,22 +3020,24 @@ describe('upload chunk test', () => {
         let beforeComplete = 0
         let afterComplete = 0
         const { collection, emit } = emitterCollection()
+        const totalChunks = BASE_SIZE / config.chunkSize
 
         getUpload({
           beforeRead: ({ name, task }) => {
             beforeRead ++
           },
           reading: ({ name, task, current, total }) => {
+            const endSize = (reading + 1) * config.chunkSize
             collection(() => {
-              expect(total).toBe(totalChunks)
-              const endSize = (reading + 1) * config.chunkSize
-              expect(current).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
+              expect(total).toBe(BASE_SIZE)
+              expect(current).toBe(endSize >= BASE_SIZE ? BASE_SIZE : endSize)
             })
             reading ++
           },
           beforeCheck({ name, task }) {
             collection(() => {
-              expect(task.file.md5).toBe(md5)
+              console.log(task.file.md5, base64Md5)
+              expect(task.file.md5).toBe(base64Md5)
             })
             beforeCheck ++
           },
@@ -3166,12 +3103,12 @@ describe('upload chunk test', () => {
 
       })
 
-      test.skip('lifecycle upload base64 file success and stop the process the next lifecycle not performance', (done) => {
+      test('lifecycle upload base64 file success and stop the process the next lifecycle not performance', (done) => {
         let reading = 0
 
         getUpload({
           reading: ({  }) => {
-            uploading ++
+            reading ++
             throw new Error()
           },
         })
@@ -3203,11 +3140,10 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
       })
 
-      test.skip('lifecycle upload arraybuffer file success', (done) => {
+      test('lifecycle upload arraybuffer file success', (done) => {
 
         let beforeRead = 0
         let reading = 0
@@ -3223,9 +3159,9 @@ describe('upload chunk test', () => {
             beforeRead ++
           },
           reading: ({ name, task, current, total }) => {
+            const endSize = (reading + 1) * config.chunkSize
             collection(() => {
-              expect(total).toBe(totalChunks)
-              const endSize = (reading + 1) * config.chunkSize
+              expect(total).toBe(FILE_SIZE)
               expect(current).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
             })
             reading ++
@@ -3243,10 +3179,11 @@ describe('upload chunk test', () => {
             afterCheck ++
           },
           uploading({ name, current, total, complete }) {
+            const _uploading = uploading + 1
             collection(() => {
-              expect(current).toBe(uploading)
+              expect(current).toBe(_uploading)
               expect(total).toBe(totalChunks)
-              expect(complete).toEqual(uploading)
+              expect(complete).toEqual(_uploading)
             })
             uploading ++
           },
@@ -3293,23 +3230,22 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
 
       })
 
-      test.skip('lifecycle upload arraybuffer file success and stop the process the next lifecycle not performance', (done) => {
+      test('lifecycle upload arraybuffer file success and stop the process the next lifecycle not performance', (done) => {
         let reading = 0
 
         getUpload({
           reading: ({  }) => {
-            uploading ++
+            reading ++
             throw new Error()
           },
         })
 
         const [tasks] = upload.add({
-          config,
+          config: omit(config, ['retry']),
           file: {
             file: arrayBufferFile
           },
@@ -3339,7 +3275,7 @@ describe('upload chunk test', () => {
         expect(result.length).toBe(1)
       })
 
-      test.skip('lifecycle upload chunks file success', (done) => {
+      test('lifecycle upload chunks file success', (done) => {
 
         let beforeRead = 0
         let reading = 0
@@ -3355,9 +3291,9 @@ describe('upload chunk test', () => {
             beforeRead ++
           },
           reading: ({ name, task, current, total }) => {
+            const endSize = (reading + 1) * config.chunkSize
             collection(() => {
-              expect(total).toBe(totalChunks)
-              const endSize = (reading + 1) * config.chunkSize
+              expect(total).toBe(totalChunks * config.chunkSize)
               expect(current).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
             })
             reading ++
@@ -3375,10 +3311,11 @@ describe('upload chunk test', () => {
             afterCheck ++
           },
           uploading({ name, current, total, complete }) {
+            const _uploading = uploading + 1
             collection(() => {
-              expect(current).toBe(uploading)
+              expect(current).toBe(_uploading)
               expect(total).toBe(totalChunks)
-              expect(complete).toEqual(uploading)
+              expect(complete).toEqual(_uploading)
             })
             uploading ++
           },
@@ -3425,23 +3362,22 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
 
       })
 
-      test.skip('lifecycle upload chunks file success and stop the process the next lifecycle not performance', (done) => {
+      test('lifecycle upload chunks file success and stop the process the next lifecycle not performance', (done) => {
         let reading = 0
 
         getUpload({
           reading: ({  }) => {
-            uploading ++
+            reading ++
             throw new Error()
           },
         })
 
         const [tasks] = upload.add({
-          config,
+          config: omit(config, ['retry']),
           file: {
             chunks
           },
@@ -3461,7 +3397,7 @@ describe('upload chunk test', () => {
           },
           lifecycle: {
             reading() {
-              uploading ++
+              reading ++
             }
           }
         })
@@ -3471,7 +3407,7 @@ describe('upload chunk test', () => {
         expect(result.length).toBe(1)
       })
 
-      test.skip('lifecycle upload chunks and with the file size file success', (done) => {
+      test('lifecycle upload chunks and with the file size file success', (done) => {
 
         let beforeRead = 0
         let reading = 0
@@ -3487,9 +3423,9 @@ describe('upload chunk test', () => {
             beforeRead ++
           },
           reading: ({ name, task, current, total }) => {
+            const endSize = (reading + 1) * config.chunkSize
             collection(() => {
-              expect(total).toBe(totalChunks)
-              const endSize = (reading + 1) * config.chunkSize
+              expect(total).toBe(FILE_SIZE)
               expect(current).toBe(endSize >= FILE_SIZE ? FILE_SIZE : endSize)
             })
             reading ++
@@ -3507,10 +3443,11 @@ describe('upload chunk test', () => {
             afterCheck ++
           },
           uploading({ name, current, total, complete }) {
+            const _uploading = uploading + 1
             collection(() => {
-              expect(current).toBe(uploading)
+              expect(current).toBe(_uploading)
               expect(total).toBe(totalChunks)
-              expect(complete).toEqual(uploading)
+              expect(complete).toEqual(_uploading)
             })
             uploading ++
           },
@@ -3558,8 +3495,7 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
 
       })
 
@@ -3567,7 +3503,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('error retry', () => {
+  describe('error retry', () => {
 
     describe('error retry success test', () => {
 
@@ -3615,8 +3551,7 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
 
       })
 
@@ -3646,12 +3581,94 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
 
       })
 
       test('error retry success and in retry lifecycle stop the performance', (done) => {
+
+        let count = 0
+
+        //错误自动重试
+        const [tasks] = upload.add({
+          config,
+          file: {
+            file
+          },
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              if(count == 0) {
+                throw new Error('retry test all fail error')
+              }
+              count ++
+            },
+            callback(error) {
+              try {
+                expect(!!error).toBeFalsy
+                expect(count).toBe(totalChunks + 1)
+                done()
+              }catch(err) {
+                done(err)
+              }
+            }
+          },
+          lifecycle: {
+            retry({ name }) {
+              this.stop(name)
+              count ++
+            }
+          },
+          config,
+        })
+
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
+      })
+
+      test('error retry success and in retry lifecycle cancel the performance', (done) => {
+
+        let count = 0
+
+        //错误自动重试
+        const [tasks] = upload.add({
+          config,
+          file: {
+            file
+          },
+          request: {
+            completeFn,
+            uploadFn: (data) => {
+              if(count == 0) {
+                throw new Error('retry test all fail error')
+              }
+              count ++
+            },
+            callback(error) {
+              try {
+                expect(!!error).toBeFalsy
+                expect(count).toBe(totalChunks + 1)
+                done()
+              }catch(err) {
+                done(err)
+              }
+            }
+          },
+          lifecycle: {
+            retry({ name }) {
+              const names = this.cancel(name)
+              expect(names.length).toBe(0)
+              count ++
+            }
+          },
+          config,
+        })
+
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
+      })
+
+      test('error retry success and in retry lifecycle cancelAdd the performance', (done) => {
 
         let count = 0
 
@@ -3681,7 +3698,7 @@ describe('upload chunk test', () => {
           },
           lifecycle: {
             retry({ name }) {
-              this.stop(name)
+              this.cancelAdd(name)
               count ++
             }
           },
@@ -3689,15 +3706,14 @@ describe('upload chunk test', () => {
         })
 
         const result = upload.deal(tasks)
-        expect(result).toBeInstanceOf(Array)
-        expect(result.length).toBe(1)
+        dealResultExpect(result)
       })
 
     })
 
   })
 
-  describe.skip('install api', () => {
+  describe('install api', () => {
 
     let ignoreReader = false
     let ignoreSlicer = false
@@ -3711,6 +3727,9 @@ describe('upload chunk test', () => {
     const reader = (context) => {
       if(!ignoreReader) {
         readerCount ++
+        context.on('reader', (task, resolve) => {
+          resolve(md5)
+        })
       }else {
         readerIgnoreCount ++
       }
@@ -3720,14 +3739,17 @@ describe('upload chunk test', () => {
       context.on('slicer', (start, end, file, complete) => {
         if(!ignoreSlicer) {
           expect(start).toEqual(slicerIndex * config.chunkSize)
-          let _end = slicerIndex * config.chunkSize
+          let _end = (slicerIndex + 1) * config.chunkSize
           _end = _end >= FILE_SIZE ? FILE_SIZE : _end
           expect(end).toEqual(_end)
           expect(file instanceof ArrayBuffer || file instanceof Blob || typeof file === 'string').toBeTruthy
           expect(typeof complete).toBe('function')
           slicerCount ++
           slicerIndex ++
-          if(slicerIndex == times) slicerIndex = 0
+          if(slicerIndex == totalChunks) {
+            slicerIndex = 0
+          }
+          complete(arrayBufferFile.slice(start, end))
         }else {
           slicerIgnoreCount ++
         }
@@ -3747,31 +3769,30 @@ describe('upload chunk test', () => {
 
       const upload = new _Upload()
       const [ tasks ] = upload.add({
-        config,
+        config: omit(config, ['retry']),
         file: {
           file,
         },
         request: {
           uploadFn() {
 
+          },
+          callback(error) {
+            try {
+              expect(!!error).toBeFalsy
+              expect(slicerCount).toBe(totalChunks)
+              expect(slicerIndex).toBe(0)
+              expect(readerCount).toBe(1)
+              done()
+            }catch(err) {
+              done(err)
+            }
           }
         },
-        callback(error) {
-          try {
-            expect(!!error).toBeFalsy
-            expect(slicerCount).toBe(times * 2)
-            expect(slicerIndex).toBe(0)
-            expect(readerCount).toBe(times)
-            done()
-          }catch(err) {
-            done(err)
-          }
-        }
       })
 
       const names = upload.deal(tasks)
-      expect(names).toBeInstanceOf(Array)
-      expect(names.length).toBe(1)
+      dealResultExpect(names)
 
     })
 
@@ -3787,18 +3808,18 @@ describe('upload chunk test', () => {
           file,
         },
         request: {
-          uploadFn() {}
-        },
-        callback(error) {
-          try {
-            expect(!!error).toBeFalsy
-            expect(slicerIgnoreCount).toBe(0)
-            expect(readerIgnoreCount).toBe(0)
-            done()
-          }catch(err) {
-            done(err)
+          uploadFn() {},
+          callback(error) {
+            try {
+              expect(!!error).toBeFalsy
+              expect(slicerIgnoreCount).toBe(0)
+              expect(readerIgnoreCount).toBe(0)
+              done()
+            }catch(err) {
+              done(err)
+            }
           }
-        }
+        },
       })
       const names = upload.deal(tasks)
       expect(names).toBeInstanceOf(Array)
@@ -3807,7 +3828,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('upload file without worker api', () => {
+  describe('upload file without worker api', () => {
 
     describe('upload file without worker api success test', () => {
 
@@ -3836,7 +3857,8 @@ describe('upload chunk test', () => {
           }
         })
 
-        upload.deal(tasks)
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
 
       })
 
@@ -3844,7 +3866,7 @@ describe('upload chunk test', () => {
 
   })
 
-  describe.skip('upload file instance test', () => {
+  describe('upload file instance test', () => {
 
     const instanceTest = (context) => expect(context).toBeInstanceOf(Upload)
 

@@ -39,15 +39,16 @@ export const STATUS_MAP: {
     return target ? status : undefined
   }, 
   [ECACHE_STATUS.stopping](status: ECACHE_STATUS, _: TWrapperTask) {
-    const target = map.waiting.includes(status)
+    const target = map.stopping.includes(status)
     return target ? status : undefined
   }, 
   [ECACHE_STATUS.cancel](status: ECACHE_STATUS, _: TWrapperTask) {
-    const target = map.waiting.includes(status)
+    const target = map.cancel.includes(status)
     return target ? status : undefined
   }, 
   [ECACHE_STATUS.rejected](status: ECACHE_STATUS, _: TWrapperTask) {
-    const target = map.waiting.includes(status)
+    const target = map.rejected.includes(status)
+    console.log(target)
     return target ? status : undefined
   }, 
 }

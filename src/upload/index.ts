@@ -318,10 +318,6 @@ export default class Upload extends EventEmitter {
     let error: unknown = false
     let response
     try {
-      const currentStatus = this.getStatus(name)
-      // this.emitter.setState(name, {
-      //   status: currentStatus! >= ECACHE_STATUS.pending ? status : currentStatus!
-      // })
       this.emitter.setState(name, { status })
       response = await this.lifecycle.emit(lifecycle, { ...params, task })
       if((response as any) instanceof Object) {

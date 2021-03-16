@@ -1,67 +1,27 @@
-import SparkMd5 from 'spark-md5'
 import { WeUpload } from '../src'
 import { arrayBufferToBase64, base64ToArrayBuffer } from '../src/utils/tool'
+import {
+  config,
+  uploadFn,
+  callback,
+  FILE_SIZE,
+  BASE_SIZE,
+  arrayBufferFile,
+  base64File,
+  file,
+  chunks,
+  mime,
+  getFileMd5,
+  dealResultExpect
+} from './constants'
 
-const uploadFn = (data) => {}
-
-const config = {
-  retry: {
-    times: 3
-  },
-  chunkSize: 1024 * 500
-}
-
-const callback = (done) => (error) => {
-  if(error) {
-    done(error)
-  }else {
-    done()
-  }
-}
-
-const FILE_SIZE = 1024 * 1024 * 20
-const BASE_SIZE = 1024 * 500
-
-const arrayBufferFile = new ArrayBuffer(FILE_SIZE)
-const base64File = arrayBufferToBase64(new ArrayBuffer(BASE_SIZE))
-const file = new File([arrayBufferFile], 'image/jpeg')
 const slice = ArrayBuffer.prototype.slice
 
-const prevLen = Math.floor(FILE_SIZE / 4 / config.chunkSize)
+const md5 = getFileMd5()
 
-const chunks = [
-  ...(new Array(prevLen).fill(0).map((_, index) => {
-    return new File([slice.call(arrayBufferFile, index * config.chunkSize, (index + 1) * config.chunkSize)], 'chunk-test')
-  })),
-  ...(new Array(prevLen).fill(0).map((_, index) => {
-    return new Blob([slice.call(arrayBufferFile, (index + prevLen) * config.chunkSize, (index + 1 + prevLen) * config.chunkSize)])
-  })),
-  ...(new Array(prevLen).fill(0).map((_, index) => {
-    return slice.call(arrayBufferFile, (index + prevLen * 2) * config.chunkSize, (index + 1 + prevLen * 2) * config.chunkSize)
-  })),
-  ...(new Array((Math.ceil((FILE_SIZE - (prevLen * 3 * config.chunkSize)) / config.chunkSize))).fill(0).map((_, index) => {
-    return arrayBufferToBase64(slice.call(arrayBufferFile, (index + prevLen * 3) * config.chunkSize, (index + 1 + prevLen * 3) * config.chunkSize))
-  }))
-]
+window.Worker = undefined
 
-const mime = 'image/jpeg'
-
-let currentChunk = 0,
-    totalChunks = Math.ceil(FILE_SIZE / config.chunkSize)
-const spark = new SparkMd5.ArrayBuffer()
-while(currentChunk < totalChunks) {
-  let start = currentChunk * config.chunkSize,
-      end = currentChunk + 1 === totalChunks ? FILE_SIZE : ( currentChunk + 1 ) * config.chunkSize
-  const _chunks = slice.call(arrayBufferFile, start, end)
-
-  currentChunk ++
-  spark.append(_chunks)
-}
-
-const md5 = spark.end()
-spark.destroy()
-
-describe.skip('weapp upload chunk test', () => {
+describe('weapp upload chunk test', () => {
 
   let _File = window.File
   let _Blob = window.Blob
@@ -73,13 +33,15 @@ describe.skip('weapp upload chunk test', () => {
     window.Blob = undefined
     window.FileReader = undefined
     window.FormData = undefined
+    done()
   })
 
-  afterAll(() => {
+  afterAll((done) => {
     window.File = _File
     window.Blob = _Blob
     window.FileReader = _FileReader
     window.FormData = _FormData
+    done()
   })
 
   describe('weapp upload chunk success test', () => {
@@ -94,15 +56,20 @@ describe.skip('weapp upload chunk test', () => {
         base64ToArrayBuffer
       })
       upload = new _WeUpload()
+      done()
     })
 
-    it('weapp upload chunk success', (done) => {
+    test('weapp upload chunk success', (done) => {
 
       let tasks 
 
       [ tasks ] = upload.add({
+        config: {
+          chunkSize: BASE_SIZE
+        },
         file: {
-          file
+          file: arrayBufferFile,
+          mime
         },
         request: {
           uploadFn,
@@ -117,11 +84,12 @@ describe.skip('weapp upload chunk test', () => {
         }
       })
 
-      upload.deal(tasks)
+      const result = upload.deal(tasks)
+      dealResultExpect(result)
 
     })
 
-    it('weapp uplopad chunk success and upload the base64 file', (done) => {
+    test.skip('weapp uplopad chunk success and upload the base64 file', (done) => {
       let tasks 
       let times = 0
 
@@ -151,7 +119,7 @@ describe.skip('weapp upload chunk test', () => {
       upload.deal(tasks)
     })
 
-    it('weapp upload chunk success and upload the arraybuffer file', (done) => {
+    test.skip('weapp upload chunk success and upload the arraybuffer file', (done) => {
       let tasks 
 
       [ tasks ] = upload.add({
@@ -174,7 +142,7 @@ describe.skip('weapp upload chunk test', () => {
       upload.deal(tasks)
     })
 
-    it('weapp upload chunk success and upload the chunks file', (done) => {
+    test.skip('weapp upload chunk success and upload the chunks file', (done) => {
       let tasks 
 
       [ tasks ] = upload.add({
@@ -201,7 +169,7 @@ describe.skip('weapp upload chunk test', () => {
 
   })
 
-  describe('weapp upload chunk fail test', () => {
+  describe.skip('weapp upload chunk fail test', () => {
 
     let upload 
     let _WeUpload 
@@ -211,7 +179,7 @@ describe.skip('weapp upload chunk test', () => {
       upload = new _WeUpload()
     })
     
-    it('weapp upload chunk fail because the slice function is not support', (done) => {
+    test('weapp upload chunk fail because the slice function is not support', (done) => {
 
       let tasks 
 
@@ -238,7 +206,7 @@ describe.skip('weapp upload chunk test', () => {
 
   })
 
-  describe('add api test', () => {
+  describe.skip('add api test', () => {
 
     let upload 
     let _WeUpload 

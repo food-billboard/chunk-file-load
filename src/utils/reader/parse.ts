@@ -132,7 +132,6 @@ export default class extends Proxy {
   public async arraybuffer(task: TWrapperTask): Promise<string> {
 
     const that = this
-
     const { file: { size, file }, config: { chunkSize }, symbol } = task
 
     let currentChunk:number = 0,

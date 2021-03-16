@@ -8,22 +8,25 @@ export default class extends Slicer<File | Blob> {
   constructor(context: Upload, file?: File | Blob, returnBlob: boolean = false) {
     super(context, file)
     this.returnBlob = returnBlob
+    this.slicer = Blob?.prototype.slice
+    if(typeof FileReader != 'undefined') this.fileReader = new FileReader()
   }
 
-  private slicer = Blob.prototype.slice
+  private slicer
   private returnBlob: boolean = false
-  private fileReader = new FileReader()
+  private fileReader
 
   public _slice: TSlice<Promise<ArrayBuffer | Blob>> = async (start, end=this.file?.size, file) => {
+    if(this.fileReader == undefined) return Promise.reject('this environment is not support the FileReader api')
     const chunk = this.slicer.call(this.file || file, start, end)
     if(this.returnBlob) return Promise.resolve(chunk)
     return new Promise((resolve, reject) => {
-      this.fileReader.onload = function(e: TReaderResult) {
+      this.fileReader!.onload = function(e: TReaderResult) {
         if(!e.target) return reject('读取错误')
         resolve(e.target.result as ArrayBuffer)
       }
-      this.fileReader.onerror = super.error
-      this.fileReader.readAsArrayBuffer(chunk)
+      this.fileReader!.onerror = super.error
+      this.fileReader!.readAsArrayBuffer(chunk)
     })
   }
 
