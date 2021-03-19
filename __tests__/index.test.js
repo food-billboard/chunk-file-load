@@ -29,8 +29,6 @@ let upload = new Upload()
 
 // jest.mock('../src/utils/worker/__mocks__/file.worker.js')
 
-window.Worker = undefined
-
 describe('upload chunk test', () => {
 
   let _Worker = window.Worker

@@ -364,7 +364,7 @@ export default class extends Component {
     if(!control || !name) return
     const status = this.upload.getStatus(name)
     if(status == 0) {
-      this.upload.cancelEmit(name)
+      this.upload.cancelAdd(name)
       console.log('清除任务')
     }else {
       this.upload.cancel(name)

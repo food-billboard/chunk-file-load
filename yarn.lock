@@ -2616,10 +2616,10 @@ core-js-compat@^3.8.0:
     browserslist "^4.16.3"
     semver "7.0.0"
 
-core-js@2:
-  version "2.6.12"
-  resolved "https://registry.npm.taobao.org/core-js/download/core-js-2.6.12.tgz?cache=0&sync_timestamp=1614537347747&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fcore-js%2Fdownload%2Fcore-js-2.6.12.tgz#d9333dfa7b065e347cc5682219d6f690859cc2ec"
-  integrity sha1-2TM9+nsGXjR8xWgiGdb2kIWcwuw=
+core-js@3:
+  version "3.9.1"
+  resolved "https://registry.npm.taobao.org/core-js/download/core-js-3.9.1.tgz?cache=0&sync_timestamp=1614537347747&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Fcore-js%2Fdownload%2Fcore-js-3.9.1.tgz#cec8de593db8eb2a85ffb0dbdeb312cb6e5460ae"
+  integrity sha1-zsjeWT246yqF/7Db3rMSy25UYK4=
 
 core-util-is@1.0.2, core-util-is@~1.0.0:
   version "1.0.2"

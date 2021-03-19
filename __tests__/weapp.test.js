@@ -1,26 +1,18 @@
 import { WeUpload } from '../src'
 import { arrayBufferToBase64, base64ToArrayBuffer } from '../src/utils/tool'
 import {
-  config,
   uploadFn,
   callback,
-  FILE_SIZE,
   BASE_SIZE,
   arrayBufferFile,
   base64File,
-  file,
   chunks,
   mime,
   getFileMd5,
   dealResultExpect,
-  totalChunks
 } from './constants'
 
-const slice = ArrayBuffer.prototype.slice
-
 const md5 = getFileMd5()
-
-window.Worker = undefined
 
 describe('weapp upload chunk test', () => {
 
@@ -28,12 +20,14 @@ describe('weapp upload chunk test', () => {
   let _Blob = window.Blob
   let _FileReader = window.FileReader
   let _FormData = window.FormData
+  let _Worker = window.Worker
 
   beforeAll((done) => {
     window.File = undefined
     window.Blob = undefined
     window.FileReader = undefined
     window.FormData = undefined
+    window.Worker = undefined
     done()
   })
 
@@ -42,6 +36,7 @@ describe('weapp upload chunk test', () => {
     window.Blob = _Blob
     window.FileReader = _FileReader
     window.FormData = _FormData
+    window.Worker = _Worker
     done()
   })
 
