@@ -1,4 +1,5 @@
 import merge from 'lodash/merge'
+import noop from 'lodash/noop'
 import EventEmitter from 'eventemitter3'
 import { 
   Emitter, 
@@ -250,7 +251,8 @@ export default class Upload extends EventEmitter {
   
         const taskName = target!.task
         const [ , task ] = this.emitter.getTask(taskName!)
-        const { request: { callback }, symbol, config: { retry }, lifecycle } = task!
+        const { request: { callback: _callback }, symbol, config: { retry }, lifecycle } = task!
+        const callback = typeof _callback === 'function' ? _callback : noop
         return this.reader.addFile(process)
         .then(_ => this.uploader.addFile(process))
         .then(_ => {
@@ -307,28 +309,27 @@ export default class Upload extends EventEmitter {
           const { error, name, remove, retry } = response
           let callbackError = error ? {
             error,
-            retry
           } : null
           this.lifecycle.onWithObject(lifecycle, name, 'off')
           if(remove) {
             this.emitter.off(symbol)
-            callback && callback(callbackError, name)
+            callback(callbackError, name)
           }else if(retry) {
             const tasks = this.deal(symbol)
             if(!tasks.length) {
               this.emitter.off(symbol)
-              callback && callback(merge({}, callbackError, { error: {
+              callback(merge({}, callbackError, { error: {
                 error: callbackError?.error,
                 description: 'unknown error'
-              }, retry: false }), name)
+              } }), name)
             }
           }else {
-            callback && callback(callbackError, name)
+            callback(callbackError, name)
           }
         })
         .catch(err => {
           console.error(err)
-          callback && callback(err, null)
+          callback(err, null)
         })
       }))
     })

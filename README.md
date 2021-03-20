@@ -221,11 +221,15 @@ like this `callback(err: null | any, data: null | any) => any`
 ```js
 //支持任意格式的对象参数，但是需要保证对象内的必要参数都正确
 let names = upload.add({
-    file,   
-    exitDataFn, 
-    uploadFn,  
-    completeFn,
-    callback    
+    file: {
+        file: new File([new ArrayBuffer(1024)], 'filename')
+    },   
+    request: {
+        exitDataFn, 
+        uploadFn,  
+        completeFn,
+        callback   
+    } 
 })
 ```
 
@@ -236,6 +240,7 @@ let names = upload.add({
 * 返回所有状态的任务名称
 
 ```typescript 
+const [ name ] = upload.add(/*params...*/)
 upload.deal(name)
 ```
 
@@ -285,7 +290,7 @@ upload.deal(name)
 ```js
 const upload = new Upload({
     lifecycle: {
-        beforeCheck: () => {
+        beforeCheck() {
             //在文件检查前停止上传(相当于stop)
             return false
         }
@@ -298,7 +303,7 @@ const upload = new Upload({
     upload.add({
         /*其他配置*/
         lifecycle: {
-            beforeUpload: ({ name, task }) => {
+            beforeUpload({ name, task }) {
                 //暂停
                 this.stop(name)
                 //查看进度
@@ -319,7 +324,7 @@ const upload = new Upload({
 ### dispose
 
 * 销毁实例
-`upload.init()`
+`upload.dispose()`
 
 ### start
 
@@ -343,7 +348,7 @@ upload.stop(...names) //不传参数则暂停所有任务
 * 取消上传中的任务
 * 返回执行取消操作的任务文件名称集合
 * 只对上传中的任务有效
-* 一旦取消了上传任务则需要重新通过`upload`或`add`进行添加才能上传
+* 一旦取消了上传任务则需要重新通过`upload`或`add`等方法进行添加才能上传
 
 ```js
 upload.cancel(...names)
@@ -366,7 +371,7 @@ upload.cancelAdd(...names)    //不传则取消所有任务
 * 你也可以在任务中的`watch`属性方法来获取对应的任务进度。  
 
 ```js
-//return [{ error, name, progress, status, total, current } || null]
+//return [{ error, name, progress, status, total, current, complete } || null]
 upload.watch(...names) //不传则返回所有进度
 ```
 

@@ -1,4 +1,6 @@
 const path = require('path')
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+// const WorkerPlugin = require('worker-plugin')
 
 module.exports = {
   module: {
@@ -8,13 +10,15 @@ module.exports = {
         loader: ['file-loader']
       },
       {
-        test: /\.worker\.(t|j)s$/,
+        test: /\.worker\.(j|t)s$/,
         exclude:/node_modules/, 
+        include: path.resolve(__dirname, 'src'),
         use: { 
           loader: "worker-loader",
           options: {
-            inline: "fallback",
+            inline: "no-fallback",
           }
+          // loader: 'comlink-loader'
         },
       },
       { 
@@ -27,15 +31,25 @@ module.exports = {
         ],
       },
       {
-        test: /\.ts$/,
+        test: /\.tsx?$/,
+        exclude:/node_modules/, 
         use: [
           {
-            loader: 'ts-loader'
-          }
+            loader: 'ts-loader',
+            options: {
+              transpileOnly: true,
+              onlyCompileBundledFiles: true,
+              happyPackMode: true
+            }
+          },
         ]
       }
     ]
   },
+  plugins: [
+    new ForkTsCheckerWebpackPlugin(),
+    // new WorkerPlugin()
+  ],
   resolve: {
     alias: {
       "~":path.resolve(__dirname, "src")

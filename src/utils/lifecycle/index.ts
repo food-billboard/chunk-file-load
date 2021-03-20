@@ -1,6 +1,6 @@
 import merge from 'lodash/merge'
 import omit from 'lodash/omit'
-import { SuperPartial, TLifecycle, TProcessLifeCycle, TWrapperTask } from 'src/upload/type'
+import { SuperPartial, TLifecycle, TProcessLifeCycle, TWrapperTask } from '../../upload/type'
 import { ECACHE_STATUS } from '../constant'
 
 type TActionType = 'on' | 'addListener' | 'off' | 'once' | 'removeListener'

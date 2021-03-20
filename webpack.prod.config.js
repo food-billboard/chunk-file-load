@@ -13,6 +13,7 @@ module.exports = merge(commonConfig, {
     filename: 'index.js',
     library: 'Upload',
     libraryTarget: 'umd',
+    globalObject: 'this'
     // libraryExport: 'default',
     // chunkFilename: '[name].[chunkhash:8].chunk.js',
   },

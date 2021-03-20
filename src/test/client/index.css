@@ -2,7 +2,6 @@ html,
 body {
   margin: 0;
   padding: 0;
-  opacity: 0.5;
 }
 .upload {
   text-align: center;
@@ -11,7 +10,6 @@ header {
   text-align: center;
   font-size: 40px;
   font-weight: bolder;
-  display: none;
 }
 main {
 }
@@ -24,7 +22,6 @@ main {
 }
 .upload-select-list h2 {
   text-align: center;
-  display: none;
 }
 .upload-select-list .upload-select-list-content {
   width: 100%;
