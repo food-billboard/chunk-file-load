@@ -1,6 +1,6 @@
 const path = require('path')
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
-// const WorkerPlugin = require('worker-plugin')
+const WorkerPlugin = require('worker-plugin')
 
 module.exports = {
   module: {
@@ -8,18 +8,6 @@ module.exports = {
       {
         test: /\.(png|jpg|gif)$/,
         loader: ['file-loader']
-      },
-      {
-        test: /\.worker\.(j|t)s$/,
-        exclude:/node_modules/, 
-        include: path.resolve(__dirname, 'src'),
-        use: { 
-          loader: "worker-loader",
-          options: {
-            inline: "no-fallback",
-          }
-          // loader: 'comlink-loader'
-        },
       },
       { 
         test: /\.jsx?$/, 
@@ -48,7 +36,7 @@ module.exports = {
   },
   plugins: [
     new ForkTsCheckerWebpackPlugin(),
-    // new WorkerPlugin()
+    new WorkerPlugin()
   ],
   resolve: {
     alias: {

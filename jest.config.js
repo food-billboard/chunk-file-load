@@ -172,8 +172,7 @@ module.exports = {
   transform: {
     // "^.+\\.test?$": "ts-jest"
     "^.+\\.js$": "babel-jest",
-    "^.+\\.(ts|tsx)$": "ts-jest",
-    "^.+\\.worker.[t|j]sx?$": "workerloader-jest-transformer"
+    "^.+\\.(ts|tsx)$": "ts-jest"
   },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation

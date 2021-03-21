@@ -2,7 +2,6 @@ import merge from 'lodash/merge'
 import noop from 'lodash/noop'
 import { Remote, wrap, releaseProxy } from 'comlink'
 import Queue from '../queue'
-import FileWorker from './file.worker'
 import { Tasker } from './tasker'
 import { TWrapperTask } from '../../upload/type'
 
@@ -18,14 +17,6 @@ const inspectIntervalTime = 10 * 1000
 
 //线程池
 class WorkerPool {
-
-  public static support() {
-    try {
-      return !!(typeof window.Worker != 'undefined')
-    }catch(err) {
-      return false
-    }
-  }
 
   public static getProcess(id: string): TProcess | null {
     if(!id) return null
@@ -70,8 +61,9 @@ class WorkerPool {
       busy: false,
     }
     
-    if(WorkerPool.support()) {
-      const worker: Remote<any> = wrap<Tasker>(new (FileWorker as any)())
+    if(Tasker.support()) {
+      const originWorker = new Worker('./file.worker.ts', { type: 'module' })
+      const worker: Remote<any> = wrap<Tasker>((originWorker as any))
       const instance = await new (worker as any)()
       baseThread = merge(baseThread, {
         worker: instance,

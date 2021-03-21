@@ -13,3 +13,6 @@ webpack.common.config.js
 webpack.dev.config.js
 webpack.prod.config.js
 package-lock.json
+/.awcache
+/doc
+yarn-error.log

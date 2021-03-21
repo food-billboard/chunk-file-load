@@ -4,7 +4,7 @@
     "allowJs": false,
     "checkJs": false,
     "declaration": true,
-    "noEmit": true,
+    "noEmit": false,
     "importHelpers": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,

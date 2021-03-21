@@ -63,13 +63,6 @@ export default class extends Component {
 
   //上传
   uploadFn = async (data) => {
-    const { name } = this.state
-    if(!!name) {
-      const progress = this.upload.watch(name)[0]['progress'] * 100
-      this.setState({
-        progress
-      })
-    }
     return Axios.post('/api/load', data)
     .then(data => data.data.res)
     .then(_ => undefined)
@@ -148,13 +141,13 @@ export default class extends Component {
     if(this.state.single) return
     const { activeSelect } = this.state
     let file = e.target.files[0]
+    const that = this
     if(activeSelect == '0') {
       if(file.size > 1024 * 1024 * 5) {
         alert('不要使用太大的文件用于base64上传')
         return 
       }
       const fileReader = new FileReader()
-      const that = this
       fileReader.onload = function(e) {
         that.upload.upload({
           lifecycle: {
@@ -307,6 +300,7 @@ export default class extends Component {
   handleControlFileUpload = (e) => {
     if(this.state.control) return
     const file = e.target.files[0]
+    const that = this
     const [name] = this.upload.add({
       file: {
         file,
@@ -329,6 +323,11 @@ export default class extends Component {
       lifecycle: {
         reading({ name, task, current, total }) {
           console.log('loading: ', current, 'total', total)
+        },
+        uploading({ complete, total }) {
+          that.setState({
+            progress: Math.ceil(complete / total) * 100
+          })
         }
       }
     })

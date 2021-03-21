@@ -1,0 +1,13 @@
+{
+  "yarn": true,
+  "contents": "lib",
+  "branch": "master",
+  "cleanup": true,
+  "tests": true,
+  "publish": true,
+  "preview": false,
+  "tag": "latest",
+  "releaseDraft": true,
+  "testScript": "test",
+  "2fa": true
+}

@@ -6,3 +6,5 @@ node_modules/
 .DS_Store
 src/test/server/upload
 lib/
+/.awcache
+yarn-error.log

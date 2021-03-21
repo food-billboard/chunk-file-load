@@ -2,6 +2,7 @@ const path = require('path')
 const { merge } = require('webpack-merge')
 const commonConfig = require('./webpack.common.config')
 const TerserPlugin = require('terser-webpack-plugin')
+const DashboardPlugin = require('webpack-dashboard/plugin')
 const BundleAnalyzerPlugin  = require('webpack-bundle-analyzer').BundleAnalyzerPlugin  
 const webpack = require('webpack')
 
@@ -26,8 +27,11 @@ module.exports = merge(commonConfig, {
     }),
     new webpack.HashedModuleIdsPlugin(),
     new BundleAnalyzerPlugin(),
+    new DashboardPlugin(),
   ],
   optimization: {
+    concatenateModules: true,
+
     sideEffects: false,
     minimize: true,
     minimizer: [ new TerserPlugin({

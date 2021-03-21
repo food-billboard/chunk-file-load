@@ -27,21 +27,7 @@ const base64Md5 = getBase64Md5()
 
 let upload = new Upload()
 
-// jest.mock('../src/utils/worker/__mocks__/file.worker.js')
-
 describe('upload chunk test', () => {
-
-  let _Worker = window.Worker
-
-  beforeAll((done) => {
-    window.Worker = undefined
-    done()
-  })
-  
-  afterAll((done) => {
-    window.Worker = _Worker
-    done()
-  })
 
   describe('upload api', () => {
 
