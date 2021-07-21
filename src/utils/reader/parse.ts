@@ -84,7 +84,7 @@ export default class extends Proxy {
 
     let currentChunk:number = 0,
       totalChunks: number = Math.ceil(size / chunkSize)
-    const blobSlicer = new BlobSlicer(this.context, file as Blob)
+    const blobSlicer = new BlobSlicer(this.context, task, file as Blob)
 
     return new Promise(async (resolve, reject) => {
 
@@ -137,7 +137,7 @@ export default class extends Proxy {
     let currentChunk:number = 0,
       totalChunks: number = Math.ceil(size / chunkSize),
       sparkMethod = this.sparkMethod()
-    const arraybufferSlicer = new ArrayBufferSlicer(this.context, file as ArrayBuffer)
+    const arraybufferSlicer = new ArrayBufferSlicer(this.context, task, file as ArrayBuffer)
 
     return new Promise(async (resolve, reject) => {
 
@@ -195,7 +195,7 @@ export default class extends Proxy {
     let completeChunks:number = 0
     let totalChunks = chunks!.length
     let currentChunk:number = 0
-    const filesSlicer = new FilesSlicer(this.context)
+    const filesSlicer = new FilesSlicer(this.context, task)
     const total = typeof size === 'number' && size > 0 ? size : chunkSize * chunks.length
     let realTotal = 0
 

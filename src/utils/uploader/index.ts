@@ -34,7 +34,7 @@ export default class Uploader extends Reader {
 
   }
 
-  private getUnCompleteIndexs(task: TWrapperTask, response: TExitDataFnReturnValue): number[] {
+  private getUnCompleteIndexes(task: TWrapperTask, response: TExitDataFnReturnValue): number[] {
     const { data } = response || { data: 0 }
     const { file: { size }, config: { chunkSize }, symbol } = task
     const chunksLength = Math.ceil(size / chunkSize)
@@ -109,7 +109,7 @@ export default class Uploader extends Reader {
      * } | nextIndex 下一分片索引
      */
     const [, task] = this.getState(process?.task!)
-    const unComplete = this.getUnCompleteIndexs(task!, res)
+    const unComplete = this.getUnCompleteIndexes(task!, res)
     const isExists = !unComplete.length
     const { symbol } = task!
 
@@ -158,7 +158,7 @@ export default class Uploader extends Reader {
         return worker.getChunk(index)
       }
     }else {
-      const slicer = new FilesSlicer(this.context)
+      const slicer = new FilesSlicer(this.context, task!)
       if(_cp_) {
         getChunkMethod = async (index) => {
           const buffer = await slicer.slice(chunks[index])
@@ -209,7 +209,7 @@ export default class Uploader extends Reader {
         })
 
         if(!!response) {
-          newUnUploadChunks = this.getUnCompleteIndexs(task!, response)
+          newUnUploadChunks = this.getUnCompleteIndexes(task!, response)
         }
         this.setState(symbol, {
           file: {

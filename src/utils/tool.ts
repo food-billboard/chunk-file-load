@@ -165,3 +165,20 @@ export const arrayBufferToBase64 = (arraybuffer: ArrayBuffer): string => {
   return btoa(binary)
 
 }
+
+export function withTry<T=any> (func: Function) {
+  return async function(...args: any[]): Promise<[any, T | null]> {
+    try {
+      const data = await func(...args)
+      return [null, data]
+    }catch(err) {
+      return [err, null]
+    }
+  }
+}
+
+export function promisify(callback: any, ...args: any[]) {
+  return new Promise((resolve) => {
+    callback(...args, resolve)
+  })
+}

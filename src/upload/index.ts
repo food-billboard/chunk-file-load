@@ -11,19 +11,32 @@ import {
   ECACHE_STATUS,
   base64ToArrayBuffer as internalBase64ToArrayBuffer,
   arrayBufferToBase64 as internalArrayBufferToBase64,
-  isBase64
+  isBase64,
+  withTry,
+  promisify
 } from '../utils'
-import { TLifecycle, Ttask, TFileType, TWrapperTask, TProcessLifeCycle, SuperPartial, TPlugins } from './type'
+import { 
+  TLifecycle, 
+  Ttask, 
+  TFileType, 
+  TWrapperTask, 
+  TProcessLifeCycle, 
+  SuperPartial, 
+  TPlugins,
+  TPluginsReader,
+  TPluginsSlicer
+} from './type'
 
 export default class Upload extends EventEmitter {
 
   protected static plugins: Partial<TPlugins> = {}
 
-  public static install(name: keyof TPlugins, descriptor: TPlugins[keyof TPlugins]) {
+  public static install(name: keyof TPlugins, descriptor: TPluginsReader | TPluginsSlicer) {
     if (!Upload.plugins) {
       Upload.plugins = {}
     }
-    Upload.plugins[name] = descriptor
+    if(!Upload.plugins[name]) Upload.plugins[name] = []
+    Upload.plugins[name]?.push(descriptor as any)
   }
 
   protected lifecycle: LifeCycle = new LifeCycle()
@@ -110,8 +123,24 @@ export default class Upload extends EventEmitter {
       const keys = Object.keys(Upload.plugins) as (keyof TPlugins)[]
       keys.forEach((name) => {
         if(!ignores.includes(name)) {
-          let descriptor = Upload.plugins[name]
-          descriptor!.call(this, this)
+          let descriptors = Upload.plugins[name] || []
+          const event = async (...args: any[]) => {
+            const tempArgs = args.slice(0, -1)
+            const [callback] = args.slice(-1)
+            let stepValue: any = undefined
+            for(let i = 0; i < descriptors.length; i ++) {
+              const descriptor = descriptors[i]
+              const [err, value] = await withTry(promisify)(descriptor, ...tempArgs, stepValue)
+              stepValue = value 
+              if(err) {
+                console.error(err)
+                callback(err)
+                return 
+              }
+            }
+            callback(stepValue)
+          }
+          this.on(name, event, this)
         }
       })
     }

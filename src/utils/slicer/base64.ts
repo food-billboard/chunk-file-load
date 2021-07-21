@@ -1,11 +1,12 @@
 import Upload from '../../upload'
+import { TWrapperTask } from '../../upload/type'
 import Slicer, { TSlice } from './base'
 import ArrayBufferSlicer from './arraybuffer'
 export default class extends Slicer<string> {
 
-  constructor(context: Upload) {
-    super(context)
-    this.slicer = new ArrayBufferSlicer(context)
+  constructor(context: Upload, task: TWrapperTask) {
+    super(context, task)
+    this.slicer = new ArrayBufferSlicer(context, task)
   }
 
   private slicer:ArrayBufferSlicer

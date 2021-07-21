@@ -2,6 +2,7 @@ import merge from 'lodash/merge'
 import mergeWith from 'lodash/mergeWith'
 import { STATUS_MAP } from './status.map'
 import Upload from '../../upload/index'
+import FileTool from '../file'
 import { flat, isObject, base64Size } from '../tool'
 import { DEFAULT_CONFIG, ECACHE_STATUS, EActionType } from '../constant'
 import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial, TLifecycle, TRequestType } from '../../upload/type'
@@ -145,6 +146,7 @@ export default class Emitter {
 
       if(this.taskValid(newTask)) {
         newTask = this.generateTask(newTask)
+        newTask = FileTool(newTask)
         acc.push(newTask)
         names.push(newTask.symbol)
       }

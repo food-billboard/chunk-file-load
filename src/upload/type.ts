@@ -1,5 +1,6 @@
 import { ECACHE_STATUS, EActionType } from '../utils/constant'
 import Upload from './index'
+import { FileTool } from '../utils/file'
 
   export type TFailEmitReturnType = {
     reason: any
@@ -65,7 +66,6 @@ import Upload from './index'
   export type TConfig = {
     retry?: {
       times: number
-      // retring?: boolean
     }
     chunkSize?: number
   }
@@ -118,6 +118,9 @@ import Upload from './index'
     file: TWraperFile<T>
     symbol: symbol
     status: ECACHE_STATUS
+    tool: {
+      file: FileTool
+    }
   }
 
   export type TRequestType = {
@@ -155,7 +158,9 @@ import Upload from './index'
   export type TSetState = (name: Symbol, value: SuperPartial<TWrapperTask>) => TWrapperTask
   export type TGetState = (name: Symbol) => [ number, TWrapperTask | null ]
 
+  export type TPluginsReader = (this: Upload, task: TWrapperTask, stepValue?: any) => Promise<string | any>
+  export type TPluginsSlicer = (this: Upload, task: TWrapperTask, start: number, end: number, file: TFileType, stepValue?: any) => Promise<ArrayBuffer | any>
   export type TPlugins = {
-    reader: (context: Upload) => void
-    slicer: (context: Upload) => void
+    reader: TPluginsReader[]
+    slicer: TPluginsSlicer[]
   }

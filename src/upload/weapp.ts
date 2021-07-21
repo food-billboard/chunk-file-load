@@ -5,18 +5,18 @@ import { TLifecycle, TPlugins, Ttask, TFileType, TUploadFormData } from './type'
 class WeUpload extends Upload {
 
 	protected static plugins: Partial<TPlugins> = {
-		slicer: (context: Upload) => {
-			context.on('slicer', (_, __, file, complete) => {
+		slicer: [
+			async function(_, __, ___, file) {
 				//在这里处理分片
 				if(typeof file === 'string') {
-					complete(WeUpload.atob(file))
+					return WeUpload.atob(file)
 				}else if(file instanceof ArrayBuffer) {
-					complete(file)
+					return file 
 				}else {
 					throw new Error('can not slice this type file')
 				}
-			})
-		}
+			}
+		]
 	}
 
 	public static setOptions({
@@ -37,24 +37,24 @@ class WeUpload extends Upload {
 		super(options)
 	}
 
-  //添加任务
-  public add(...tasks: Ttask<TFileType>[]): Symbol[] {
-    return this.emitter.add(...tasks.map(task => {
-			const { request } = task
-			const { uploadFn } = request
-			//wrap uploadFn
-			return merge(task, {
-				request: merge(request, {
-					uploadFn: function(formData: TUploadFormData) {
-						const newFile = WeUpload.btoa(formData.file as ArrayBuffer)
-						return uploadFn(merge(formData, {
-							file: newFile
-						}))
-					}
-				})
-			})
-		}))
-  }
+  // //添加任务
+  // public add(...tasks: Ttask<TFileType>[]): Symbol[] {
+  //   return this.emitter.add(...tasks.map(task => {
+	// 		const { request } = task
+	// 		const { uploadFn } = request
+	// 		//wrap uploadFn
+	// 		return merge(task, {
+	// 			request: merge(request, {
+	// 				uploadFn: function(formData: TUploadFormData) {
+	// 					const newFile = WeUpload.btoa(formData.file as ArrayBuffer)
+	// 					return uploadFn(merge(formData, {
+	// 						file: newFile
+	// 					}))
+	// 				}
+	// 			})
+	// 		})
+	// 	}))
+  // }
 
 }
 
