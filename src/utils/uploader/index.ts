@@ -80,14 +80,18 @@ export default class Uploader extends Reader {
 
   //文件存在验证
   private async exitDataFn(task: TWrapperTask) {
-    const { symbol, config: { chunkSize }, file: { size, mime, name, md5 }, request: { exitDataFn } } = task
+    const { symbol, config: { chunkSize }, file: { size, mime, name, md5 }, request: { exitDataFn }, tool } = task
+    const INIT_RESPONSE = {
+      data: 0 
+    }
+    if(!tool!.file.isExitFnEmit()) return INIT_RESPONSE
 
     await this.dealLifecycle('beforeCheck', {
       name: symbol,
       status: ECACHE_STATUS.uploading
     })
 
-    if(typeof exitDataFn !== 'function') return { data: 0 }
+    if(typeof exitDataFn !== 'function') return INIT_RESPONSE
 
     const params = {
       filename: name ?? '',

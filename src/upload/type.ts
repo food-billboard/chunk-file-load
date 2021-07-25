@@ -68,6 +68,7 @@ import { FileTool } from '../utils/file'
       times: number
     }
     chunkSize?: number
+    parseIgnore?: boolean 
   }
 
   export type TExitDataFnReturnValue = {

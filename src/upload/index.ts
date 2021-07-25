@@ -13,7 +13,7 @@ import {
   arrayBufferToBase64 as internalArrayBufferToBase64,
   isBase64,
   withTry,
-  promisify
+  DEFAULT_CONFIG
 } from '../utils'
 import { 
   TLifecycle, 
@@ -24,7 +24,8 @@ import {
   SuperPartial, 
   TPlugins,
   TPluginsReader,
-  TPluginsSlicer
+  TPluginsSlicer,
+  TConfig
 } from './type'
 
 export default class Upload extends EventEmitter {
@@ -104,8 +105,22 @@ export default class Upload extends EventEmitter {
     return new File([buffer], fileName, options)
   }
 
+  protected _defaultConfig = merge({}, DEFAULT_CONFIG)
+
+  public get defaultConfig() {
+    return this._defaultConfig
+  }
+
+  public set defaultConfig(value: Partial<TConfig & { internal?: true }>) {
+    const { internal, ...nextValue } = value 
+    if(internal) {
+      this._defaultConfig = merge({}, this._defaultConfig, nextValue)
+    }
+  }
+
   constructor(options?: {
     lifecycle?: TLifecycle,
+    config?: TConfig
     ignores?: string[]
   }) {
     super()
@@ -113,9 +128,12 @@ export default class Upload extends EventEmitter {
     this.reader = new Reader(this)
     this.uploader = new Uploader(this)
     this.lifecycle.onWithObject(options?.lifecycle || {})
+    this.defaultConfig = merge({}, this.defaultConfig, options?.config || {}, { internal: true })
     this.workerPool = new WorkerPool()
     this.pluginsCall(options?.ignores)
   }
+
+
 
   //插件注册
   private pluginsCall(ignores: string[]=[]) {
@@ -124,23 +142,26 @@ export default class Upload extends EventEmitter {
       keys.forEach((name) => {
         if(!ignores.includes(name)) {
           let descriptors = Upload.plugins[name] || []
+
           const event = async (...args: any[]) => {
             const tempArgs = args.slice(0, -1)
             const [callback] = args.slice(-1)
             let stepValue: any = undefined
             for(let i = 0; i < descriptors.length; i ++) {
               const descriptor = descriptors[i]
-              const [err, value] = await withTry(promisify)(descriptor, ...tempArgs, stepValue)
+              const [err, value] = await withTry(descriptor)(...tempArgs, stepValue)
               stepValue = value 
               if(err) {
                 console.error(err)
-                callback(err)
+                callback(err, null)
                 return 
               }
             }
-            callback(stepValue)
+            callback(null, stepValue)
           }
+
           this.on(name, event, this)
+          this.once(name, this.off.bind(this, name, event), this)
         }
       })
     }
@@ -177,11 +198,7 @@ export default class Upload extends EventEmitter {
 
   //是否支持
   public static isSupport():boolean {
-    try {
-      return !!ArrayBuffer
-    }catch(err) {
-      return false
-    }
+    return typeof ArrayBuffer !== 'undefined'
   }
 
   //添加任务

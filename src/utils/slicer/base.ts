@@ -8,9 +8,9 @@ export default class Slicer<T extends TFileType> extends Proxy {
 
   constructor(context: Upload, task: TWrapperTask, file?: T) {
     super(context)
+    this.task = task
     if(file) {
       this.file = file
-      this.task = task
     }
   }
 
@@ -24,8 +24,12 @@ export default class Slicer<T extends TFileType> extends Proxy {
   protected async pluginEmit(origin: any, ...args: any[]) {
     if(this.hasSliceEmit()) {
       return new Promise<ArrayBuffer>((resolve, reject) => {
-        this.emit('slicer', this.task, ...args, (chunk: ArrayBuffer) => {
-          resolve(chunk)
+        this.emit('slicer', this.task, ...args, (err: any, chunk: ArrayBuffer) => {
+          if(err) {
+            reject(err)
+          }else {
+            resolve(chunk)
+          }
         })
         setTimeout(() => {
           reject('timeout')

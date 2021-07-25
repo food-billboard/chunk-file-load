@@ -2200,7 +2200,6 @@ describe('upload chunk test', () => {
       const readingProgress = (target) => {
         const { complete, total, progress } = target
         if(total == 0) return 0
-        // console.log(complete, total)
         return parseFloat((complete / total).toFixed(4))
       }
 
@@ -3698,50 +3697,16 @@ describe('upload chunk test', () => {
 
   describe('install api', () => {
 
-    let ignoreReader = false
-    let ignoreSlicer = false
     let readerCount = 0
     let slicerCount = 0
     let slicerIndex = 0
     let readerIgnoreCount = 0
     let slicerIgnoreCount = 0
-    let _Upload = Upload
+    let _Upload
 
-    const reader = (context) => {
-      if(!ignoreReader) {
-        readerCount ++
-        context.on('reader', (task, resolve) => {
-          resolve(md5)
-        })
-      }else {
-        readerIgnoreCount ++
-      }
-    }
-
-    const slicer = (context) => {
-      context.on('slicer', (start, end, file, complete) => {
-        if(!ignoreSlicer) {
-          expect(start).toEqual(slicerIndex * config.chunkSize)
-          let _end = (slicerIndex + 1) * config.chunkSize
-          _end = _end >= FILE_SIZE ? FILE_SIZE : _end
-          expect(end).toEqual(_end)
-          expect(file instanceof ArrayBuffer || file instanceof Blob || typeof file === 'string').toBeTruthy
-          expect(typeof complete).toBe('function')
-          slicerCount ++
-          slicerIndex ++
-          if(slicerIndex == totalChunks) {
-            slicerIndex = 0
-          }
-          complete(arrayBufferFile.slice(start, end))
-        }else {
-          slicerIgnoreCount ++
-        }
-      })
-    }
-
-    beforeAll(() => {
-      _Upload.install('slicer', slicer)
-      _Upload.install('reader', reader)
+    beforeEach(() => {
+      _Upload = undefined 
+      _Upload = Upload
     })
 
     afterAll(() => {
@@ -3749,6 +3714,28 @@ describe('upload chunk test', () => {
     })
 
     test('install success', (done) => {
+
+      async function reader(task, stepValue) {
+        readerCount ++ 
+        return md5 
+      }
+  
+      async function slicer(task, start, end, file, stepValue) {
+        expect(start).toEqual(slicerIndex * config.chunkSize)
+        let _end = (slicerIndex + 1) * config.chunkSize
+        _end = _end >= FILE_SIZE ? FILE_SIZE : _end
+        expect(end).toEqual(_end)
+        expect(file instanceof ArrayBuffer || file instanceof Blob || typeof file === 'string').toBeTruthy
+        slicerCount ++
+        slicerIndex ++
+        if(slicerIndex == totalChunks) {
+          slicerIndex = 0
+        }
+        return arrayBufferFile.slice(start, end)
+      }
+
+      _Upload.install('slicer', slicer)
+      _Upload.install('reader', reader)
 
       const upload = new _Upload()
       const [ tasks ] = upload.add({
@@ -3780,8 +3767,18 @@ describe('upload chunk test', () => {
     })
 
     test('install success and ignore the plugin', (done) => {
-      ignoreSlicer = true
-      ignoreReader = true
+
+      async function reader(task, stepValue) {
+        readerIgnoreCount ++
+      }
+
+      async function slicer(start, end, file, stepValue) {
+        slicerIgnoreCount ++
+      }
+
+      _Upload.install('slicer', slicer)
+      _Upload.install('reader', reader)
+
       const upload = new _Upload({
         ignores: ['reader', 'slicer']
       })
@@ -3981,6 +3978,80 @@ describe('upload chunk test', () => {
         }
       })
 
+    })
+
+  })
+
+  describe('ignore analysis file test', () => {
+
+    test('ignore analysis file success test', (done) => {
+      let beforeRead = 0
+      let reading = 0
+      let uploading = 0
+      let beforeCheck = 0
+      let afterCheck = 0
+      let beforeComplete = 0
+      let afterComplete = 0
+
+      const upload = new Upload({
+        lifecycle: {
+          beforeRead: () => {
+            beforeRead ++
+          },
+          reading: () => {
+            reading ++
+          },
+          beforeCheck() {
+            beforeCheck ++
+          },
+          afterCheck() {
+            afterCheck ++
+          },
+          uploading() {
+            uploading ++
+          },
+          beforeComplete() {
+            beforeComplete ++
+          },
+          afterComplete: () => {
+            afterComplete ++
+          }
+        },
+        config: {
+          parseIgnore: true 
+        }
+      })
+
+      const [tasks] = upload.add({
+        config,
+        file: {
+          file
+        },
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback(error) {
+            try{
+              expect(!!error).toBeFalsy
+              expect(beforeRead).toBe(0)
+              expect(reading).toBe(0)
+              expect(uploading).toBe(totalChunks)
+              expect(beforeCheck).toBe(0)
+              expect(afterCheck).toBe(1)
+              expect(beforeComplete).toBe(1)
+              expect(afterComplete).toBe(1)
+              done()
+            }catch(err) {
+              done(err)
+            }
+          }
+        }
+      })
+
+      const result = upload.deal(tasks)
+      expect(result).toBeInstanceOf(Array)
+      expect(result.length).toBe(1)
     })
 
   })

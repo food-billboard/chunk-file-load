@@ -12,7 +12,7 @@ export class Tasker {
 
   public static support() {
     try {
-      return !!(typeof window.Worker != 'undefined')
+      return !!(typeof Worker != 'undefined')
     }catch(err) {
       return false
     }
@@ -49,7 +49,9 @@ export class Tasker {
   }
 
   public close() {
-    if(Tasker.support()) return self.close()
+    if(Tasker.support()) {
+      return self.close()
+    }
   }
 
   public cacheExists(length?: number) {

@@ -4,7 +4,6 @@ import noop from 'lodash/noop'
 import merge from 'lodash/merge'
 import Upload from '../../upload'
 import Proxy from '../proxy'
-import { isMd5 } from '../tool'
 import WorkerPool, { TProcess } from '../worker/worker.pool'
 import { TWrapperTask } from '../../upload/type'
 import { ECACHE_STATUS } from '../constant'
@@ -190,7 +189,7 @@ export default class extends Proxy {
 
     const that = this
 
-    const { file: { chunks, md5, size }, symbol, config: { chunkSize } } = task
+    const { file: { chunks, md5, size }, symbol, config: { chunkSize }, tool } = task
 
     let completeChunks:number = 0
     let totalChunks = chunks!.length
@@ -205,7 +204,7 @@ export default class extends Proxy {
 
     return new Promise(async (resolve, reject) => {
 
-      if(isMd5(md5!)) {
+      if(tool.file.isMd5(md5!)) {
         sparkMethod = noop as any
       }
 

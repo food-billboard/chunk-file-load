@@ -125,8 +125,7 @@ export default class LifeCycle {
   }
 
   public on(eventName: keyof TLifecycle, eventFunc: TLifecycle, name: Symbol | null, action: TActionType='on') {
-    if(typeof eventName !== 'string' || typeof eventFunc !== 'function') return 
-    if(!this.lifecycleMap[eventName]) return 
+    if(typeof eventName !== 'string' || typeof eventFunc !== 'function' || !this.lifecycleMap[eventName]) return 
     const index = this.lifecycleMap[eventName].findIndex((item: any) => item.key == name)
 
     if(action === 'off' || action === 'removeListener') {

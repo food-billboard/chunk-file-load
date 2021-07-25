@@ -3,8 +3,8 @@ import mergeWith from 'lodash/mergeWith'
 import { STATUS_MAP } from './status.map'
 import Upload from '../../upload/index'
 import FileTool from '../file'
-import { flat, isObject, base64Size } from '../tool'
-import { DEFAULT_CONFIG, ECACHE_STATUS, EActionType } from '../constant'
+import { flat, base64Size } from '../tool'
+import { ECACHE_STATUS, EActionType } from '../constant'
 import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial, TLifecycle, TRequestType } from '../../upload/type'
 
 export default class Emitter {
@@ -32,7 +32,12 @@ export default class Emitter {
     const { file, mime } = unWrapperFile
 
     let fileType = Object.prototype.toString.call(file);
-    [ fileType ] = fileType.match(/(?<=\[object ).+(?=\])/) || []
+    try {
+      [ fileType ] = fileType.match(/(?<=\[object ).+(?=\])/) || []
+    }catch(err) {
+      fileType = fileType.replace("[object ", "").replace("]", "")
+    }
+    fileType = fileType.toLowerCase().trim()
 
     let baseFileInfo: Partial<TWraperFile> = merge({
       size: 0,
@@ -41,7 +46,7 @@ export default class Emitter {
       action: EActionType.MD5,
     }, unWrapperFile)
 
-    switch(fileType.toLowerCase().trim()) {
+    switch(fileType) {
       case 'file':
         baseFileInfo = merge(baseFileInfo, {
           size: (file as File)?.size ?? 0,
@@ -99,22 +104,9 @@ export default class Emitter {
     }, {} as { [K in keyof TRequestType]: TRequestType[K] })
   }
 
-  private taskValid(task: Ttask) {
-    if(isObject(task)) {
-      //参数验证
-      if(!task?.file?.file && !task?.file?.chunks) {
-        console.warn('the params is not verify')
-        return false
-      }
-      return true
-    }
-    return false
-  }
-
-  private generateTask(task: Ttask): TWrapperTask{
-    const symbol: unique symbol = Symbol()
+  private generateTask(task: Ttask, name: symbol): TWrapperTask{
     const { config={}, file, lifecycle, request, ...nextTask } = task
-    const realConfig = merge({}, DEFAULT_CONFIG, config)
+    const realConfig = merge({}, this.context.defaultConfig, config)
 
     return merge(nextTask, {
       request: this.requestBinding(request),
@@ -126,7 +118,7 @@ export default class Emitter {
       lifecycle: this.lifecycleBinding(lifecycle || {}),
       file: this.FILE_TYPE(file),
       config: realConfig,
-      symbol,
+      symbol: name,
       status: ECACHE_STATUS.pending
     }) as TWrapperTask
   }
@@ -139,14 +131,17 @@ export default class Emitter {
     const result: Ttask[] = flat(tasks)
     .reduce((acc: TWrapperTask[], task: Ttask) => {
       const { file } = task
-      let newTask = task as TWrapperTask
-      if(Array.isArray(file?.chunks) && !!file?.chunks.length) {
-        newTask = merge(newTask, { file: merge(file, { _cp_: true }) })
-      }
-
-      if(this.taskValid(newTask)) {
-        newTask = this.generateTask(newTask)
-        newTask = FileTool(newTask)
+      const symbol: unique symbol = Symbol()
+      let newTask = FileTool(() => {
+        const [ , task ] = this.getTask(symbol)
+        return task!
+      })
+      newTask = merge({}, newTask, task)
+      if(newTask.tool.file.isTaskValid(file)) {
+        if(newTask.tool.file.isChunkComplete(file)) {
+          newTask = merge(newTask, { file: merge(file, { _cp_: true }) })
+        }
+        newTask = this.generateTask(newTask, symbol)
         acc.push(newTask)
         names.push(newTask.symbol)
       }
@@ -163,7 +158,7 @@ export default class Emitter {
     let tasks: TWrapperTask[] = []
     names.forEach(name => {
       const [ index, task ] = this.getTask(name)
-      if(task?.status === ECACHE_STATUS.pending && task?.symbol === name) {
+      if(task?.tool.file.isTaskDeal() && task?.symbol === name) {
         this.statusChange(ECACHE_STATUS.waiting, index)
         tasks.push(task)
       }
@@ -185,7 +180,7 @@ export default class Emitter {
   private dealDoingTaskStatus(status: ECACHE_STATUS.cancel | ECACHE_STATUS.stopping, ...names: Symbol[]) {
     return names.reduce((acc: Symbol[], cur: Symbol) => {
       const [index, task] = this.getTask(cur)
-      if(!!task && task.status > ECACHE_STATUS.pending) {
+      if(!!task && task.tool.file.isTaskStopOrCancel()) {
         acc.push(cur)
         this.statusChange(status, index)
       }
@@ -203,7 +198,7 @@ export default class Emitter {
 
   public cancelAdd(...names: Symbol[]): Symbol[] {
     const tasks = this.tasks 
-    const dealTasks = tasks.filter(task => task.status === ECACHE_STATUS.pending && names.includes(task.symbol))
+    const dealTasks = tasks.filter(task => task.tool.file.isTaskCancelAdd() && names.includes(task.symbol))
     if(!dealTasks.length) return []
     return this.off(...dealTasks.map(task => task.symbol))
   }

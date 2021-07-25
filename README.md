@@ -30,7 +30,13 @@ function UploadFile() {
 
     const onChange = (e) => {
         const [ file ] = e.target.files
-        const upload = new Upload()
+        const upload = new Upload({
+            lifecycle: {
+                
+            },
+            config: {},
+            ignores: []
+        })
         upload.upload({
             file,
             request: {
@@ -48,10 +54,6 @@ function UploadFile() {
 }
 ```
 
-### 关于差异  
-[Upload](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/upload.md)  
-[WeUpload](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/weupload.md)
-
 ### 使用 upload.upload(...args) 上传文件
 
 * 传入相关参数
@@ -67,6 +69,7 @@ let config: {
             times: number
         }
         chunkSize?: number
+        parseIgnore?: boolean 
     }
     file: {
         mime?: string
@@ -116,6 +119,7 @@ let config: {
             times
         },
         chunkSize //分片大小 默认500k
+        parseIgnore //跳过文件解析
     },
 }
 let names = upload.upload(config)
@@ -391,10 +395,17 @@ upload.watch(...names) //不传则返回所有进度
 
 * 当前环境是否支持  
 
-## ps 
+## static API  
 
-小程序方面的限制虽然得到了解决，但是因为`base64`的转换使得原本的分片体积增大，这可能会导致转换时出现相关的性能问题，所以尽量不要设置太大的文件分片。  
-并且对于`base64`的文件，因为转换性能较差所以没有办法传递较大文件。  
+### install 
+
+* 插件注册(具体查看下方`Changelog 1.0.7`)  
+
+## Changelog
+
+[1.0.7](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.7/changelog.md)  
+[1.0.6](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/index.md)  
+[1.0.5](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.5.md)
 
 ## 总结
 
