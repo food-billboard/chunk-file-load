@@ -38,7 +38,9 @@ function UploadFile() {
             ignores: []
         })
         upload.upload({
-            file,
+            file: {
+                file
+            },
             request: {
                 uploadFn: (data) => {
                     //request(data)

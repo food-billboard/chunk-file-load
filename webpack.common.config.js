@@ -25,9 +25,9 @@ module.exports = {
           {
             loader: 'ts-loader',
             options: {
-              transpileOnly: true,
-              onlyCompileBundledFiles: true,
-              happyPackMode: true
+              // transpileOnly: true,
+              // onlyCompileBundledFiles: true,
+              // happyPackMode: true
             }
           },
         ]
