@@ -2,7 +2,6 @@ const path = require('path')
 const webpack = require('webpack')
 const ExtractTextPlugin = require("extract-text-webpack-plugin")
 var HtmlWebpackPlugin = require('html-webpack-plugin')
-const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const commonConfig = require('./webpack.common.config')
 const { merge } = require('webpack-merge')
 const os = require('os')
@@ -46,7 +45,6 @@ module.exports = merge(commonConfig, {
     },
     plugins: [
         new ExtractTextPlugin("styles.css"),
-        new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
             template: path.resolve(__dirname, './src/test/client/index.html')
         }),

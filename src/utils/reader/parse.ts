@@ -1,5 +1,5 @@
 import { ArrayBuffer as SparkMD5ArrayBuffer } from 'spark-md5'
-import { transfer } from 'comlink'
+// import { transfer } from 'comlink'
 import noop from 'lodash/noop'
 import merge from 'lodash/merge'
 import Upload from '../../upload'
@@ -27,7 +27,8 @@ export default class extends Proxy {
   }
 
   protected async read(buffer: ArrayBuffer) {
-    return this.worker!.worker.read(transfer(buffer, [buffer]))
+    // return this.worker!.worker.read(transfer(buffer, [buffer]))
+    return this.worker!.worker.read(buffer)
   }
 
   protected async readEnd() {

@@ -50,7 +50,9 @@ export class Tasker {
 
   public close() {
     if(Tasker.support()) {
-      return self.close()
+      //not support now 
+      //TODO
+      //return self.close()
     }
   }
 

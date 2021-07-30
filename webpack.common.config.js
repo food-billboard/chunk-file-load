@@ -1,6 +1,7 @@
 const path = require('path')
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
-const WorkerPlugin = require('worker-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+// const WorkerPlugin = require('worker-plugin')
 
 module.exports = {
   module: {
@@ -36,7 +37,8 @@ module.exports = {
   },
   plugins: [
     new ForkTsCheckerWebpackPlugin(),
-    new WorkerPlugin()
+    new CleanWebpackPlugin(),
+    // new WorkerPlugin()
   ],
   resolve: {
     alias: {

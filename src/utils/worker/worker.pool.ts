@@ -1,6 +1,6 @@
 import merge from 'lodash/merge'
 import noop from 'lodash/noop'
-import { Remote, wrap, releaseProxy } from 'comlink'
+// import { Remote, wrap, releaseProxy } from 'comlink'
 import Queue from '../queue'
 import { Tasker } from './tasker'
 import { TWrapperTask } from '../../upload/type'
@@ -60,21 +60,31 @@ class WorkerPool {
       id,
       busy: false,
     }
-    
-    if(Tasker.support()) {
-      const originWorker = new Worker('./file.worker.ts', { type: 'module' })
-      const worker: Remote<any> = wrap<Tasker>((originWorker as any))
-      const instance = await new (worker as any)()
-      baseThread = merge(baseThread, {
-        worker: instance,
-        release: () => worker[releaseProxy]()
-      })
-    }else {
+
+    const hack = () => {
       baseThread = merge(baseThread, {
         worker: new Tasker(),
         release: noop
       })
     }
+
+    hack()
+
+    // try {
+    //   if(Tasker.support()) {
+    //     const originWorker = new Worker('./file.worker.ts', { type: 'module' })
+    //     const worker: Remote<any> = wrap<Tasker>((originWorker as any))
+    //     const instance = await new (worker as any)()
+    //     baseThread = merge(baseThread, {
+    //       worker: instance,
+    //       release: () => worker[releaseProxy]()
+    //     })
+    //   }else {
+    //     hack()
+    //   }
+    // }catch(err) {
+    //   hack()
+    // }
 
     return baseThread
   }

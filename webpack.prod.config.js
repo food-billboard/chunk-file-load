@@ -31,7 +31,6 @@ module.exports = merge(commonConfig, {
   ],
   optimization: {
     concatenateModules: true,
-
     sideEffects: false,
     minimize: true,
     minimizer: [ new TerserPlugin({
