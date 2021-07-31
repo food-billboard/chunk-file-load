@@ -41,7 +41,7 @@ export default class Uploader extends Reader {
     let unComplete = []
 
     const parseNumber = (target: string | number):number => {
-      return typeof target === 'string' ? parseInt(target) : Number(target.toFixed(0))
+      return typeof target === 'string' ? parseInt(target) : Number(target?.toFixed(0))
     }
 
     if(Array.isArray(data)) {
@@ -101,7 +101,7 @@ export default class Uploader extends Reader {
       chunkSize,
       chunksLength: Math.ceil(size / chunkSize)
     }
-    return exitDataFn(params)
+    return exitDataFn(params, symbol)
   }
 
   //文件上传
@@ -202,7 +202,7 @@ export default class Uploader extends Reader {
           formData = params
         }
 
-        const response = await uploadFn(formData)
+        const response = await uploadFn(formData, symbol)
 
         await this.dealLifecycle('uploading', {
           name: symbol,

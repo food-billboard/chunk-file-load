@@ -33,7 +33,7 @@ import { FileTool } from '../utils/file'
     [key: string]: any
   }
   
-  export type TUploadFn = (data: FormData | TUploadFormData) => ReturnType<TExitDataFn> | void
+  export type TUploadFn = (data: FormData | TUploadFormData, name: Symbol) => ReturnType<TExitDataFn> | void
   
   type TLifeCycleParams = {
     name: Symbol
@@ -90,7 +90,7 @@ import { FileTool } from '../utils/file'
     size: number
     chunkSize: number
     chunksLength: number
-  }) => Promise<TExitDataFnReturnValue>
+  }, name: Symbol) => Promise<TExitDataFnReturnValue>
 
   export type TFile<T=TFileType> = {
     md5?: string

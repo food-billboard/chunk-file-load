@@ -88,7 +88,7 @@ let config: {
             size: number
             chunkSize: number
             chunksLength: number
-        }) => Promise<{
+        }, name: Symbol) => Promise<{
             data: Array<number> | string | number
             [key: string]: any
         }>
@@ -96,7 +96,7 @@ let config: {
             file: Blob | string
             md5: string
             index: number 
-        }) => Promise<{
+        }, name: Symbol) => Promise<{
             data: Array<number> | string | number
             [key: string]: any
         } | void>
@@ -136,7 +136,7 @@ exitDatFn({
     size: '文件大小',
     chunkSize: '文件单分片大小',
     chunksLength: '文件总分片数量'
-})
+}, name)
 uploadFn(data/*
 包含文件的formData
 {
