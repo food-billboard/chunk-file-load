@@ -124,7 +124,7 @@ import { FileTool } from '../utils/file'
     }
   }
 
-  export type TRequestType = {
+  export interface TRequestType {
     exitDataFn?: TExitDataFn
     uploadFn: TUploadFn
     completeFn?: (params : { name: Symbol, md5: string }) => any
@@ -135,8 +135,8 @@ import { FileTool } from '../utils/file'
   }
   
   export interface Ttask<T=TFileType> {
-    config: TConfig
-    lifecycle: TLifecycle
+    config?: TConfig
+    lifecycle?: TLifecycle
     file: TFile<T>
     request: TRequestType
   }

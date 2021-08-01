@@ -297,7 +297,7 @@ export default class Upload extends EventEmitter {
   
         const taskName = target!.task
         const [ , task ] = this.emitter.getTask(taskName!)
-        const { request: { callback: _callback }, symbol, config: { retry }, lifecycle } = task!
+        const { request: { callback: _callback }, symbol, config: { retry }, lifecycle={} } = task!
         const callback = typeof _callback === 'function' ? _callback : noop
         return this.reader.addFile(process)
         .then(_ => this.uploader.addFile(process))

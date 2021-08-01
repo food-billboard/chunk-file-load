@@ -66,7 +66,7 @@ function UploadFile() {
 ``` typescript
 const upload = new Upload()
 let config: {
-    config: {
+    config?: {
         retry?: {
             times: number
         }
