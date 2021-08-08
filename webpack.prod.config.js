@@ -36,7 +36,8 @@ module.exports = merge(commonConfig, {
     minimizer: [ new TerserPlugin({
       terserOptions: {
         compress: {
-          warnings: false
+          warnings: false,
+          pure_funcs: ['console.log']
         }
       }
     }) ],

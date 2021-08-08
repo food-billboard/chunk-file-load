@@ -310,7 +310,7 @@ export default class Upload extends EventEmitter {
           }
         })
         .catch(async (err) => {
-          console.warn(err)
+          console.error(err)
           let response = {
             error: err,
             name: symbol,

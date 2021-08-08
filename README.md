@@ -120,7 +120,7 @@ let config: {
         retry: { //是否错误重试 默认不重试
             times
         },
-        chunkSize //分片大小 默认500k
+        chunkSize //分片大小 默认5MB
         parseIgnore //跳过文件解析
     },
 }

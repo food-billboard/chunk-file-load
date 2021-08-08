@@ -34,8 +34,8 @@ export default class Uploader extends Reader {
 
   }
 
-  private getUnCompleteIndexes(task: TWrapperTask, response: TExitDataFnReturnValue): number[] {
-    const { data } = response || { data: 0 }
+  private getUnCompleteIndexes(task: TWrapperTask, response: TExitDataFnReturnValue, mis: boolean): number[] {
+    const { data } = response || { data: undefined }
     const { file: { size }, config: { chunkSize }, symbol } = task
     const chunksLength = Math.ceil(size / chunkSize)
     let unComplete = []
@@ -52,7 +52,14 @@ export default class Uploader extends Reader {
       })
     }else {
       let nextIndex = parseNumber(data)
-      nextIndex = Number.isNaN(nextIndex) || nextIndex > size ? 0 : nextIndex
+      if(Number.isNaN(nextIndex) || nextIndex > size) {
+        if(mis) {
+          throw new Error("upload function response data is not valid")
+        }else {
+          console.warn("exit function response data is not valid")
+        }
+        nextIndex = 0 
+      }
       let offset = nextIndex / chunkSize
       if(nextIndex == size) {
         unComplete = [] as any
@@ -113,7 +120,7 @@ export default class Uploader extends Reader {
      * } | nextIndex 下一分片索引
      */
     const [, task] = this.getState(process?.task!)
-    const unComplete = this.getUnCompleteIndexes(task!, res)
+    const unComplete = this.getUnCompleteIndexes(task!, res, true)
     const isExists = !unComplete.length
     const { symbol } = task!
 
@@ -213,7 +220,7 @@ export default class Uploader extends Reader {
         })
 
         if(!!response) {
-          newUnUploadChunks = this.getUnCompleteIndexes(task!, response)
+          newUnUploadChunks = this.getUnCompleteIndexes(task!, response, false)
         }
         this.setState(symbol, {
           file: {
