@@ -16,6 +16,7 @@
     "upload"
   ],
   "typings": "./lib/src/index.d.ts",
+  "types": "./lib/src/index.d.ts",
   "author": "glf",
   "license": "ISC",
   "repository": {

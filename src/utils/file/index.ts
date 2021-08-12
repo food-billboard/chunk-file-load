@@ -63,6 +63,19 @@ export class FileTool {
     return Array.isArray(file?.chunks) && !!file?.chunks.length
   }
 
+  //文件是否开始上传
+  public isFileUploadStart() {
+    return this.file.status === ECACHE_STATUS.reading 
+    || this.file.status === ECACHE_STATUS.uploading 
+    || this.file.status === ECACHE_STATUS.rejected
+    || this.file.status === ECACHE_STATUS.stopping
+  }
+
+  //是否暂停
+  public isStop() {
+    return this.file.status === ECACHE_STATUS.stopping
+  }
+
 }
 
 export default function(getTask: () => TWrapperTask): TWrapperTask {
