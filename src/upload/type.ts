@@ -42,25 +42,25 @@ import { FileTool } from '../utils/file'
 
   export type TLifecycle<R=boolean | Promise<boolean>> = {
     //序列化前
-    beforeRead?: (params: TLifeCycleParams) => R
+    beforeRead?: (params: TLifeCycleParams, response?: any) => R
     //序列化中
-    reading?: (params: TLifeCycleParams & { current: number, total: number }) => R
+    reading?: (params: TLifeCycleParams & { current: number, total: number }, response?: any) => R
     //MD5序列化后，检查请求前
-    beforeCheck?: (params: TLifeCycleParams) => R
+    beforeCheck?: (params: TLifeCycleParams, response?: any) => R
     //检查请求响应后
-    afterCheck?: (params: TLifeCycleParams & { isExists: boolean }) => R
+    afterCheck?: (params: TLifeCycleParams & { isExists: boolean }, response?: any) => R
     //分片上传后(多次执行)
-    uploading?: (params: TLifeCycleParams & { current: number, total: number, complete: number }) => R
+    uploading?: (params: TLifeCycleParams & { current: number, total: number, complete: number }, response?: any) => R
     //触发暂停响应后
-    afterStop?: (params: TLifeCycleParams & { current: number }) => R
+    afterStop?: (params: TLifeCycleParams & { current: number }, response?: any) => R
     //触发取消响应后
-    afterCancel?: (params: TLifeCycleParams & { current: number }) => R
+    afterCancel?: (params: TLifeCycleParams & { current: number }, response?: any) => R
     //完成请求前
-    beforeComplete?: (params: TLifeCycleParams & { isExists: boolean }) => R
+    beforeComplete?: (params: TLifeCycleParams & { isExists: boolean }, response?: any) => R
     //完成请求后
-    afterComplete?: (params: TLifeCycleParams & { success: boolean }) => R
+    afterComplete?: (params: TLifeCycleParams & { success: boolean }, response?: any) => R
     //触发重试任务执行
-    retry?: (params: TLifeCycleParams & { rest: number }) => R
+    retry?: (params: TLifeCycleParams & { rest: number }, response?: any) => R
   }
   
   export type TConfig = {

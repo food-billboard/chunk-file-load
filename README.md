@@ -270,25 +270,25 @@ upload.deal(name)
         task: TWrapperTask //参照api
     }
     //序列化前
-    beforeRead?: (params: TLifeCycleParams) => responseType
+    beforeRead?: (params: TLifeCycleParams, response?: any) => responseType
     //序列化中
-    reading?: (params: TLifeCycleParams & { current: number, total: number }) => responseType
+    reading?: (params: TLifeCycleParams & { current: number, total: number }, response?: any) => responseType
     //MD5序列化后，检查请求前
-    beforeCheck?: (params: TLifeCycleParams) => responseType
+    beforeCheck?: (params: TLifeCycleParams, response?: any) => responseType
     //检查请求响应后
-    afterCheck?: (params: TLifeCycleParams & { isExists: boolean }) => responseType
+    afterCheck?: (params: TLifeCycleParams & { isExists: boolean }, response?: any) => responseType
     //分片上传后(多次执行)
-    uploading?: (params: TLifeCycleParams & { current: number, total: number, complete: number }) => responseType
+    uploading?: (params: TLifeCycleParams & { current: number, total: number, complete: number }, response?: any) => responseType
     //触发暂停响应后
-    afterStop?: (params: TLifeCycleParams & { current: number }) => responseType
+    afterStop?: (params: TLifeCycleParams & { current: number }, response?: any) => responseType
     //触发取消响应后
-    afterCancel?: (params: TLifeCycleParams & { current: number }) => responseType
+    afterCancel?: (params: TLifeCycleParams & { current: number }, response?: any) => responseType
     //完成请求前
-    beforeComplete?: (params: TLifeCycleParams & { isExists: boolean }) => responseType
+    beforeComplete?: (params: TLifeCycleParams & { isExists: boolean }, response?: any) => responseType
     //完成请求后
-    afterComplete?: (params: TLifeCycleParams & { success: boolean }) => responseType
+    afterComplete?: (params: TLifeCycleParams & { success: boolean }, response?: any) => responseType
     //触发重试任务执行
-    retry?: (params: TLifeCycleParams & { rest: number }) => responseType
+    retry?: (params: TLifeCycleParams & { rest: number }, response?: any) => responseType
 ```
 
 生命周期包括全局和单一任务生命周期  

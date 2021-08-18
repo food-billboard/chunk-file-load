@@ -16,7 +16,7 @@ const PERFORMANCE_COUNTER_MAP: {
 }
 
 const BASE_GLOBAL_LIFECYCLE_CONFIG = {
-  key: null,
+  key: "_internal_lifecycle_" as any,
   counter: -1,
 }
 
@@ -84,19 +84,19 @@ export default class LifeCycle {
 
   protected lifecycleMap!: {
     [P in keyof Required<TLifecycle>]: Array<{
-      key: Symbol | null
+      key: Symbol | null | "_internal_lifecycle_"
       action: TLifecycle<Promise<SuperPartial<TWrapperTask>> | SuperPartial<TWrapperTask>>[P]
       counter: number // -1 不销毁 0 销毁
       skip?: true
     }> }
 
   private wrapper(_/*licycle_name 暂时无用*/: keyof TLifecycle, eventFunc: Function) {
-    return async function(params: any) {
+    return async function(params: any, response: any) {
       let state: SuperPartial<TWrapperTask> & { error: boolean } = {
         error: false
       }
       try {
-        const value = await eventFunc(params)
+        const value = await eventFunc(params, response)
         if(value == false) state = merge(state, { status: ECACHE_STATUS.stopping })
       }catch(err) {
         state.error = true
@@ -159,7 +159,7 @@ export default class LifeCycle {
         targetEventQueue[i].skip = true
       }
       try {
-        res = await targetEventQueue[i].action!(params as any)
+        res = await targetEventQueue[i].action!(params as any, response)
       }catch(err) {
         error = err
         if(typeof error === 'object') {
@@ -167,7 +167,7 @@ export default class LifeCycle {
         }
         break
       }finally {
-        response = merge(response, res instanceof Object ? res : {})
+        response = merge({}, response, res instanceof Object ? res : {})
       }
     }
     targetEventQueue = (targetEventQueue as Array<any>).filter(event => !event.skip)
