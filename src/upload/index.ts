@@ -133,8 +133,6 @@ export default class Upload extends EventEmitter {
     this.pluginsCall(options?.ignores)
   }
 
-
-
   //插件注册
   private pluginsCall(ignores: string[]=[]) {
     if (Upload.plugins) {
@@ -294,7 +292,6 @@ export default class Upload extends EventEmitter {
     .then(async (processes) => {
       return allSettled(processes.map(async (process: string) => {
         const target = WorkerPool.getProcess(process)
-  
         const taskName = target!.task
         const [ , task ] = this.emitter.getTask(taskName!)
         const { request: { callback: _callback }, symbol, config: { retry }, lifecycle={} } = task!

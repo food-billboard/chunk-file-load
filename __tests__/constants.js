@@ -7,7 +7,10 @@ export const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLengt
 }
 
 export const uploadFn = (data) => {
- 
+  const index = data.get("index")
+  return {
+    data: index + 1
+  } 
 }
 
 export const completeFn = ({ name: md5 }) => {}

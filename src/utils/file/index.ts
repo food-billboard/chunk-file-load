@@ -1,4 +1,5 @@
 import merge from 'lodash/merge'
+import get from 'lodash/get'
 import { isMd5, isObject } from '../tool' 
 import { ECACHE_STATUS } from '../constant'
 import { TWrapperTask, TFile } from '../../upload/type'
@@ -17,17 +18,17 @@ export class FileTool {
 
   //是否忽略文件解析
   public isParseIgnore() {
-    return !!this.file.config.parseIgnore || !!isMd5(this.file.file.md5!)
+    return !!this.file?.config.parseIgnore || !!isMd5(this.file?.file.md5!)
   } 
 
   //md5 是否合理
   public isMd5(md5: string) {
-    return !!this.file.config.parseIgnore ? true : !!isMd5(md5)
+    return !!this.file?.config.parseIgnore ? true : !!isMd5(md5)
   }
 
   //exitFn 是否执行
   public isExitFnEmit() {
-    return !this.file.config.parseIgnore
+    return !this.file?.config.parseIgnore
   }
 
   //任务格式是否正确
@@ -44,18 +45,21 @@ export class FileTool {
   }
 
   //任务是否可执行
-  public isTaskDeal() {
-    return this.file.status === ECACHE_STATUS.pending
+  public isTaskDeal(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.pending
   }
 
   //任务是否可取消任务新增
-  public isTaskCancelAdd() {
-    return this.file.status === ECACHE_STATUS.pending
+  public isTaskCancelAdd(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.pending
   }
 
   //任务是否可停止或取消
-  public isTaskStopOrCancel() {
-    return this.file.status > ECACHE_STATUS.pending
+  public isTaskStopOrCancel(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status > ECACHE_STATUS.pending
   }
 
   //文件是否分片完成
@@ -64,16 +68,59 @@ export class FileTool {
   }
 
   //文件是否开始上传
-  public isFileUploadStart() {
-    return this.file.status === ECACHE_STATUS.reading 
-    || this.file.status === ECACHE_STATUS.uploading 
-    || this.file.status === ECACHE_STATUS.rejected
-    || this.file.status === ECACHE_STATUS.stopping
+  public isFileUploadStart(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.reading 
+    || status === ECACHE_STATUS.uploading 
+    || status === ECACHE_STATUS.rejected
+    || status === ECACHE_STATUS.stopping
+  }
+
+  private getStatus(task?:TWrapperTask) {
+    return task?.status ?? this.file?.status
   }
 
   //是否暂停
-  public isStop() {
-    return this.file.status === ECACHE_STATUS.stopping
+  public isStop(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.stopping
+  }
+
+  //是否取消
+  public isCancel(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.cancel
+  }
+
+  //是否队列中
+  public isPending(task?:TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.pending 
+  }
+
+  //是否失败
+  public isRejected(task?:TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.rejected 
+  }
+
+  //文件类型
+  public getFileType() {
+    const mime = get(this.file, "file.mime")
+    const defaultType = get(this.file, "file.file.type")
+    return defaultType || mime
+  }
+
+  //文件是否上传完成
+  public isTaskComplete(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status === ECACHE_STATUS.fulfilled
+  }
+
+  //任务是否正在执行
+  public isTaskDealing(task?: TWrapperTask) {
+    const status = this.getStatus(task)
+    return status > ECACHE_STATUS.pending && status < ECACHE_STATUS.fulfilled
   }
 
 }

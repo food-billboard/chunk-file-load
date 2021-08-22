@@ -128,7 +128,7 @@ export default class Emitter {
 
     let names: Symbol[] = []
 
-    const result: Ttask[] = flat(tasks)
+    const result: TWrapperTask[] = flat(tasks)
     .reduce((acc: TWrapperTask[], task: Ttask) => {
       const { file } = task
       const symbol: unique symbol = Symbol()
@@ -149,7 +149,7 @@ export default class Emitter {
     }, [])
 
     //加入事件队列
-    this.tasks = merge(this.tasks, result)
+    this.tasks.push(...result)
 
     return names
   }

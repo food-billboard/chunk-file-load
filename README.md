@@ -99,7 +99,7 @@ let config: {
         }, name: Symbol) => Promise<{
             data: Array<number> | string | number
             [key: string]: any
-        } | void>
+        }>
         completeFn?: (params : { name: Symbol, md5: string }) => any
         callback?: (err: any, data: any) => any
     }

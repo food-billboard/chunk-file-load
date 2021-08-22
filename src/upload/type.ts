@@ -33,7 +33,7 @@ import { FileTool } from '../utils/file'
     [key: string]: any
   }
   
-  export type TUploadFn = (data: FormData | TUploadFormData, name: Symbol) => ReturnType<TExitDataFn> | void
+  export type TUploadFn = (data: FormData | TUploadFormData, name: Symbol) => ReturnType<TExitDataFn>
   
   type TLifeCycleParams = {
     name: Symbol
