@@ -1,5 +1,6 @@
 import merge from 'lodash/merge'
 import mergeWith from 'lodash/mergeWith'
+import set from 'lodash/set'
 import { STATUS_MAP } from './status.map'
 import Upload from '../../upload/index'
 import FileTool from '../file'
@@ -138,10 +139,10 @@ export default class Emitter {
       })
       newTask = merge({}, newTask, task)
       if(newTask.tool.file.isTaskValid(file)) {
-        if(newTask.tool.file.isChunkComplete(file)) {
-          newTask = merge(newTask, { file: merge(file, { _cp_: true }) })
-        }
         newTask = this.generateTask(newTask, symbol)
+        if(newTask.tool.file.isChunkComplete(newTask)) {
+          set(newTask, "file._cp_", true)
+        }
         acc.push(newTask)
         names.push(newTask.symbol)
       }

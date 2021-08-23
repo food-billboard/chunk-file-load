@@ -7,9 +7,10 @@ export const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLengt
 }
 
 export const uploadFn = (data) => {
-  const index = data.get("index")
+  const index = data.get ? data.get("index") : data.index 
+  const nextOffset = (+index + 1) * BASE_SIZE
   return {
-    data: index + 1
+    data: nextOffset > FILE_SIZE ? FILE_SIZE : nextOffset
   } 
 }
 

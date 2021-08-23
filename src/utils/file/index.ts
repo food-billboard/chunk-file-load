@@ -18,12 +18,17 @@ export class FileTool {
 
   //是否忽略文件解析
   public isParseIgnore() {
-    return !!this.file?.config.parseIgnore || !!isMd5(this.file?.file.md5!)
+    return this.isParseIgnoreConfig() || this.isMd5(this.file?.file.md5)
+  } 
+
+  //是否忽略文件解析config
+  public isParseIgnoreConfig() {
+    return !!this.file?.config.parseIgnore
   } 
 
   //md5 是否合理
-  public isMd5(md5: string) {
-    return !!this.file?.config.parseIgnore ? true : !!isMd5(md5)
+  public isMd5(md5?: string) {
+    return !!md5 && !!isMd5(md5)
   }
 
   //exitFn 是否执行
@@ -59,12 +64,16 @@ export class FileTool {
   //任务是否可停止或取消
   public isTaskStopOrCancel(task?: TWrapperTask) {
     const status = this.getStatus(task)
-    return status > ECACHE_STATUS.pending
+    return status > ECACHE_STATUS.pending && status < ECACHE_STATUS.fulfilled
   }
 
   //文件是否分片完成
-  public isChunkComplete(file: TFile) {
-    return Array.isArray(file?.chunks) && !!file?.chunks.length
+  public isChunkComplete(task?: TWrapperTask) {
+    const chunks = task?.file.chunks ?? this.file?.file.chunks
+    const size = task?.file.size ?? this.file?.file.size
+    const chunkSize = task?.config.chunkSize ?? this.file?.config.chunkSize
+    const validChunkLength = Math.ceil(size / chunkSize) || 0
+    return Array.isArray(chunks) && !!chunks.length && ( size ? chunks.length === validChunkLength : true )
   }
 
   //文件是否开始上传

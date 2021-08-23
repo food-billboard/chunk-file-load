@@ -63,6 +63,7 @@ export default class extends Component {
 
   //上传
   uploadFn = async (data) => {
+    await new Promise(resolve => setTimeout(resolve, 1000))
     return Axios.post('/api/load', data)
     .then(data => data.data.res)
     .then(_ => undefined)
@@ -314,19 +315,21 @@ export default class extends Component {
         },
         callback: (err, value) => {
           this.callback(err, value)
-          this.setState({
-            control: null,
-            name: null
-          })
+          if(err && err.error !== "stop") {
+            this.setState({
+              control: null,
+              name: null
+            })
+          }
         },
       },
       lifecycle: {
         reading({ name, task, current, total }) {
           console.log('loading: ', current, 'total', total)
         },
-        uploading({ complete, total }) {
+        uploading({ complete, total, task }) {
           that.setState({
-            progress: Math.ceil(complete / total) * 100
+            progress: Math.ceil(complete / total * 100)
           })
         }
       }

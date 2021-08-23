@@ -205,7 +205,7 @@ export default class extends Proxy {
 
     return new Promise(async (resolve, reject) => {
 
-      if(tool.file.isMd5(md5!)) {
+      if(tool.file.isParseIgnore()) {
         sparkMethod = noop as any
       }
 

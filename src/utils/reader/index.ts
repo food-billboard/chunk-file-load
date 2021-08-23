@@ -1,3 +1,4 @@
+import uniqueId from 'lodash/uniqueId'
 import FileParse from './parse'
 import Upload from '../../upload'
 import Proxy from '../proxy'
@@ -49,8 +50,8 @@ class FileReader extends Proxy {
     const [ , task ] = this.getState(process.task!)
     const md5 = task!.file!.md5
 
-    if(task!.tool.file.isParseIgnore()) {
-      return Promise.resolve('ignore-prefix-md5')
+    if(task!.tool.file.isParseIgnoreConfig()) {
+      return Promise.resolve(uniqueId('ignore-prefix-md5'))
     }
 
     if(!!task!.tool.file.isMd5(md5 as string)) {

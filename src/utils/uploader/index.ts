@@ -53,7 +53,7 @@ export default class Uploader extends Reader {
     }else {
       let nextIndex = parseNumber(data)
       if(Number.isNaN(nextIndex) || nextIndex > size) {
-        if(mis) {
+        if(!mis) {
           throw new Error("upload function response data is not valid")
         }else {
           console.warn("exit function response data is not valid")
