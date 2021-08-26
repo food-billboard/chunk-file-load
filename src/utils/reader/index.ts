@@ -70,7 +70,6 @@ class FileReader extends Proxy {
     }
 
     if(this.hasReaderEmit()) {
-      WorkerPool.worker_clean(worker_id)
       return new Promise<string>((resolve, reject) => {
         this.emit('reader', task, (err: any, md5: string) => {
           if(err) {

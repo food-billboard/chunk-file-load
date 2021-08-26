@@ -207,11 +207,12 @@ export default class Upload extends EventEmitter {
   //执行任务
   public deal(...names: Symbol[]) {
     const tasks = this.emitter.deal(...names)
-    this.performanceTask(tasks.map(task => {
+    tasks.forEach(task => {
       const { lifecycle, symbol } = task
       this.lifecycle.onWithObject(lifecycle || {}, symbol) 
-      return task
-    }))
+    })
+    this.workerPool.enqueue(...tasks.map(task => task.symbol))
+    .then((processes) => this.performanceTask(processes))
     return tasks.map(task => task.symbol)
   }
 
@@ -286,96 +287,110 @@ export default class Upload extends EventEmitter {
     return task?.status ?? null
   }
 
+  //继续执行任务
+  private async dealNextTasks() {
+    return this.workerPool.enqueue()
+    .then(processes => {
+      return this.performanceTask(processes)
+    })
+  }
+
   //任务执行
-  private performanceTask(tasks: TWrapperTask[]) {
-    this.workerPool.enqueue(...tasks.map(task => task.symbol))
-    .then(async (processes) => {
-      return allSettled(processes.map(async (process: string) => {
-        const target = WorkerPool.getProcess(process)
-        const taskName = target!.task
-        const [ , task ] = this.emitter.getTask(taskName!)
-        const { request: { callback: _callback }, symbol, config: { retry }, lifecycle={} } = task!
-        const callback = typeof _callback === 'function' ? _callback : noop
-        return this.reader.addFile(process)
-        .then(_ => this.uploader.addFile(process))
-        .then(_ => {
-          return {
-            remove: true,
-            name: symbol,
-            error: null,
-            retry: false 
-          }
-        })
-        .catch(async (err) => {
-          console.error(err)
-          let response = {
-            error: err,
-            name: symbol,
-            remove: true,
-            retry: false
-          }
+  private async performanceTask(processes: string[]): Promise<void> {
+    return allSettled(processes.map(async (process: string) => {
+      const target = WorkerPool.getProcess(process)
+      const taskName = target!.task
+      const [ , task ] = this.emitter.getTask(taskName!)
+      const { request: { callback: _callback }, symbol, config: { retry }, lifecycle={} } = task!
+      const callback = typeof _callback === 'function' ? _callback : noop
+      return this.reader.addFile(process)
+      .then(_ => {
+        return this.uploader.addFile(process)
+      })
+      .then(_ => {
+        return {
+          remove: true,
+          name: symbol,
+          error: null,
+          retry: false 
+        }
+      })
+      .catch(async (err) => {
+        console.error(err)
+        let response = {
+          error: err,
+          name: symbol,
+          remove: true,
+          retry: false
+        }
 
-          const { status } = task!
+        const { status } = task!
 
-          //retry
-          if(status !== ECACHE_STATUS.stopping && status !== ECACHE_STATUS.cancel) {
-            this.emitter.setState(symbol, { status: ECACHE_STATUS.rejected })
-            response.retry = retry?.times > 0
-            if(response.retry) {
-              try {
-                await this.LIFECYCLE_EMIT('retry', {
-                  name: symbol,
-                  status: ECACHE_STATUS.pending,
-                  rest: retry.times - 1
-                })
-              }catch(err) {
+        //retry
+        if(status !== ECACHE_STATUS.stopping && status !== ECACHE_STATUS.cancel) {
+          this.emitter.setState(symbol, { status: ECACHE_STATUS.rejected })
+          response.retry = retry?.times > 0
+          if(response.retry) {
+            try {
+              await this.LIFECYCLE_EMIT('retry', {
+                name: symbol,
+                status: ECACHE_STATUS.pending,
+                rest: retry.times - 1
+              })
+            }catch(err) {
+              response.retry = false
+            }finally {
+              response.remove = !response.retry
+              const status = this.getStatus(symbol)
+              if(status === ECACHE_STATUS.stopping) {
                 response.retry = false
-              }finally {
-                response.remove = !response.retry
-                const status = this.getStatus(symbol)
-                if(status === ECACHE_STATUS.stopping) {
-                  response.retry = false
-                  response.remove = false 
-                }
+                response.remove = false 
               }
             }
-          }else {
-            if(status === ECACHE_STATUS.stopping) {
-              response.remove = false
-            }
           }
+        }else {
+          if(status === ECACHE_STATUS.stopping) {
+            response.remove = false
+          }
+        }
 
-          return response
-        })
-        .then(async (response) => {
-          WorkerPool.worker_clean(process)
-          const { error, name, remove, retry } = response
-          let callbackError = error ? {
-            error,
-          } : null
-          this.lifecycle.onWithObject(lifecycle, name, 'off')
-          if(remove) {
+        return response
+      })
+      .then(async (response) => {
+        WorkerPool.worker_clean(process)
+        const { error, name, remove, retry } = response
+        let callbackError = error ? {
+          error,
+        } : null
+        this.lifecycle.onWithObject(lifecycle, name, 'off')
+        //cancel 
+        if(remove) {
+          this.emitter.off(symbol)
+          callback(callbackError, name)
+          return this.dealNextTasks()
+        }
+        //retry
+        else if(retry) {
+          const tasks = this.deal(symbol)
+          if(!tasks.length) {
             this.emitter.off(symbol)
-            callback(callbackError, name)
-          }else if(retry) {
-            const tasks = this.deal(symbol)
-            if(!tasks.length) {
-              this.emitter.off(symbol)
-              callback(merge({}, callbackError, { error: {
-                error: callbackError?.error,
-                description: 'unknown error'
-              } }), name)
-            }
-          }else {
-            callback(callbackError, name)
+            callback(merge({}, callbackError, { error: {
+              error: callbackError?.error,
+              description: 'unknown error'
+            } }), name)
           }
-        })
-        .catch(err => {
-          console.error(err)
-          callback(err, null)
-        })
-      }))
-    })
+        }
+        //fulfilled or stop
+        else {
+          callback(callbackError, name)
+          return this.dealNextTasks()
+        }
+      })
+      .catch(err => {
+        console.error(err)
+        callback(err, null)
+      })
+    }))
     .catch(err => {
       console.error(err)
     })

@@ -10,13 +10,15 @@ export type TProcess = {
   busy: boolean
   task?: Symbol
   worker?: any
-  release?: () => void
+  release?: () => void,
 }
 
 const inspectIntervalTime = 10 * 1000
 
 //线程池
 class WorkerPool {
+
+  private static dealLoading = false 
 
   public static getProcess(id: string): TProcess | null {
     if(!id) return null
@@ -116,12 +118,12 @@ class WorkerPool {
       return !!worker?.busy
     }
     if(WorkerPool.process.length < WorkerPool.PROCESS_LIMIT) return false
-    return !WorkerPool.process.some(worker => !worker.busy)
+    return WorkerPool.process.every(worker => worker.busy)
   }
 
   //未繁忙的线程
   private static getUnBusyProcess() {
-    return WorkerPool.process.filter(procs => !procs.busy)
+    return WorkerPool.process.filter(procs => !procs.busy && !procs.task)
   }
 
   //设置线程信息
@@ -130,7 +132,10 @@ class WorkerPool {
     const index = WorkerPool.process.findIndex(procs => procs.id === id)
     let newProcess
     if(!!~index) {
-      newProcess = merge(WorkerPool.process[index], values)
+      newProcess = {
+        ...WorkerPool.process[index],
+        ...values
+      }
       WorkerPool.process[index] = newProcess
     }
     return newProcess
@@ -138,7 +143,8 @@ class WorkerPool {
 
   //任务执行
   private async taskDeal(): Promise<string[]> {
-    if(WorkerPool.queueIsEmpty() || WorkerPool.isBusy()) return []
+    if(WorkerPool.queueIsEmpty() || WorkerPool.isBusy() || WorkerPool.dealLoading) return []
+    WorkerPool.dealLoading = true 
 
     let workers: string[] = []
     const process = WorkerPool.getUnBusyProcess()
@@ -155,25 +161,29 @@ class WorkerPool {
         newProcess = merge(process, { busy: true })
       }
       WorkerPool.setProcessInfo(newProcess)
-
       workers.push(newProcess.id)
     }
-
+    WorkerPool.dealLoading = false 
     return workers
   }
 
   //线程任务完成
   public static worker_clean(worker_id: string) {
     const process = WorkerPool.getProcess(worker_id)
-    let baseConfig = {
+    let baseConfig: Partial<TProcess> = {
       id: worker_id,
-      busy: false
+      busy: false,
+      task: undefined,
     }
     
     if(WorkerPool.queueIsEmpty()) {
       process?.worker?.close()
       process?.release && process?.release()
-      baseConfig = merge({}, baseConfig, { release: noop, worker: null })
+      baseConfig = {
+        ...baseConfig,
+        release: noop, 
+        worker: null
+      }
     }else {
       process?.worker?.clean()
     }

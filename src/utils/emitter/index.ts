@@ -132,7 +132,7 @@ export default class Emitter {
     const result: TWrapperTask[] = flat(tasks)
     .reduce((acc: TWrapperTask[], task: Ttask) => {
       const { file } = task
-      const symbol: unique symbol = Symbol()
+      const symbol: unique symbol = Symbol(Date.now().toString())
       let newTask = FileTool(() => {
         const [ , task ] = this.getTask(symbol)
         return task!

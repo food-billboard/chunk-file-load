@@ -2,6 +2,8 @@ import SparkMd5 from 'spark-md5'
 import Emitter from 'eventemitter3'
 import { arrayBufferToBase64, base64Size, base64ToArrayBuffer } from '../src/utils/tool'
 
+export const sleep = async (times=100) => new Promise(resolve => setTimeout(resolve, times))
+
 export const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLength }) => {
   return false
 }
