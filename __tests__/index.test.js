@@ -4038,7 +4038,7 @@ describe('upload chunk test', () => {
               expect(beforeRead).toBe(0)
               expect(reading).toBe(0)
               expect(uploading).toBe(totalChunks)
-              expect(beforeCheck).toBe(0)
+              expect(beforeCheck).toBe(1)
               expect(afterCheck).toBe(1)
               expect(beforeComplete).toBe(1)
               expect(afterComplete).toBe(1)

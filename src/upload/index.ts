@@ -388,7 +388,7 @@ export default class Upload extends EventEmitter {
       })
       .catch(err => {
         console.error(err)
-        callback(err, null)
+        callback(err, symbol)
       })
     }))
     .catch(err => {

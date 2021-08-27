@@ -31,6 +31,17 @@ export default class Uploader extends Reader {
 
     await this.exitDataFn(task!)
     .then(res => this.uploadFn(res, process))
+    .then(data => {
+      return Promise.all([
+        data,
+        this.dealLifecycle('afterComplete', {
+          success: true,
+          name: task!.symbol,
+          status: ECACHE_STATUS.fulfilled,
+        })
+      ])
+    })
+    .then(data => data[0])
 
   }
 
@@ -91,14 +102,13 @@ export default class Uploader extends Reader {
     const INIT_RESPONSE = {
       data: 0 
     }
-    if(!tool!.file.isExitFnEmit()) return INIT_RESPONSE
 
     await this.dealLifecycle('beforeCheck', {
       name: symbol,
       status: ECACHE_STATUS.uploading
     })
 
-    if(typeof exitDataFn !== 'function') return INIT_RESPONSE
+    if(!tool!.file.isExitFnEmit()) return INIT_RESPONSE
 
     const params = {
       filename: name ?? '',
@@ -108,7 +118,7 @@ export default class Uploader extends Reader {
       chunkSize,
       chunksLength: Math.ceil(size / chunkSize)
     }
-    return exitDataFn(params, symbol)
+    return exitDataFn!(params, symbol)
   }
 
   //文件上传
@@ -239,11 +249,6 @@ export default class Uploader extends Reader {
   private async completeFn({ task, response }: { task: TWrapperTask, response: TExitDataFnReturnValue }) {
     const { file: { md5 }, symbol, request: { completeFn } } = task
     return Promise.resolve(typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }) : response)
-    .then(_ => this.dealLifecycle('afterComplete', {
-      success: true,
-      name: symbol,
-      status: ECACHE_STATUS.fulfilled,
-    }))
   }
 
 } 

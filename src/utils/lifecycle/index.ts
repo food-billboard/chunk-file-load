@@ -65,8 +65,19 @@ export default class LifeCycle {
         } })
       ],
       afterCancel: [],
-      beforeComplete: [],
       afterComplete: [],
+      beforeComplete: [
+        merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ task }: { name: Symbol, task: TWrapperTask }) {
+          const total = Math.ceil(task.file.size / task.config.chunkSize)
+          return {
+            process: {
+              current: total,
+              total: total,
+              complete: total
+            }
+          }
+        } })
+      ],
       afterStop: [],
       retry: [
         merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ rest }: { rest: number }) {

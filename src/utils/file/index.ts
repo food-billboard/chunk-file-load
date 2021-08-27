@@ -33,7 +33,7 @@ export class FileTool {
 
   //exitFn 是否执行
   public isExitFnEmit() {
-    return !this.file?.config.parseIgnore
+    return !this.file?.config.parseIgnore && typeof this.file?.request.exitDataFn === "function"
   }
 
   //任务格式是否正确
