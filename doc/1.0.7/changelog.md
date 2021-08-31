@@ -23,3 +23,10 @@
 
 5. `lifecycle`  
  - 生命周期新增第二参数，参数值为前生命周期的`return`值集合。  
+
+6. `resumeTask`  
+ - 可用于恢复之前失败或取消的任务  
+
+7. `uploading`  
+ - 修改了`uploading`方法的参数格式，可以支持传递与`resumeTask`相同的参数格式  
+ - 不同于`resumeTask`的地方在于 `resumeTask`需要手动执行上传任务，此方法会自动上传  

@@ -29,6 +29,7 @@ export default class {
       return this.blob.slice(start, end, file)
     }
 
+    console.log(file, 11111111)
     return Promise.reject('the file type is not support')
 
   }

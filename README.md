@@ -204,7 +204,7 @@ like this `callback(err: null | any, data: null | any) => any`
 ```
 - 预先完成分片
 ```js
-        const upload = new Upload()
+    const upload = new Upload()
     upload.upload({
         file: {
             md5: 'xxxxxxxxxxxx',
@@ -251,13 +251,14 @@ upload.deal(name)
 ```
 
 ### upload.uploading(...tasks)
-效果类似于上面的`upload`   
-但是此方法适用于在外部事先完成了分片工作，并配置`chunks`  
-使用`upload`一样可以实现，只是语义上的不同
-分片的大小不能超过指定的单个分片大小，否则会失败
-若`md5`和`chunks`都有配置，则可以跳过加密的过程  
-只有`chunks`则需要经过加密
-分片同上类型所示，且不限制需要相同类型
+- 效果类似于上面的`upload`   
+- 但是此方法适用于在外部事先完成了分片工作，并配置`chunks` 或者是恢复之前上传失败的任务  
+- 如果不是恢复上传的任务  
+1. 分片的大小不能超过指定的单个分片大小，否则会失败
+2. 若`md5`和`chunks`都有配置，则可以跳过加密的过程  
+3. 只有`chunks`则需要经过加密
+4. 分片同上类型所示，且不限制需要相同类型
+5. 如果没有配置传递原始文件，则需要传递`mime`属性  
 
 **保证分片列表的顺序正确**  
 分片会被统一转换成一种格式，按照`api`的支持程度顺序为`Blob -> File -> base64`  
@@ -368,6 +369,15 @@ upload.cancel(...names)
 
 ```js
 upload.cancelAdd(...names)    //不传则取消所有任务
+```
+
+### resumeTask 
+
+* 恢复之前失败或取消的任务  
+* 需要传递完整的任务格式  
+
+```js
+upload.resumeTask(...tasks) 
 ```
 
 ### watch

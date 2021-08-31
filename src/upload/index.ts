@@ -237,9 +237,28 @@ export default class Upload extends EventEmitter {
     return this.emitter.cancel(...names)
   }
 
+  //恢复上传
+  public resumeTask(...tasks: TWrapperTask[]): Symbol[] {
+    return this.emitter.resumeTask(...tasks)
+  }
+
   //预加密上传
-  public uploading(...tasks: Ttask<TFileType>[]): Symbol[] {
-    return this.upload(...tasks.map(task => ({ ...task, _cp_: true })))
+  public uploading(...tasks: (Ttask<TFileType> | TWrapperTask)[]): Symbol[] {
+    const newTasks = tasks.map(item => {
+      let result!: Symbol
+      if(!!(item as TWrapperTask).symbol) {
+        [ result ] = this.resumeTask(item as TWrapperTask)
+      }else {
+        const formatTask: any = {
+          ...item,
+          _cp_: true
+        };
+        [ result ] = this.add(formatTask)
+      }
+      return result
+    }).filter(item => !!item)
+    this.deal(...newTasks)
+    return newTasks
   }
 
   //上传

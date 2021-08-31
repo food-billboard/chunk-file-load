@@ -27,6 +27,33 @@ export default class Emitter {
     return this.tasks
   }
 
+  //恢复上传
+  public resumeTask(...tasks: TWrapperTask[]): Symbol[] {
+    const result = tasks.reduce<Symbol[]>((acc, task) => {
+      const { symbol, tool, file } = task
+      if(tool.file.isTaskValid(file)) {
+        if(!!this.getTask(symbol)[1]) {
+          console.warn("the task is uploading", symbol)
+          return acc 
+        }
+        acc.push(symbol)
+        this.tasks.push(task)
+        this.setState(symbol, {
+          process: {
+            total: 0,
+            complete: 0,
+            current: 0
+          },
+          status: ECACHE_STATUS.pending
+        })
+      }else {
+        console.warn("the task is not valid and be ignore: ", symbol)
+      }
+      return acc 
+    }, [])
+    return result 
+  }
+
   //获取文件信息
   private FILE_TYPE(unWrapperFile: TFile): TWraperFile {
 
@@ -142,6 +169,7 @@ export default class Emitter {
         newTask = this.generateTask(newTask, symbol)
         if(newTask.tool.file.isChunkComplete(newTask)) {
           set(newTask, "file._cp_", true)
+          set(newTask, "file.action", EActionType.MD5)
         }
         acc.push(newTask)
         names.push(newTask.symbol)

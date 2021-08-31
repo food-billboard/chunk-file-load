@@ -73,7 +73,8 @@ export class FileTool {
     const size = task?.file.size ?? this.file?.file.size
     const chunkSize = task?.config.chunkSize ?? this.file?.config.chunkSize
     const validChunkLength = Math.ceil(size / chunkSize) || 0
-    return Array.isArray(chunks) && !!chunks.length && ( size ? chunks.length === validChunkLength : true )
+    const mime = task?.file.mime ?? this.file?.file.mime
+    return Array.isArray(chunks) && !!chunks.length && ( size ? chunks.length === validChunkLength : true ) && !!mime
   }
 
   //文件是否开始上传

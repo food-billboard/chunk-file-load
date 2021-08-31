@@ -44,6 +44,11 @@ export const blobFile = new Blob([arrayBufferFile])
 const slice = ArrayBuffer.prototype.slice
 
 const prevLen = Math.floor(FILE_SIZE / 4 / config.chunkSize)
+export const totalChunks = Math.ceil(FILE_SIZE / config.chunkSize)
+
+export const arrayBufferChunks = new Array(totalChunks).fill(0).map((_, index) => {
+  return slice.call(arrayBufferFile, (index) * config.chunkSize, (index + 1) * config.chunkSize)
+})
 
 export const chunks = [
   ...(new Array(prevLen).fill(0).map((_, index) => {
@@ -59,8 +64,6 @@ export const chunks = [
     return arrayBufferToBase64(slice.call(arrayBufferFile, (index + prevLen * 3) * config.chunkSize, (index + 1 + prevLen * 3) * config.chunkSize))
   }))
 ]
-
-export const totalChunks = Math.ceil(FILE_SIZE / config.chunkSize)
 
 export const getBase64Md5 = () => {
   let currentChunk = 0
@@ -81,13 +84,14 @@ export const getBase64Md5 = () => {
   return md5
 }
 
-export const getFileMd5 = () => {
+export const getFileMd5 = (file) => {
+  const realFile = file || arrayBufferFile
   let currentChunk = 0;
   const spark = new SparkMd5.ArrayBuffer()
   while(currentChunk < totalChunks) {
     let start = currentChunk * config.chunkSize,
         end = currentChunk + 1 === totalChunks ? FILE_SIZE : ( currentChunk + 1 ) * config.chunkSize
-    const _chunks = slice.call(arrayBufferFile, start, end)
+    const _chunks = slice.call(realFile, start, end)
 
     currentChunk ++
     spark.append(_chunks)

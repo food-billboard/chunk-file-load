@@ -20,6 +20,7 @@ import {
   getBase64Md5,
   emitterCollection,
   dealResultExpect,
+  arrayBufferChunks
 } from './constants'
 
 const md5 = getFileMd5()
@@ -3318,7 +3319,8 @@ describe('upload chunk test', () => {
         const [tasks] = upload.add({
           config,
           file: {
-            chunks
+            chunks,
+            mime
           },
           request: {
             exitDataFn,
@@ -3452,6 +3454,7 @@ describe('upload chunk test', () => {
           config,
           file: {
             chunks,
+            mime,
             size: FILE_SIZE
           },
           request: {
@@ -4053,6 +4056,580 @@ describe('upload chunk test', () => {
       const result = upload.deal(tasks)
       expect(result).toBeInstanceOf(Array)
       expect(result.length).toBe(1)
+    })
+
+  })
+
+  describe(`uploading api`, () => {
+
+    test(`upload the chunk complete task`, (done) => {
+      const { collection, emit } = emitterCollection()
+
+      const bufferFile = arrayBufferFile.slice(0, arrayBufferFile.byteLength - 1000)
+      const size = bufferFile.byteLength
+      const file = new File([bufferFile], mime)
+      const totalChunks = Math.ceil(size / config.chunkSize)
+      const arrayBufferChunks = new Array(totalChunks).fill(0).map((_, index) => {
+        const start = (index) * config.chunkSize
+        const end = (index + 1) * config.chunkSize
+        return bufferFile.slice(start, end > size ? size : end)
+      })
+        
+      let beforeRead = 0,
+          reading = 0,
+          beforeCheck = 0,
+          afterCheck = 0,
+          uploading = 0,
+          beforeComplete = 0,
+          afterComplete = 0,
+          result
+
+      result = upload.uploading({
+        config,
+        request: {
+          exitDataFn,
+          uploadFn: (data) => {
+            const index = data.get ? data.get("index") : data.index 
+            const nextOffset = (+index + 1) * BASE_SIZE
+            return {
+              data: nextOffset > size ? size : nextOffset
+            } 
+          },
+          completeFn,
+          callback: (err) => {
+            try {
+              emit()
+              const _times = Math.ceil(FILE_SIZE / config.chunkSize)
+
+              expect(beforeRead).toBe(1)
+              expect(reading).toBe(_times)
+              expect(beforeCheck).toBe(1)
+              expect(afterCheck).toBe(1)
+              expect(uploading).toBe(_times)
+              expect(beforeComplete).toBe(1)
+              expect(afterComplete).toBe(1)
+
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file,
+          chunks: arrayBufferChunks,
+          mime
+        },
+        lifecycle: {
+          beforeRead() {
+            beforeRead ++
+          },
+          reading({ current, total }) {
+            const _reading = ++ reading
+            collection(() => {
+              const _current = _reading * config.chunkSize
+              expect(current).toBe(_reading == totalChunks ? size : _current)
+              expect(total === size).toBe(true)
+            })
+          },
+          beforeCheck({ task }) {
+            beforeCheck ++
+            collection(() => {
+              expect(size === FILE_SIZE).toBe(false)
+              expect(task.file.size === size).toBe(true)
+            })
+          },
+          afterCheck({ name, task, isExists }) {
+            afterCheck ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          uploading({ name, task, current, total, complete }) {
+            const expectFn = (uploading) => {
+              expect(current).toBe(uploading)
+              expect(total).toBe(totalChunks)
+              expect(complete).toBe(uploading)
+            }
+            uploading ++
+            collection(expectFn.bind(this, uploading))
+          },
+          beforeComplete({ name, task, isExists }) {
+            beforeComplete ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          afterComplete({ name, task, success }) {
+            afterComplete ++
+            collection(() => {
+              expect(success).toBe(true)
+            })
+          }
+        }
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+    })
+
+    test(`upload the chunk complete task and md5 is parsed`, (done) => {
+      const { collection, emit } = emitterCollection()
+        
+      let beforeRead = 0,
+          reading = 0,
+          beforeCheck = 0,
+          afterCheck = 0,
+          uploading = 0,
+          beforeComplete = 0,
+          afterComplete = 0,
+          result
+
+      result = upload.uploading({
+        config,
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              emit()
+              const _times = Math.ceil(FILE_SIZE / config.chunkSize)
+
+              expect(beforeRead).toBe(0)
+              expect(reading).toBe(0)
+              expect(beforeCheck).toBe(1)
+              expect(afterCheck).toBe(1)
+              expect(uploading).toBe(_times)
+              expect(beforeComplete).toBe(1)
+              expect(afterComplete).toBe(1)
+
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file,
+          chunks: arrayBufferChunks,
+          md5
+        },
+        lifecycle: {
+          beforeRead({ name, task }) {
+            beforeRead ++
+          },
+          reading({ name, task, current, total }) {
+            const _reading = ++ reading
+            collection(() => {
+              const _current = _reading * config.chunkSize
+              expect(current).toBe(_reading == totalChunks ? FILE_SIZE : _current)
+              expect(total).toBe(FILE_SIZE)
+            })
+          },
+          beforeCheck({ name, task }) {
+            beforeCheck ++
+          },
+          afterCheck({ name, task, isExists }) {
+            afterCheck ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          uploading({ name, task, current, total, complete }) {
+            const expectFn = (uploading) => {
+              expect(current).toBe(uploading)
+              expect(total).toBe(totalChunks)
+              expect(complete).toBe(uploading)
+            }
+            uploading ++
+            collection(expectFn.bind(this, uploading))
+          },
+          beforeComplete({ name, task, isExists }) {
+            beforeComplete ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          afterComplete({ name, task, success }) {
+            afterComplete ++
+            collection(() => {
+              expect(success).toBe(true)
+            })
+          }
+        }
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+    })
+
+    test(`upload the exists task and the task is cancelAdd`, (done) => {
+      const { collection, emit } = emitterCollection()
+        
+      let beforeRead = 0,
+          reading = 0,
+          beforeCheck = 0,
+          afterCheck = 0,
+          uploading = 0,
+          beforeComplete = 0,
+          afterComplete = 0,
+          result;
+
+      result = upload.add({
+        config,
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              emit()
+              const _times = Math.ceil(FILE_SIZE / config.chunkSize)
+
+              expect(beforeRead).toBe(1)
+              expect(reading).toBe(_times)
+              expect(beforeCheck).toBe(1)
+              expect(afterCheck).toBe(1)
+              expect(uploading).toBe(_times)
+              expect(beforeComplete).toBe(1)
+              expect(afterComplete).toBe(1)
+
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file,
+        },
+        lifecycle: {
+          beforeRead({ name, task }) {
+            beforeRead ++
+          },
+          reading({ name, task, current, total }) {
+            const _reading = ++ reading
+            collection(() => {
+              const _current = _reading * config.chunkSize
+              expect(current).toBe(_reading == totalChunks ? FILE_SIZE : _current)
+              expect(total).toBe(FILE_SIZE)
+            })
+          },
+          beforeCheck({ name, task }) {
+            beforeCheck ++
+          },
+          afterCheck({ name, task, isExists }) {
+            afterCheck ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          uploading({ name, task, current, total, complete }) {
+            const expectFn = (uploading) => {
+              expect(current).toBe(uploading)
+              expect(total).toBe(totalChunks)
+              expect(complete).toBe(uploading)
+            }
+            uploading ++
+            collection(expectFn.bind(this, uploading))
+          },
+          beforeComplete({ name, task, isExists }) {
+            beforeComplete ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          afterComplete({ name, task, success }) {
+            afterComplete ++
+            collection(() => {
+              expect(success).toBe(true)
+            })
+          }
+        }
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+      const task = upload.getTask(result[0])
+      
+      result = upload.cancelAdd(result[0])
+      expect(result).toBeInstanceOf(Array)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+      result = upload.uploading(task)
+      expect(result).toBeInstanceOf(Array)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+    })
+
+    test(`upload the exists task and the task is upload reject`, (done) => {
+      const { collection, emit } = emitterCollection()
+        
+      let beforeRead = 0,
+          reading = 0,
+          beforeCheck = 0,
+          afterCheck = 0,
+          uploading = 0,
+          beforeComplete = 0,
+          afterComplete = 0,
+          result,
+          isFirst = true;
+
+      result = upload.add({
+        config,
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              if(err && isFirst) {
+                isFirst = false 
+                result = upload.uploading(task)
+                expect(result).toBeInstanceOf(Array)
+                result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+              }else {
+                emit()
+                const _times = Math.ceil(FILE_SIZE / config.chunkSize)
+  
+                expect(beforeRead).toBe(1)
+                expect(reading).toBe(_times)
+                expect(beforeCheck).toBe(1)
+                expect(afterCheck).toBe(1)
+                expect(uploading).toBe(_times)
+                expect(beforeComplete).toBe(1)
+                expect(afterComplete).toBe(1)
+  
+                if(err) {
+                  done(err)
+                }else {
+                  done()
+                }
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file,
+        },
+        lifecycle: {
+          beforeRead({ name, task }) {
+            if(isFirst) {
+              throw new Error("upload error")
+            }
+            beforeRead ++
+          },
+          reading({ name, task, current, total }) {
+            const _reading = ++ reading
+            collection(() => {
+              const _current = _reading * config.chunkSize
+              expect(current).toBe(_reading == totalChunks ? FILE_SIZE : _current)
+              expect(total).toBe(FILE_SIZE)
+            })
+          },
+          beforeCheck({ name, task }) {
+            beforeCheck ++
+          },
+          afterCheck({ name, task, isExists }) {
+            afterCheck ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          uploading({ name, task, current, total, complete }) {
+            const expectFn = (uploading) => {
+              expect(current).toBe(uploading)
+              expect(total).toBe(totalChunks)
+              expect(complete).toBe(uploading)
+            }
+            uploading ++
+            collection(expectFn.bind(this, uploading))
+          },
+          beforeComplete({ name, task, isExists }) {
+            beforeComplete ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          afterComplete({ name, task, success }) {
+            afterComplete ++
+            collection(() => {
+              expect(success).toBe(true)
+            })
+          }
+        }
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+      const task = upload.getTask(result[0])
+      
+      result = upload.deal(result[0])
+      expect(result).toBeInstanceOf(Array)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+    })
+
+    test(`upload the exists task and the task is uploading`, (done) => {
+      const { collection, emit } = emitterCollection()
+        
+      let beforeRead = 0,
+          reading = 0,
+          beforeCheck = 0,
+          afterCheck = 0,
+          uploading = 0,
+          beforeComplete = 0,
+          afterComplete = 0,
+          result;
+
+      result = upload.upload({
+        config,
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              emit()
+              const _times = Math.ceil(FILE_SIZE / config.chunkSize)
+
+              expect(beforeRead).toBe(1)
+              expect(reading).toBe(_times)
+              expect(beforeCheck).toBe(1)
+              expect(afterCheck).toBe(1)
+              expect(uploading).toBe(_times)
+              expect(beforeComplete).toBe(1)
+              expect(afterComplete).toBe(1)
+
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file,
+        },
+        lifecycle: {
+          beforeRead({ name, task }) {
+            beforeRead ++
+          },
+          reading({ name, task, current, total }) {
+            const _reading = ++ reading
+            collection(() => {
+              const _current = _reading * config.chunkSize
+              expect(current).toBe(_reading == totalChunks ? FILE_SIZE : _current)
+              expect(total).toBe(FILE_SIZE)
+            })
+          },
+          beforeCheck({ name, task }) {
+            beforeCheck ++
+          },
+          afterCheck({ name, task, isExists }) {
+            afterCheck ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          uploading({ name, task, current, total, complete }) {
+            const expectFn = (uploading) => {
+              expect(current).toBe(uploading)
+              expect(total).toBe(totalChunks)
+              expect(complete).toBe(uploading)
+            }
+            uploading ++
+            collection(expectFn.bind(this, uploading))
+          },
+          beforeComplete({ name, task, isExists }) {
+            beforeComplete ++
+            collection(() => {
+              expect(isExists).toBe(false)
+            })
+          },
+          afterComplete({ name, task, success }) {
+            afterComplete ++
+            collection(() => {
+              expect(success).toBe(true)
+            })
+          }
+        }
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+      const task = upload.getTask(result[0])
+
+      result = upload.uploading(task)
+      expect(result).toBeInstanceOf(Array)
+      expect(result.length).toBe(0)
+    })
+
+  })
+
+  describe(`resumeTask api`, () => {
+
+    test(`resumeTask the task`, (done) => {
+        
+      let result;
+
+      result = upload.add({
+        config,
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            done("unknown error")
+          },
+        },
+        file: {
+          file,
+        },
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+      const task = upload.getTask(result[0])
+      
+      result = upload.cancelAdd(result[0])
+      expect(result).toBeInstanceOf(Array)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+      result = upload.resumeTask(task)
+      expect(result).toBeInstanceOf(Array)
+      expect(result.length).toBe(1)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+
+      done()
     })
 
   })
