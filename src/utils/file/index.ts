@@ -115,10 +115,12 @@ export class FileTool {
   }
 
   //文件类型
-  public getFileType() {
+  public getFileType(task?: TWrapperTask) {
     const mime = get(this.file, "file.mime")
+    const nowMime = get(task, "file.mime")
     const defaultType = get(this.file, "file.file.type")
-    return defaultType || mime
+    const nowDefaultType = get(task, "file.file.type")
+    return nowDefaultType || defaultType || nowMime || mime
   }
 
   //文件是否上传完成

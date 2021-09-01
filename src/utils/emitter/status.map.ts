@@ -5,14 +5,14 @@ const map: {
   [key: string]: (ECACHE_STATUS | ((status: ECACHE_STATUS, task: TWrapperTask) => boolean))[]
 } = {
   pending: [ECACHE_STATUS.waiting, ECACHE_STATUS.pending],
-  waiting: [ECACHE_STATUS.waiting, ECACHE_STATUS.reading, ECACHE_STATUS.rejected, ECACHE_STATUS.cancel, ECACHE_STATUS.stopping],
-  reading: [ECACHE_STATUS.reading, ECACHE_STATUS.cancel, ECACHE_STATUS.rejected, ECACHE_STATUS.stopping, ECACHE_STATUS.uploading],
-  uploading: [ECACHE_STATUS.rejected, ECACHE_STATUS.stopping, ECACHE_STATUS.cancel, ECACHE_STATUS.uploading, ECACHE_STATUS.fulfilled, (status, task) => {
-    if(status === ECACHE_STATUS.waiting) {
+  waiting: [ECACHE_STATUS.waiting, ECACHE_STATUS.reading, ECACHE_STATUS.rejected, ECACHE_STATUS.cancel, ECACHE_STATUS.stopping, (status, task) => {
+    if(status === ECACHE_STATUS.uploading) {
       return task.tool.file.isParseIgnore()
     } 
     return false 
   }],
+  reading: [ECACHE_STATUS.reading, ECACHE_STATUS.cancel, ECACHE_STATUS.rejected, ECACHE_STATUS.stopping, ECACHE_STATUS.uploading],
+  uploading: [ECACHE_STATUS.rejected, ECACHE_STATUS.stopping, ECACHE_STATUS.cancel, ECACHE_STATUS.uploading, ECACHE_STATUS.fulfilled],
   fulfilled: [],
   rejected: [ECACHE_STATUS.rejected, ECACHE_STATUS.pending],
   cancel: [ECACHE_STATUS.rejected],
