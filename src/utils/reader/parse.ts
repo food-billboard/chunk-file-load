@@ -1,10 +1,9 @@
 import { ArrayBuffer as SparkMD5ArrayBuffer } from 'spark-md5'
-import { transfer } from 'comlink'
+// import { transfer } from 'comlink'
 import noop from 'lodash/noop'
 import merge from 'lodash/merge'
 import Upload from '../../upload'
 import Proxy from '../proxy'
-import { isMd5 } from '../tool'
 import WorkerPool, { TProcess } from '../worker/worker.pool'
 import { TWrapperTask } from '../../upload/type'
 import { ECACHE_STATUS } from '../constant'
@@ -28,7 +27,8 @@ export default class extends Proxy {
   }
 
   protected async read(buffer: ArrayBuffer) {
-    return this.worker!.worker.read(transfer(buffer, [buffer]))
+    // return this.worker!.worker.read(transfer(buffer, [buffer]))
+    return this.worker!.worker.read(buffer)
   }
 
   protected async readEnd() {
@@ -84,7 +84,7 @@ export default class extends Proxy {
 
     let currentChunk:number = 0,
       totalChunks: number = Math.ceil(size / chunkSize)
-    const blobSlicer = new BlobSlicer(this.context, file as Blob)
+    const blobSlicer = new BlobSlicer(this.context, task, file as Blob)
 
     return new Promise(async (resolve, reject) => {
 
@@ -137,7 +137,7 @@ export default class extends Proxy {
     let currentChunk:number = 0,
       totalChunks: number = Math.ceil(size / chunkSize),
       sparkMethod = this.sparkMethod()
-    const arraybufferSlicer = new ArrayBufferSlicer(this.context, file as ArrayBuffer)
+    const arraybufferSlicer = new ArrayBufferSlicer(this.context, task, file as ArrayBuffer)
 
     return new Promise(async (resolve, reject) => {
 
@@ -190,12 +190,12 @@ export default class extends Proxy {
 
     const that = this
 
-    const { file: { chunks, md5, size }, symbol, config: { chunkSize } } = task
+    const { file: { chunks, md5, size }, symbol, config: { chunkSize }, tool } = task
 
     let completeChunks:number = 0
     let totalChunks = chunks!.length
     let currentChunk:number = 0
-    const filesSlicer = new FilesSlicer(this.context)
+    const filesSlicer = new FilesSlicer(this.context, task)
     const total = typeof size === 'number' && size > 0 ? size : chunkSize * chunks.length
     let realTotal = 0
 
@@ -205,7 +205,7 @@ export default class extends Proxy {
 
     return new Promise(async (resolve, reject) => {
 
-      if(isMd5(md5!)) {
+      if(tool.file.isParseIgnore()) {
         sparkMethod = noop as any
       }
 

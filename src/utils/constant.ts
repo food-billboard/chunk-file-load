@@ -19,7 +19,8 @@ enum EActionType {
 }
 
 const DEFAULT_CONFIG = {
-  chunkSize: MAX_FILE_CHUNK
+  chunkSize: MAX_FILE_CHUNK,
+  parseIgnore: false 
 }
 
 Object.seal(DEFAULT_CONFIG)

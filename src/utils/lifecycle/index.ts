@@ -16,7 +16,7 @@ const PERFORMANCE_COUNTER_MAP: {
 }
 
 const BASE_GLOBAL_LIFECYCLE_CONFIG = {
-  key: null,
+  key: "_internal_lifecycle_" as any,
   counter: -1,
 }
 
@@ -65,8 +65,19 @@ export default class LifeCycle {
         } })
       ],
       afterCancel: [],
-      beforeComplete: [],
       afterComplete: [],
+      beforeComplete: [
+        merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ task }: { name: Symbol, task: TWrapperTask }) {
+          const total = Math.ceil(task.file.size / task.config.chunkSize)
+          return {
+            process: {
+              current: total,
+              total: total,
+              complete: total
+            }
+          }
+        } })
+      ],
       afterStop: [],
       retry: [
         merge({}, BASE_GLOBAL_LIFECYCLE_CONFIG, { action({ rest }: { rest: number }) {
@@ -84,19 +95,19 @@ export default class LifeCycle {
 
   protected lifecycleMap!: {
     [P in keyof Required<TLifecycle>]: Array<{
-      key: Symbol | null
+      key: Symbol | null | "_internal_lifecycle_"
       action: TLifecycle<Promise<SuperPartial<TWrapperTask>> | SuperPartial<TWrapperTask>>[P]
       counter: number // -1 不销毁 0 销毁
       skip?: true
     }> }
 
   private wrapper(_/*licycle_name 暂时无用*/: keyof TLifecycle, eventFunc: Function) {
-    return async function(params: any) {
+    return async function(params: any, response: any) {
       let state: SuperPartial<TWrapperTask> & { error: boolean } = {
         error: false
       }
       try {
-        const value = await eventFunc(params)
+        const value = await eventFunc(params, response)
         if(value == false) state = merge(state, { status: ECACHE_STATUS.stopping })
       }catch(err) {
         state.error = true
@@ -125,8 +136,7 @@ export default class LifeCycle {
   }
 
   public on(eventName: keyof TLifecycle, eventFunc: TLifecycle, name: Symbol | null, action: TActionType='on') {
-    if(typeof eventName !== 'string' || typeof eventFunc !== 'function') return 
-    if(!this.lifecycleMap[eventName]) return 
+    if(typeof eventName !== 'string' || typeof eventFunc !== 'function' || !this.lifecycleMap[eventName]) return 
     const index = this.lifecycleMap[eventName].findIndex((item: any) => item.key == name)
 
     if(action === 'off' || action === 'removeListener') {
@@ -144,23 +154,25 @@ export default class LifeCycle {
         this.lifecycleMap[eventName].push(lifecycleState)
       }
     }
-
   }
 
   public emit: TProcessLifeCycle<Promise<SuperPartial<TWrapperTask>>> = async (event, params) => {
     let targetEventQueue = this.lifecycleMap[event]
     let error = false
     let response: SuperPartial<TWrapperTask> = {}
+    const { name } = params 
     for(let i = 0; i < targetEventQueue.length; i ++) {
+      const { key, counter, action } = targetEventQueue[i]
+      if(typeof key === "symbol" && key !== name) continue
       let res = {}
-      if(!!~targetEventQueue[i].counter) {
+      if(!!~counter) {
         targetEventQueue[i].counter --
       }
-      if(targetEventQueue[i].counter == 0) {
+      if(counter == 0) {
         targetEventQueue[i].skip = true
       }
       try {
-        res = await targetEventQueue[i].action!(params as any)
+        res = await action!(params as any, response)
       }catch(err) {
         error = err
         if(typeof error === 'object') {
@@ -168,7 +180,7 @@ export default class LifeCycle {
         }
         break
       }finally {
-        response = merge(response, res instanceof Object ? res : {})
+        response = merge({}, response, res instanceof Object ? res : {})
       }
     }
     targetEventQueue = (targetEventQueue as Array<any>).filter(event => !event.skip)

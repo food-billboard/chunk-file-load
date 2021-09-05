@@ -1,9 +1,9 @@
+import uniqueId from 'lodash/uniqueId'
 import FileParse from './parse'
 import Upload from '../../upload'
 import Proxy from '../proxy'
 import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS, EActionType } from '../constant'
-import { isMd5 } from '../tool'
 import { TWrapperTask } from '../../upload/type'
 
 class FileReader extends Proxy {
@@ -49,7 +49,12 @@ class FileReader extends Proxy {
     if(!process) return this.clean(worker_id)
     const [ , task ] = this.getState(process.task!)
     const md5 = task!.file!.md5
-    if(!!isMd5(md5 as string)) {
+
+    if(task!.tool.file.isParseIgnoreConfig()) {
+      return Promise.resolve(uniqueId('ignore-prefix-md5'))
+    }
+
+    if(!!task!.tool.file.isMd5(md5 as string)) {
       return Promise.resolve(md5)
     }
 
@@ -65,9 +70,13 @@ class FileReader extends Proxy {
     }
 
     if(this.hasReaderEmit()) {
-      WorkerPool.worker_clean(worker_id)
       return new Promise<string>((resolve, reject) => {
-        this.emit('reader', task, (md5: string) => {
+        this.emit('reader', task, (err: any, md5: string) => {
+          if(err) {
+            reject(err)
+          }else {
+            resolve(md5)
+          }
           resolve(md5)
         })
         setTimeout(() => {
@@ -95,7 +104,6 @@ class FileReader extends Proxy {
 
   //获取MD5(分片已预先完成)
   private async GET_MD5(task: TWrapperTask, fileParse: FileParse): Promise<string> {
-    // this.setState(task.symbol, { file: { chunks: [] } })  
     return fileParse.files(task)
   }
 

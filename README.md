@@ -30,9 +30,17 @@ function UploadFile() {
 
     const onChange = (e) => {
         const [ file ] = e.target.files
-        const upload = new Upload()
+        const upload = new Upload({
+            lifecycle: {
+                
+            },
+            config: {},
+            ignores: []
+        })
         upload.upload({
-            file,
+            file: {
+                file
+            },
             request: {
                 uploadFn: (data) => {
                     //request(data)
@@ -48,10 +56,6 @@ function UploadFile() {
 }
 ```
 
-### 关于差异  
-[Upload](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/upload.md)  
-[WeUpload](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/weupload.md)
-
 ### 使用 upload.upload(...args) 上传文件
 
 * 传入相关参数
@@ -62,11 +66,12 @@ function UploadFile() {
 ``` typescript
 const upload = new Upload()
 let config: {
-    config: {
+    config?: {
         retry?: {
             times: number
         }
         chunkSize?: number
+        parseIgnore?: boolean 
     }
     file: {
         mime?: string
@@ -83,7 +88,7 @@ let config: {
             size: number
             chunkSize: number
             chunksLength: number
-        }) => Promise<{
+        }, name: Symbol) => Promise<{
             data: Array<number> | string | number
             [key: string]: any
         }>
@@ -91,10 +96,10 @@ let config: {
             file: Blob | string
             md5: string
             index: number 
-        }) => Promise<{
+        }, name: Symbol) => Promise<{
             data: Array<number> | string | number
             [key: string]: any
-        } | void>
+        }>
         completeFn?: (params : { name: Symbol, md5: string }) => any
         callback?: (err: any, data: any) => any
     }
@@ -115,7 +120,8 @@ let config: {
         retry: { //是否错误重试 默认不重试
             times
         },
-        chunkSize //分片大小 默认500k
+        chunkSize //分片大小 默认5MB
+        parseIgnore //跳过文件解析
     },
 }
 let names = upload.upload(config)
@@ -130,7 +136,7 @@ exitDatFn({
     size: '文件大小',
     chunkSize: '文件单分片大小',
     chunksLength: '文件总分片数量'
-})
+}, name)
 uploadFn(data/*
 包含文件的formData
 {
@@ -198,7 +204,7 @@ like this `callback(err: null | any, data: null | any) => any`
 ```
 - 预先完成分片
 ```js
-        const upload = new Upload()
+    const upload = new Upload()
     upload.upload({
         file: {
             md5: 'xxxxxxxxxxxx',
@@ -245,13 +251,14 @@ upload.deal(name)
 ```
 
 ### upload.uploading(...tasks)
-效果类似于上面的`upload`   
-但是此方法适用于在外部事先完成了分片工作，并配置`chunks`  
-使用`upload`一样可以实现，只是语义上的不同
-分片的大小不能超过指定的单个分片大小，否则会失败
-若`md5`和`chunks`都有配置，则可以跳过加密的过程  
-只有`chunks`则需要经过加密
-分片同上类型所示，且不限制需要相同类型
+- 效果类似于上面的`upload`   
+- 但是此方法适用于在外部事先完成了分片工作，并配置`chunks` 或者是恢复之前上传失败的任务  
+- 如果不是恢复上传的任务  
+1. 分片的大小不能超过指定的单个分片大小，否则会失败
+2. 若`md5`和`chunks`都有配置，则可以跳过加密的过程  
+3. 只有`chunks`则需要经过加密
+4. 分片同上类型所示，且不限制需要相同类型
+5. 如果没有配置传递原始文件，则需要传递`mime`属性  
 
 **保证分片列表的顺序正确**  
 分片会被统一转换成一种格式，按照`api`的支持程度顺序为`Blob -> File -> base64`  
@@ -264,25 +271,25 @@ upload.deal(name)
         task: TWrapperTask //参照api
     }
     //序列化前
-    beforeRead?: (params: TLifeCycleParams) => responseType
+    beforeRead?: (params: TLifeCycleParams, response?: any) => responseType
     //序列化中
-    reading?: (params: TLifeCycleParams & { current: number, total: number }) => responseType
+    reading?: (params: TLifeCycleParams & { current: number, total: number }, response?: any) => responseType
     //MD5序列化后，检查请求前
-    beforeCheck?: (params: TLifeCycleParams) => responseType
+    beforeCheck?: (params: TLifeCycleParams, response?: any) => responseType
     //检查请求响应后
-    afterCheck?: (params: TLifeCycleParams & { isExists: boolean }) => responseType
+    afterCheck?: (params: TLifeCycleParams & { isExists: boolean }, response?: any) => responseType
     //分片上传后(多次执行)
-    uploading?: (params: TLifeCycleParams & { current: number, total: number, complete: number }) => responseType
+    uploading?: (params: TLifeCycleParams & { current: number, total: number, complete: number }, response?: any) => responseType
     //触发暂停响应后
-    afterStop?: (params: TLifeCycleParams & { current: number }) => responseType
+    afterStop?: (params: TLifeCycleParams & { current: number }, response?: any) => responseType
     //触发取消响应后
-    afterCancel?: (params: TLifeCycleParams & { current: number }) => responseType
+    afterCancel?: (params: TLifeCycleParams & { current: number }, response?: any) => responseType
     //完成请求前
-    beforeComplete?: (params: TLifeCycleParams & { isExists: boolean }) => responseType
+    beforeComplete?: (params: TLifeCycleParams & { isExists: boolean }, response?: any) => responseType
     //完成请求后
-    afterComplete?: (params: TLifeCycleParams & { success: boolean }) => responseType
+    afterComplete?: (params: TLifeCycleParams & { success: boolean }, response?: any) => responseType
     //触发重试任务执行
-    retry?: (params: TLifeCycleParams & { rest: number }) => responseType
+    retry?: (params: TLifeCycleParams & { rest: number }, response?: any) => responseType
 ```
 
 生命周期包括全局和单一任务生命周期  
@@ -337,7 +344,7 @@ const upload = new Upload({
 * 暂停上传中的任务
 * 返回执行暂停操作的任务文件名称集合
 * 只对上传中的任务有效
-* 对于暂停的任务可以通过emit继续上传
+* 对于暂停的任务可以通过`deal`继续上传
 
 ```js
 upload.stop(...names) //不传参数则暂停所有任务
@@ -362,6 +369,15 @@ upload.cancel(...names)
 
 ```js
 upload.cancelAdd(...names)    //不传则取消所有任务
+```
+
+### resumeTask 
+
+* 恢复之前失败或取消的任务  
+* 需要传递完整的任务格式  
+
+```js
+upload.resumeTask(...tasks) 
 ```
 
 ### watch
@@ -391,10 +407,17 @@ upload.watch(...names) //不传则返回所有进度
 
 * 当前环境是否支持  
 
-## ps 
+## static API  
 
-小程序方面的限制虽然得到了解决，但是因为`base64`的转换使得原本的分片体积增大，这可能会导致转换时出现相关的性能问题，所以尽量不要设置太大的文件分片。  
-并且对于`base64`的文件，因为转换性能较差所以没有办法传递较大文件。  
+### install 
+
+* 插件注册(具体查看下方`Changelog 1.0.7`)  
+
+## Changelog
+
+[1.0.7](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.7/changelog.md)  
+[1.0.6](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/index.md)  
+[1.0.5](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.5.md)
 
 ## 总结
 

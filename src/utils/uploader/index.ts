@@ -31,17 +31,28 @@ export default class Uploader extends Reader {
 
     await this.exitDataFn(task!)
     .then(res => this.uploadFn(res, process))
+    .then(data => {
+      return Promise.all([
+        data,
+        this.dealLifecycle('afterComplete', {
+          success: true,
+          name: task!.symbol,
+          status: ECACHE_STATUS.fulfilled,
+        })
+      ])
+    })
+    .then(data => data[0])
 
   }
 
-  private getUnCompleteIndexs(task: TWrapperTask, response: TExitDataFnReturnValue): number[] {
-    const { data } = response || { data: 0 }
+  private getUnCompleteIndexes(task: TWrapperTask, response: TExitDataFnReturnValue, mis: boolean): number[] {
+    const { data } = response || { data: undefined }
     const { file: { size }, config: { chunkSize }, symbol } = task
     const chunksLength = Math.ceil(size / chunkSize)
     let unComplete = []
 
     const parseNumber = (target: string | number):number => {
-      return typeof target === 'string' ? parseInt(target) : Number(target.toFixed(0))
+      return typeof target === 'string' ? parseInt(target) : Number(target?.toFixed(0))
     }
 
     if(Array.isArray(data)) {
@@ -52,7 +63,14 @@ export default class Uploader extends Reader {
       })
     }else {
       let nextIndex = parseNumber(data)
-      nextIndex = Number.isNaN(nextIndex) || nextIndex > size ? 0 : nextIndex
+      if(Number.isNaN(nextIndex) || nextIndex > size || nextIndex < 0) {
+        if(!mis) {
+          throw new Error("upload function response data is not valid")
+        }else {
+          console.warn("exit function response data is not valid")
+        }
+        nextIndex = 0 
+      }
       let offset = nextIndex / chunkSize
       if(nextIndex == size) {
         unComplete = [] as any
@@ -80,14 +98,17 @@ export default class Uploader extends Reader {
 
   //文件存在验证
   private async exitDataFn(task: TWrapperTask) {
-    const { symbol, config: { chunkSize }, file: { size, mime, name, md5 }, request: { exitDataFn } } = task
+    const { symbol, config: { chunkSize }, file: { size, mime, name, md5 }, request: { exitDataFn }, tool } = task
+    const INIT_RESPONSE = {
+      data: 0 
+    }
 
     await this.dealLifecycle('beforeCheck', {
       name: symbol,
       status: ECACHE_STATUS.uploading
     })
 
-    if(typeof exitDataFn !== 'function') return { data: 0 }
+    if(!tool!.file.isExitFnEmit()) return INIT_RESPONSE
 
     const params = {
       filename: name ?? '',
@@ -97,7 +118,7 @@ export default class Uploader extends Reader {
       chunkSize,
       chunksLength: Math.ceil(size / chunkSize)
     }
-    return exitDataFn(params)
+    return exitDataFn!(params, symbol)
   }
 
   //文件上传
@@ -109,7 +130,7 @@ export default class Uploader extends Reader {
      * } | nextIndex 下一分片索引
      */
     const [, task] = this.getState(process?.task!)
-    const unComplete = this.getUnCompleteIndexs(task!, res)
+    const unComplete = this.getUnCompleteIndexes(task!, res, true)
     const isExists = !unComplete.length
     const { symbol } = task!
 
@@ -158,7 +179,7 @@ export default class Uploader extends Reader {
         return worker.getChunk(index)
       }
     }else {
-      const slicer = new FilesSlicer(this.context)
+      const slicer = new FilesSlicer(this.context, task!)
       if(_cp_) {
         getChunkMethod = async (index) => {
           const buffer = await slicer.slice(chunks[index])
@@ -198,7 +219,7 @@ export default class Uploader extends Reader {
           formData = params
         }
 
-        const response = await uploadFn(formData)
+        const response = await uploadFn(formData, symbol)
 
         await this.dealLifecycle('uploading', {
           name: symbol,
@@ -209,7 +230,7 @@ export default class Uploader extends Reader {
         })
 
         if(!!response) {
-          newUnUploadChunks = this.getUnCompleteIndexs(task!, response)
+          newUnUploadChunks = this.getUnCompleteIndexes(task!, response, false)
         }
         this.setState(symbol, {
           file: {
@@ -228,11 +249,6 @@ export default class Uploader extends Reader {
   private async completeFn({ task, response }: { task: TWrapperTask, response: TExitDataFnReturnValue }) {
     const { file: { md5 }, symbol, request: { completeFn } } = task
     return Promise.resolve(typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }) : response)
-    .then(_ => this.dealLifecycle('afterComplete', {
-      success: true,
-      name: symbol,
-      status: ECACHE_STATUS.fulfilled,
-    }))
   }
 
 } 

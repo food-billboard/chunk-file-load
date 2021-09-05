@@ -237,7 +237,7 @@ describe('weapp upload chunk test', () => {
         },
         request: {
           uploadFn({ file }) {
-            expect(typeof file).toBe('string')
+            expect(Object.prototype.toString.call(file)).toBe('[object ArrayBuffer]')
           },
           callback: callback(done)
         }

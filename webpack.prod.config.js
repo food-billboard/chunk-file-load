@@ -31,13 +31,13 @@ module.exports = merge(commonConfig, {
   ],
   optimization: {
     concatenateModules: true,
-
     sideEffects: false,
     minimize: true,
     minimizer: [ new TerserPlugin({
       terserOptions: {
         compress: {
-          warnings: false
+          warnings: false,
+          pure_funcs: ['console.log']
         }
       }
     }) ],

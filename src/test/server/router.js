@@ -16,7 +16,7 @@ router.get('/api/check', async(ctx) => {
     const query = ctx.request.query
     const {
         md5,
-        chunksLength
+        chunksLength,
     } = query
     
     if(!cache[md5]) cache[md5] = {
@@ -59,10 +59,12 @@ router.post('/api/load', multiparty(), async(ctx) => {
         md5,
         index
     } = data
+    let nextOffset = (+index + 1) * cache[md5].chunkSize
+    nextOffset = nextOffset > cache[md5].size ? cache[md5].size : nextOffset
     ctx.body = JSON.stringify({
         success: true,
         res: {
-            data: `第${index}片上传成功`
+            data: nextOffset
         }
     })
     if(cache[md5]['completeChunks'] !== cache[md5]['chunksLength']) {

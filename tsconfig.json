@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module":"CommonJS",
+    "module":"esnext",
     "allowJs": false,
     "checkJs": false,
     "declaration": true,
