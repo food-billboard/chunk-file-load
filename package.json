@@ -11,6 +11,9 @@
     "build": "webpack --progress --color --config ./webpack.prod.config.js",
     "deploy": "np"
   },
+  "files": [
+    "lib/"
+  ],
   "keywords": [
     "chunk",
     "upload"
