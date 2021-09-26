@@ -11,7 +11,8 @@ const router = new Router()
 
 const cache = {}
 
-router.get('/api/check', async(ctx) => {
+router
+.get('/api/check', async(ctx) => {
     
     const query = ctx.request.query
     const {
@@ -51,8 +52,7 @@ router.get('/api/check', async(ctx) => {
         })
     }
 })
-
-router.post('/api/load', multiparty(), async(ctx) => {
+.post('/api/load', multiparty(), async(ctx) => {
     const data = ctx.req.body
     const files = ctx.req.files
     const {
@@ -80,8 +80,7 @@ router.post('/api/load', multiparty(), async(ctx) => {
         console.log(err)
     })
 })
-
-router.get('/api/complete', async(ctx) => {
+.get('/api/complete', async(ctx) => {
     const query = ctx.request.query
     const { md5 } = query
 

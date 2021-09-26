@@ -403,18 +403,19 @@ upload.watch(...names) //不传则返回所有进度
 
 * 获取任务当前状态  
 
-### static isSupport
-
-* 当前环境是否支持  
-
 ## static API  
 
 ### install 
 
 * 插件注册(具体查看下方`Changelog 1.0.7`)  
 
+### static isSupport
+
+* 当前环境是否支持  
+
 ## Changelog
 
+[1.0.9](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.9/changelog.md) 
 [1.0.7](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.7/changelog.md)  
 [1.0.6](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/index.md)  
 [1.0.5](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.5.md)
@@ -422,3 +423,6 @@ upload.watch(...names) //不传则返回所有进度
 ## 总结
 
 文件分片上传是为了能在后端限制上传文件大小的情况下，也为了能有更好的用户体验，将体积大的文件分成等体积的小文件进行分别上传，也保证了当用户在不明情况下中断上传可以继续上传。
+
+
+<!-- npx husky add .husky/pre-commit "npm run test" -->

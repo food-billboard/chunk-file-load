@@ -158,7 +158,7 @@ export default class LifeCycle {
 
   public emit: TProcessLifeCycle<Promise<SuperPartial<TWrapperTask>>> = async (event, params) => {
     let targetEventQueue = this.lifecycleMap[event]
-    let error = false
+    let error:any = false
     let response: SuperPartial<TWrapperTask> = {}
     const { name } = params 
     for(let i = 0; i < targetEventQueue.length; i ++) {

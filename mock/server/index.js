@@ -1,7 +1,6 @@
-const Router = require('./server/router')
 const Cors = require('koa-cors')
 const Koa = require('koa')
-const path = require('path')
+const Router = require('./router')
 
 const app = new Koa()
 app.use(Cors())
