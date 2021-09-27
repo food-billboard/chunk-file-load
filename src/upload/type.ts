@@ -76,14 +76,7 @@ import { FileTool } from '../utils/file'
     [key: string]: any
   }
 
-  export type TExitDataFn = ({ 
-    filename,
-    md5,
-    suffix,
-    size,
-    chunkSize,
-    chunksLength
-  }: {
+  export type TExitDataFn = (params: {
     filename: string
     md5: string
     suffix: string

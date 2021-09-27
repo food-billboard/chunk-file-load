@@ -2,7 +2,30 @@ const type = process.env.BUILD_TYPE;
 
 let config = {};
 
-if (type === 'lib') {
+if(type === "umd") {
+  config = {
+    umd: {
+      file: 'ChunkUpload',
+      name: 'ChunkUpload',
+      sourcemap: true,
+    },
+    nodeResolveOpts: {
+      browser: true,
+    },
+    runtimeHelpers: true,
+    extraBabelPlugins: [
+      [
+        'babel-plugin-import',
+        {
+          libraryName: 'lodash',
+          libraryDirectory: '',
+          camel2DashComponentName: false, // default: true
+        },
+        'lodash',
+      ],
+    ],
+  }
+}else if (type === 'lib') {
   config = {
     extractCSS: true,
     esm: false,
