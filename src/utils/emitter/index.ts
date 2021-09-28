@@ -1,6 +1,4 @@
-import merge from 'lodash/merge'
-import mergeWith from 'lodash/mergeWith'
-import set from 'lodash/set'
+import { merge, mergeWith, set } from 'lodash'
 import { STATUS_MAP } from './status.map'
 import Upload from '../../upload/index'
 import FileTool from '../file'

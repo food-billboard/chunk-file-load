@@ -1,5 +1,4 @@
-import merge from 'lodash/merge'
-import noop from 'lodash/noop'
+import { merge, noop } from 'lodash'
 import EventEmitter from 'eventemitter3'
 import { 
   Emitter, 

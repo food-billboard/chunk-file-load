@@ -1,5 +1,4 @@
-import merge from 'lodash/merge'
-import get from 'lodash/get'
+import { merge, get } from 'lodash'
 import { isMd5, isObject } from '../tool' 
 import { ECACHE_STATUS } from '../constant'
 import { TWrapperTask, TFile } from '../../upload/type'

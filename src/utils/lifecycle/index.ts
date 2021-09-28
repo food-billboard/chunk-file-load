@@ -1,5 +1,4 @@
-import merge from 'lodash/merge'
-import omit from 'lodash/omit'
+import { merge, omit } from 'lodash'
 import { SuperPartial, TLifecycle, TProcessLifeCycle, TWrapperTask } from '../../upload/type'
 import { ECACHE_STATUS } from '../constant'
 

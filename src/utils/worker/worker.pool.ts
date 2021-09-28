@@ -1,5 +1,4 @@
-import merge from 'lodash/merge'
-import noop from 'lodash/noop'
+import { merge, noop } from 'lodash'
 // import { Remote, wrap, releaseProxy } from 'comlink'
 import Queue from '../queue'
 import { Tasker } from './tasker'
@@ -44,7 +43,7 @@ class WorkerPool {
   }
 
   //线程池最大数量
-  private static readonly PROCESS_LIMIT = window?.navigator.hardwareConcurrency || 4
+  private static readonly PROCESS_LIMIT = typeof window !== "undefined" ? window?.navigator.hardwareConcurrency || 4 : 4
 
   private static inspectTimer:NodeJS.Timeout
 
