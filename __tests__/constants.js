@@ -121,3 +121,15 @@ export const dealResultExpect = (result) => {
   expect(result).toBeInstanceOf(Array)
   expect(result.length).toBe(1)
 }
+
+export const isTask = (task) => {
+  expect(task).toBeInstanceOf(Object)
+  expect(task).not.toEqual(null)
+  const { config, process, file, symbol, status, tool } = task
+  expect(config).toBeDefined()
+  expect(process).toBeDefined()
+  expect(file).toBeDefined()
+  expect(symbol).toBeDefined()
+  expect(status).toBeDefined()
+  expect(tool).toBeDefined()
+}

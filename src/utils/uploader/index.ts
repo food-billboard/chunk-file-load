@@ -118,7 +118,7 @@ export default class Uploader extends Reader {
       chunkSize,
       chunksLength: Math.ceil(size / chunkSize)
     }
-    return exitDataFn!(params, symbol)
+    return exitDataFn!(params, symbol, task)
   }
 
   //文件上传
@@ -219,7 +219,7 @@ export default class Uploader extends Reader {
           formData = params
         }
 
-        const response = await uploadFn(formData, symbol)
+        const response = await uploadFn(formData, symbol, task!)
 
         await this.dealLifecycle('uploading', {
           name: symbol,
@@ -248,7 +248,7 @@ export default class Uploader extends Reader {
   //文件上传完成
   private async completeFn({ task, response }: { task: TWrapperTask, response: TExitDataFnReturnValue }) {
     const { file: { md5 }, symbol, request: { completeFn } } = task
-    return Promise.resolve(typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }) : response)
+    return Promise.resolve(typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }, symbol, task) : response)
   }
 
 } 

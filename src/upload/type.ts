@@ -33,7 +33,7 @@ import { FileTool } from '../utils/file'
     [key: string]: any
   }
   
-  export type TUploadFn = (data: FormData | TUploadFormData, name: Symbol) => ReturnType<TExitDataFn>
+  export type TUploadFn = (data: FormData | TUploadFormData, name: Symbol, task: TWrapperTask) => ReturnType<TExitDataFn>
   
   type TLifeCycleParams = {
     name: Symbol
@@ -83,7 +83,7 @@ import { FileTool } from '../utils/file'
     size: number
     chunkSize: number
     chunksLength: number
-  }, name: Symbol) => Promise<TExitDataFnReturnValue>
+  }, name: Symbol, task: TWrapperTask) => Promise<TExitDataFnReturnValue>
 
   export type TFile<T=TFileType> = {
     md5?: string
@@ -120,7 +120,7 @@ import { FileTool } from '../utils/file'
   export interface TRequestType {
     exitDataFn?: TExitDataFn
     uploadFn: TUploadFn
-    completeFn?: (params : { name: Symbol, md5: string }) => any
+    completeFn?: (params : { name: Symbol, md5: string }, name: Symbol, task: TWrapperTask) => any
     callback?: (err: {
       retry?: boolean
       error: any
