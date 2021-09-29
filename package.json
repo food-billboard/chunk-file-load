@@ -70,7 +70,7 @@
     "@types/spark-md5": "^3.0.2",
     "@umijs/test": "^3.0.5",
     "antd": "^4.16.13",
-    "axios": "^0.21.3",
+    "axios": "^0.21.4",
     "babel-jest": "^26.3.0",
     "babel-plugin-import": "^1.13.3",
     "clean-webpack-plugin": "^3.0.0",
