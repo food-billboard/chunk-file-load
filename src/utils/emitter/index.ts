@@ -43,7 +43,7 @@ export default class Emitter {
             current: 0
           },
           status: ECACHE_STATUS.pending
-        })
+        }, true)
       }else {
         console.warn("the task is not valid and be ignore: ", symbol)
       }
@@ -251,11 +251,16 @@ export default class Emitter {
     }
   }
 
-  public setState = (name: Symbol, value: SuperPartial<TWrapperTask>={}): TWrapperTask => {
+  public setState = (name: Symbol, value: SuperPartial<TWrapperTask>={}, forceUpdate:boolean=false): TWrapperTask => {
     const [ index, task ] = this.getTask(name)
     const nowStatus = task?.status
     const nextStatus = value.status
-    let status = typeof nextStatus === 'number' ? STATUS_MAP[nowStatus!](nextStatus, task) ?? nowStatus : nowStatus
+    let status
+    if(forceUpdate) {
+      status = typeof nextStatus === 'number' ? nextStatus : nowStatus
+    }else {
+      status = typeof nextStatus === 'number' ? STATUS_MAP[nowStatus!](nextStatus, task) ?? nowStatus : nowStatus
+    }
     this.tasks[index] = mergeWith(task, value, { status }, this.customerMergeMethod)
     return this.tasks[index]
   }
