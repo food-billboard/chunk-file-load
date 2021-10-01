@@ -12,7 +12,7 @@ import {
   arrayBufferToBase64 as internalArrayBufferToBase64,
   isBase64,
   withTry,
-  DEFAULT_CONFIG
+  mergeConfig,
 } from '../utils'
 import { 
   TLifecycle, 
@@ -104,7 +104,7 @@ export default class Upload extends EventEmitter {
     return new File([buffer], fileName, options)
   }
 
-  protected _defaultConfig = merge({}, DEFAULT_CONFIG)
+  protected _defaultConfig = mergeConfig()
 
   public get defaultConfig() {
     return this._defaultConfig
@@ -127,7 +127,7 @@ export default class Upload extends EventEmitter {
     this.reader = new Reader(this)
     this.uploader = new Uploader(this)
     this.lifecycle.onWithObject(options?.lifecycle || {})
-    this.defaultConfig = merge({}, this.defaultConfig, options?.config || {}, { internal: true })
+    this.defaultConfig = mergeConfig(merge({}, this.defaultConfig, options?.config || {}, { internal: true }))
     this.workerPool = new WorkerPool()
     this.pluginsCall(options?.ignores)
   }
@@ -303,6 +303,12 @@ export default class Upload extends EventEmitter {
   public getStatus(name: Symbol): ECACHE_STATUS | null {
     const task = this.getTask(name)
     return task?.status ?? null
+  }
+
+  //获取请求缓存
+  public getRequestCache(name: Symbol): TWrapperTask["tool"]["requestCache"] | undefined {
+    const task = this.getTask(name)
+    return task?.tool.requestCache
   }
 
   //继续执行任务

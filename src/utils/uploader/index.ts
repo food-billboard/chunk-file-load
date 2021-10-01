@@ -2,7 +2,7 @@ import Upload from '../../upload'
 import Reader from '../reader'
 import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS } from '../constant'
-import { TWrapperTask, TExitDataFnReturnValue, TUploadFormData } from '../../upload/type'
+import { TWrapperTask, TExitDataFnReturnValue, TUploadFormData, TRequestType } from '../../upload/type'
 import { TProcess } from '../worker/worker.pool'
 import { FilesSlicer } from '../slicer'
 
@@ -118,7 +118,9 @@ export default class Uploader extends Reader {
       chunkSize,
       chunksLength: Math.ceil(size / chunkSize)
     }
-    return exitDataFn!(params, symbol, task)
+    const result = await exitDataFn!(params, symbol, task)
+    this.setRequestCache("exitDataFn", result, task)
+    return result 
   }
 
   //文件上传
@@ -220,6 +222,7 @@ export default class Uploader extends Reader {
         }
 
         const response = await uploadFn(formData, symbol, task!)
+        this.setRequestCache("uploadFn", response, task!)
 
         await this.dealLifecycle('uploading', {
           name: symbol,
@@ -248,7 +251,25 @@ export default class Uploader extends Reader {
   //文件上传完成
   private async completeFn({ task, response }: { task: TWrapperTask, response: TExitDataFnReturnValue }) {
     const { file: { md5 }, symbol, request: { completeFn } } = task
-    return Promise.resolve(typeof completeFn === 'function' ? completeFn({ name: symbol, md5: md5! }, symbol, task) : response)
+    if(typeof completeFn === 'function') {
+      const result = await completeFn({ name: symbol, md5: md5! }, symbol, task)
+      this.setRequestCache("completeFn", result, task)
+      return result 
+    }
+    return response
+  }
+
+  //数据缓存
+  private setRequestCache(type: keyof Omit<TRequestType, "callback">, value: any, task: TWrapperTask) {
+    if(!task || !task.config.requestCache || (typeof task.config.requestCache === "object" && !task.config.requestCache[type])) return 
+    this.setState(task.symbol, {
+      tool: {
+        requestCache: {
+          [type]: type === "uploadFn" ? [...task.tool.requestCache.uploadFn || [], value] : value  
+        }
+      }
+    })
+
   }
 
 } 

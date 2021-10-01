@@ -69,6 +69,11 @@ import { FileTool } from '../utils/file'
     }
     chunkSize?: number
     parseIgnore?: boolean 
+    requestCache?: boolean | Partial<{
+      exitDataFn: boolean 
+      uploadFn: boolean 
+      completeFn: boolean 
+    }>
   }
 
   export type TExitDataFnReturnValue = {
@@ -114,6 +119,11 @@ import { FileTool } from '../utils/file'
     status: ECACHE_STATUS
     tool: {
       file: FileTool
+      requestCache: {
+        exitDataFn?: any
+        uploadFn?: any[]
+        completeFn?: any  
+      }
     }
   }
 

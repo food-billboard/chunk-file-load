@@ -134,6 +134,10 @@ export class FileTool {
     return status > ECACHE_STATUS.pending && status < ECACHE_STATUS.fulfilled
   }
 
+  public isTaskRequestCache(task?: TWrapperTask) {
+    return !!(task || this.file).config.requestCache
+  }
+
 }
 
 export default function(getTask: () => TWrapperTask): TWrapperTask {

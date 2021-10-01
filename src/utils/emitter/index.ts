@@ -3,7 +3,7 @@ import { STATUS_MAP } from './status.map'
 import Upload from '../../upload/index'
 import FileTool from '../file'
 import { flat, base64Size } from '../tool'
-import { ECACHE_STATUS, EActionType } from '../constant'
+import { ECACHE_STATUS, EActionType, mergeConfig } from '../constant'
 import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial, TLifecycle, TRequestType } from '../../upload/type'
 
 export default class Emitter {
@@ -132,7 +132,7 @@ export default class Emitter {
 
   private generateTask(task: Ttask, name: symbol): TWrapperTask{
     const { config={}, file, lifecycle, request, ...nextTask } = task
-    const realConfig = merge({}, this.context.defaultConfig, config)
+    const realConfig = mergeConfig(merge({}, this.context.defaultConfig, config))
 
     return merge(nextTask, {
       request: this.requestBinding(request),
@@ -169,6 +169,11 @@ export default class Emitter {
           set(newTask, "file._cp_", true)
           set(newTask, "file.action", EActionType.MD5)
         }
+        set(newTask, "tool.requestCache", {
+          exitDataFn: null,
+          completeFn: null,
+          uploadFn: null 
+        })
         acc.push(newTask)
         names.push(newTask.symbol)
       }

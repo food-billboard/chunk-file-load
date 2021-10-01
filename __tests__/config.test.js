@@ -1,5 +1,6 @@
 import { omit } from 'lodash'
 import { Upload } from '../src'
+import { isSymbol } from '../src/utils/tool'
 import { 
   exitDataFn, 
   uploadFn, 
@@ -944,6 +945,200 @@ describe('config test', () => {
         const result = upload.deal(tasks)
         dealResultExpect(result)
       })
+
+    })
+
+  })
+
+  describe("requestCache test", () => {
+
+    it('set requestCache for true', (done) => {
+  
+      let task;
+
+      const result = upload.upload({
+        config: {
+          ...config,
+          requestCache: true 
+        },
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              const { exitDataFn, uploadFn, completeFn } = task.tool.requestCache
+              expect(exitDataFn).toBeInstanceOf(Object)
+              expect(uploadFn).toBeInstanceOf(Array)
+              expect(completeFn).toBeInstanceOf(Object)
+              expect(exitDataFn.data).toEqual(0)
+              expect(Object.keys(completeFn).length).toEqual(0)
+              expect(uploadFn.length).toEqual(totalChunks)
+              expect(uploadFn.every((item, index) => {
+
+                return index == uploadFn.length - 1 ? item.data === FILE_SIZE : item.data === (index + 1) * BASE_SIZE
+              })).toBeTruthy()
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file
+        },
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      task = upload.getTask(result[0])
+
+    })
+
+    it('set requestCache for false', (done) => {
+
+      let task;
+
+      const result = upload.upload({
+        config: {
+          ...config,
+          requestCache: false 
+        },
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              const requestCache = task.tool.requestCache
+              expect(Object.keys(requestCache).length).toEqual(3)
+              expect(Object.values(requestCache).every(item => item == null)).toBeTruthy()
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file
+        },
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      task = upload.getTask(result[0])
+
+    })
+
+    it("set requestCache for object", (done) => {
+
+      let task;
+
+      const result = upload.upload({
+        config: {
+          ...config,
+          requestCache: {
+            exitDataFn: true 
+          } 
+        },
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              const { exitDataFn, uploadFn, completeFn } = task.tool.requestCache
+              expect(exitDataFn).toBeInstanceOf(Object)
+              expect(uploadFn).toEqual(null)
+              expect(completeFn).toEqual(null)
+              expect(exitDataFn.data).toEqual(0)
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file
+        },
+      })
+
+      expect(result).toBeInstanceOf(Array)
+    
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      task = upload.getTask(result[0])
+
+    })
+
+  })
+
+  describe("chunkSize test", () => {
+
+    test("set custom chunkSize", (done) => {
+
+      const { collection, emit } = emitterCollection()
+      const chunkSize = config.chunkSize * 2
+        
+      let reading = 0,
+        uploading = 0,
+        result
+
+      result = upload.upload({
+        config: {
+          ...config,
+          chunkSize
+        },
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {
+            try {
+              const _times = Math.ceil(FILE_SIZE / chunkSize)
+
+              expect(reading).toBe(_times)
+              expect(uploading).toBe(_times)
+
+              if(err) {
+                done(err)
+              }else {
+                done()
+              }
+            }catch(err) {
+              done(err)
+            }
+          },
+        },
+        file: {
+          file
+        },
+        lifecycle: {
+          reading({ name, task, current, total }) {
+            const _reading = ++ reading
+          },
+          uploading({ name, task, current, total, complete }) {
+            uploading ++
+          },
+        }
+      })
+
+      expect(result).toBeInstanceOf(Array)
+      expect(result.length).toEqual(1)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
 
     })
 

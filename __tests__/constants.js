@@ -5,7 +5,9 @@ import { arrayBufferToBase64, base64Size, base64ToArrayBuffer } from '../src/uti
 export const sleep = async (times=100) => new Promise(resolve => setTimeout(resolve, times))
 
 export const exitDataFn = ({ filename, md5, suffix, size, chunkSize, chunksLength }) => {
-  return false
+  return {
+    data: 0
+  }
 }
 
 export const uploadFn = (data) => {
@@ -16,7 +18,7 @@ export const uploadFn = (data) => {
   } 
 }
 
-export const completeFn = ({ name: md5 }) => {}
+export const completeFn = ({ name: md5 }) => ({})
 
 export const config = {
   retry: {
