@@ -230,7 +230,7 @@ export default class Emitter {
 
   public cancelAdd(...names: Symbol[]): Symbol[] {
     const tasks = this.tasks 
-    const dealTasks = tasks.filter(task => task.tool.file.isTaskCancelAdd() && names.includes(task.symbol))
+    const dealTasks = tasks.filter(task => task.tool.file.isTaskCancelAdd(task) && names.includes(task.symbol))
     if(!dealTasks.length) return []
     return this.off(...dealTasks.map(task => task.symbol))
   }

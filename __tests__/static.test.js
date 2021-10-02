@@ -29,14 +29,21 @@ describe('static api test', () => {
   
     describe('isSupport api fail test', () => {
   
-      test('isSupport api fail because the environment is not support', (done) => {
+      test('isSupport api fail because the environment is not support', () => {
   
         let _ArrayBuffer = window.ArrayBuffer
         window.ArrayBuffer = undefined
         const result = Upload.isSupport()
-        expect(result).toBeFalsy
+        expect(result).toBeFalsy()
+        let error = false 
+        try {
+          new Upload()
+        }catch(err) {
+          error = true 
+        } finally {
+          expect(error).toBeTruthy()
+        }
         window.ArrayBuffer = _ArrayBuffer
-        done()
   
       })
   
@@ -74,7 +81,7 @@ describe('static api test', () => {
         let _end = (slicerIndex + 1) * config.chunkSize
         _end = _end >= FILE_SIZE ? FILE_SIZE : _end
         expect(end).toEqual(_end)
-        expect(file instanceof ArrayBuffer || file instanceof Blob || typeof file === 'string').toBeTruthy
+        expect(file instanceof ArrayBuffer || file instanceof Blob || typeof file === 'string').toBeTruthy()
         slicerCount ++
         slicerIndex ++
         if(slicerIndex == totalChunks) {
@@ -98,7 +105,7 @@ describe('static api test', () => {
           },
           callback(error) {
             try {
-              expect(!!error).toBeFalsy
+              expect(!!error).toBeFalsy()
               expect(slicerCount).toBe(totalChunks)
               expect(slicerIndex).toBe(0)
               expect(readerCount).toBe(1)
@@ -140,7 +147,7 @@ describe('static api test', () => {
           uploadFn() {},
           callback(error) {
             try {
-              expect(!!error).toBeFalsy
+              expect(!!error).toBeFalsy()
               expect(slicerIgnoreCount).toBe(0)
               expect(readerIgnoreCount).toBe(0)
               done()
@@ -153,6 +160,44 @@ describe('static api test', () => {
       const names = upload.deal(tasks)
       expect(names).toBeInstanceOf(Array)
       expect(names.length).toBe(1)
+    })
+
+    test("install fail", (done) => {
+
+      let readerCount = 0
+
+      async function reader() {
+        readerCount ++ 
+        throw new Error() 
+      }
+
+      _Upload.install('reader', reader)
+
+      const upload = new _Upload()
+      const [ tasks ] = upload.add({
+        config: omit(config, ['retry']),
+        file: {
+          file,
+        },
+        request: {
+          uploadFn() {
+
+          },
+          callback(error) {
+            try {
+              expect(!!error).toBeTruthy()
+              expect(readerCount).toBe(1)
+              done()
+            }catch(err) {
+              done(err)
+            }
+          }
+        },
+      })
+
+      const names = upload.deal(tasks)
+      dealResultExpect(names)
+
     })
 
   })

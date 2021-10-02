@@ -111,9 +111,9 @@ export default class LifeCycle {
       }catch(err) {
         state.error = true
       }finally {
-        const { error, ...nextState } = state
-        if(!!error) return Promise.reject(nextState)
-        return Promise.resolve(nextState)
+        const { error } = state
+        if(!!error) return Promise.reject(state)
+        return Promise.resolve(state)
       }
     }
   }
@@ -158,7 +158,7 @@ export default class LifeCycle {
   public emit: TProcessLifeCycle<Promise<SuperPartial<TWrapperTask>>> = async (event, params) => {
     let targetEventQueue = this.lifecycleMap[event]
     let error:any = false
-    let response: SuperPartial<TWrapperTask> = {}
+    let response: SuperPartial<TWrapperTask> | false = {}
     const { name } = params 
     for(let i = 0; i < targetEventQueue.length; i ++) {
       const { key, counter, action } = targetEventQueue[i]

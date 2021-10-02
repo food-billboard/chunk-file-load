@@ -81,7 +81,7 @@ describe('request method test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
     })
 

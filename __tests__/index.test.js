@@ -1,6 +1,7 @@
 import { merge, omit } from 'lodash'
 import { Upload } from '../src'
 import { isSymbol } from '../src/utils/tool'
+import { WorkerPool } from '../src/utils'
 import { 
   exitDataFn, 
   uploadFn, 
@@ -125,7 +126,7 @@ describe('upload chunk test', () => {
   
         expect(result).toBeInstanceOf(Array)
       
-        result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+        result.forEach(name => expect(isSymbol(name)).toBeTruthy())
   
       })
   
@@ -569,13 +570,13 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const result = upload.start(tasks)
                   expect(result).toBeInstanceOf(Array)
                   expect(result.length).toBe(1)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(count).toEqual(times.length)
                   done()
                 }
@@ -618,13 +619,13 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(count).toEqual(times.length + 1)
                   expect(reading).toBe(times.length)
                   done()
@@ -671,12 +672,12 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   dealResultExpect(nextTasks)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(count).toEqual(times.length + 1)
                   done()
                 }
@@ -719,13 +720,13 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(count).toEqual(2)
                   done()
                 }
@@ -768,13 +769,13 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(beforeCheck).toEqual(2)
                   expect(reading).toBe(times.length)
                   done()
@@ -822,11 +823,11 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   upload.start(tasks)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(uploadCount).toEqual(times.length)
                   expect(reading).toBe(2)
                   done()
@@ -872,14 +873,14 @@ describe('upload chunk test', () => {
               try {
                 if(stop) {
                   emit()
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
                 }else {
                   expect(count).toBe(1)
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   done()
                 }
               }catch(err) {
@@ -933,7 +934,7 @@ describe('upload chunk test', () => {
               try {
                 if(stop) {
                   emit()
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
@@ -998,7 +999,7 @@ describe('upload chunk test', () => {
               try {
                 if(stop) {
                   emit()
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
@@ -1007,7 +1008,7 @@ describe('upload chunk test', () => {
                   expect(uploading).toBe(totalChunks)
                 }else {
                   expect(count).toBe(2)
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   done()
                 }
               }catch(err) {
@@ -1063,8 +1064,8 @@ describe('upload chunk test', () => {
               try {
                 if(stop) {
                   emit()
-                  expect(!!error).toBeTruthy
-                  expect(error.retry).toBeFalsy
+                  expect(!!error).toBeTruthy()
+                  expect(error.retry).toBeFalsy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
@@ -1072,7 +1073,7 @@ describe('upload chunk test', () => {
                   done()
                 }else {
                   expect(count).toBe(1)
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(uploading).toBe(times.length)
                   done()
                 }
@@ -1120,7 +1121,7 @@ describe('upload chunk test', () => {
             },
             callback: (error) => {
               try {
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 stop = false
                 const result = upload.start(tasks)
                 expect(result.length).toBe(0)
@@ -1162,12 +1163,12 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const result = upload.start(tasks)
                   dealResultExpect(result)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(count).toEqual(totalChunks + 1)
                   done()
                 }
@@ -1209,12 +1210,12 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(stop) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const result = upload.start(tasks)
                   dealResultExpect(result)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   expect(count).toEqual(totalChunks + 1)
                   done()
                 }
@@ -1274,7 +1275,7 @@ describe('upload chunk test', () => {
               try {
                 if(stop) {
                   emit()
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeFalsy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
@@ -1284,7 +1285,7 @@ describe('upload chunk test', () => {
                   done()
                 }else {
                   expect(count).toBe(2)
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   done()
                 }
               }catch(err) {
@@ -1342,7 +1343,7 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 emit()
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const result = upload.start(tasks)
                 expect(result).toBeInstanceOf(Array)
                 expect(result.length).toBe(0)
@@ -1384,7 +1385,7 @@ describe('upload chunk test', () => {
             uploadFn,
             callback: (error) => {
               try {
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const result = upload.start(tasks)
                 expect(result).toBeInstanceOf(Array)
                 expect(result.length).toBe(0)
@@ -1425,7 +1426,7 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 if(cancel) {
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
@@ -1471,7 +1472,7 @@ describe('upload chunk test', () => {
             },
             callback: (error) => {
               try {
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const nextTasks = upload.start(tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1513,7 +1514,7 @@ describe('upload chunk test', () => {
             },
             callback: (error) => {
               try {
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const nextTasks = upload.start(tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1555,7 +1556,7 @@ describe('upload chunk test', () => {
             },
             callback: (error) => {
               try {
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const nextTasks = upload.start(tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1597,7 +1598,7 @@ describe('upload chunk test', () => {
             },
             callback: (error) => {
               try {
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const nextTasks = upload.start(tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1643,13 +1644,13 @@ describe('upload chunk test', () => {
               try {
                 if(stop) {
                   emit()
-                  expect(!!error).toBeTruthy
+                  expect(!!error).toBeTruthy()
                   stop = false
                   const nextTasks = upload.start(...tasks)
                   expect(nextTasks).toBeInstanceOf(Array)
                   expect(nextTasks.length).toBe(1)
                 }else {
-                  expect(!!error).toBeFalsy
+                  expect(!!error).toBeFalsy()
                   done()
                 }
               }catch(err) {
@@ -1699,7 +1700,7 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 emit()
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const nextTasks = upload.start(tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1751,7 +1752,7 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 emit()
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 const nextTasks = upload.start(...tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1798,8 +1799,8 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try{
                 emit()
-                expect(!!error).toBeTruthy
-                expect(error.retry).toBeFalsy
+                expect(!!error).toBeTruthy()
+                expect(error.retry).toBeFalsy()
                 const nextTasks = upload.start(...tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1859,7 +1860,7 @@ describe('upload chunk test', () => {
             callback: (error) => {
               try {
                 emit()
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeFalsy()
                 const nextTasks = upload.start(...tasks)
                 expect(nextTasks).toBeInstanceOf(Array)
                 expect(nextTasks.length).toBe(0)
@@ -1947,7 +1948,7 @@ describe('upload chunk test', () => {
             callback(error) {
               try {
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(times).toBe(totalChunks)
                 done()
               }catch(err) {
@@ -2276,7 +2277,7 @@ describe('upload chunk test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
     })
 
     test(`upload the chunk complete task and md5 is parsed`, (done) => {
@@ -2372,7 +2373,7 @@ describe('upload chunk test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
     })
 
     test(`upload the exists task and the task is cancelAdd`, (done) => {
@@ -2466,17 +2467,17 @@ describe('upload chunk test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
       const task = upload.getTask(result[0])
       
       result = upload.cancelAdd(result[0])
       expect(result).toBeInstanceOf(Array)
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
       result = upload.uploading(task)
       expect(result).toBeInstanceOf(Array)
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
     })
 
@@ -2505,7 +2506,7 @@ describe('upload chunk test', () => {
                 isFirst = false 
                 result = upload.uploading(task)
                 expect(result).toBeInstanceOf(Array)
-                result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+                result.forEach(name => expect(isSymbol(name)).toBeTruthy())
               }else {
                 emit()
                 const _times = Math.ceil(FILE_SIZE / config.chunkSize)
@@ -2582,13 +2583,13 @@ describe('upload chunk test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
       const task = upload.getTask(result[0])
       
       result = upload.deal(result[0])
       expect(result).toBeInstanceOf(Array)
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
     })
 
@@ -2683,7 +2684,7 @@ describe('upload chunk test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
       const task = upload.getTask(result[0])
 
@@ -2717,20 +2718,51 @@ describe('upload chunk test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
       const task = upload.getTask(result[0])
       
       result = upload.cancelAdd(result[0])
       expect(result).toBeInstanceOf(Array)
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
       result = upload.resumeTask(task)
       expect(result).toBeInstanceOf(Array)
       expect(result.length).toBe(1)
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
       done()
+    })
+
+  })
+
+  describe("dispose test", () => {
+
+    test("dispose test", () => {
+
+      const upload = new Upload()
+
+      const result = upload.add({
+        config,
+        request: {
+          exitDataFn,
+          uploadFn,
+          completeFn,
+          callback: (err) => {},
+        },
+        file: {
+          file
+        },
+        lifecycle: {
+          beforeRead() {},
+        }
+      })
+      expect(result).toBeInstanceOf(Array)
+      expect(result.length).toEqual(1)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
+      upload.dispose()
+      expect(WorkerPool.queueIsEmpty()).toBeTruthy()
+
     })
 
   })

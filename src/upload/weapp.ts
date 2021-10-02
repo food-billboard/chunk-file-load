@@ -3,21 +3,6 @@ import { TLifecycle, TPlugins, TConfig } from './type'
 
 class WeUpload extends Upload {
 
-protected static plugins: Partial<TPlugins> = {
-	slicer: [
-		async function(_, __, ___, file) {
-			//在这里处理分片
-			if(typeof file === 'string') {
-				return WeUpload.atob(file)
-			}else if(file instanceof ArrayBuffer) {
-				return file 
-			}else {
-				return Promise.reject('can not slice this type file')
-			}
-		}
-	]
-}
-
 	public static setOptions({
 		arrayBufferToBase64,
 		base64ToArrayBuffer
@@ -33,8 +18,19 @@ protected static plugins: Partial<TPlugins> = {
 		lifecycle?: TLifecycle,
 		ignores?: string[],
 		config?: TConfig
-	}) {
+	}={}) {
 		super(options)
+		Upload.install("slicer", async function(_, __, ___, file) {
+			//在这里处理分片
+			if(typeof file === 'string') {
+				return WeUpload.atob(file)
+			}else if(file instanceof ArrayBuffer) {
+				return file 
+			}else {
+				return Promise.reject('can not slice this type file')
+			}
+		})
+		this.pluginsCall(options?.ignores)
 	}
 
 }

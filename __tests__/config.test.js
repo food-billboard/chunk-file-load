@@ -70,7 +70,7 @@ describe('config test', () => {
           },
           afterCheck({ name, task, isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             afterCheck ++
           },
@@ -85,7 +85,7 @@ describe('config test', () => {
           },
           beforeComplete({ isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             beforeComplete ++
           },
@@ -109,7 +109,7 @@ describe('config test', () => {
             callback(error) {
               try{
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(uploading).toBe(totalChunks)
@@ -204,7 +204,7 @@ describe('config test', () => {
           },
           afterCheck({ name, task, isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             afterCheck ++
           },
@@ -218,7 +218,7 @@ describe('config test', () => {
           },
           beforeComplete({ isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             beforeComplete ++
           },
@@ -242,7 +242,7 @@ describe('config test', () => {
             callback(error) {
               try{
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(uploading).toBe(totalChunks)
@@ -335,7 +335,7 @@ describe('config test', () => {
           },
           afterCheck({ name, task, isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             afterCheck ++
           },
@@ -350,7 +350,7 @@ describe('config test', () => {
           },
           beforeComplete({ isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             beforeComplete ++
           },
@@ -374,7 +374,7 @@ describe('config test', () => {
             callback(error) {
               try{
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(uploading).toBe(totalChunks)
@@ -467,7 +467,7 @@ describe('config test', () => {
           },
           afterCheck({ name, task, isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             afterCheck ++
           },
@@ -481,7 +481,7 @@ describe('config test', () => {
           },
           beforeComplete({ isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             beforeComplete ++
           },
@@ -507,7 +507,7 @@ describe('config test', () => {
               if(error) return done(error)
               try{
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(uploading).toBe(totalChunks)
@@ -600,7 +600,7 @@ describe('config test', () => {
           },
           afterCheck({ name, task, isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             afterCheck ++
           },
@@ -615,7 +615,7 @@ describe('config test', () => {
           },
           beforeComplete({ isExists }) {
             collection(() => {
-              expect(isExists).toBeFalsy
+              expect(isExists).toBeFalsy()
             })
             beforeComplete ++
           },
@@ -641,7 +641,7 @@ describe('config test', () => {
             callback(error) {
               try{
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(uploading).toBe(totalChunks)
@@ -717,7 +717,7 @@ describe('config test', () => {
           completeFn,
           callback(error) {
             try{
-              expect(!!error).toBeFalsy
+              expect(!!error).toBeFalsy()
               expect(beforeRead).toBe(0)
               expect(reading).toBe(0)
               expect(uploading).toBe(totalChunks)
@@ -744,10 +744,10 @@ describe('config test', () => {
 
     describe('error retry success test', () => {
 
-      let times = 0
-      let count = 0
-
       test('error retry success', (done) => {
+
+        let times = 0
+        let count = 0
 
         //错误自动重试
         const [tasks] = upload.add({
@@ -762,12 +762,12 @@ describe('config test', () => {
                 times ++
                 throw new Error('retry test error')
               }else {
-                return true
+                return uploadFn(formData)
               }
             },
             callback(error) {
               try {
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(count).toBe(3)
                 done()
               }catch(err) {
@@ -792,6 +792,56 @@ describe('config test', () => {
 
       })
 
+      test('error retry success and return false to stop the retry behaviour', (done) => {
+
+        let times = 0
+        let count = 0
+
+        //错误自动重试
+        const [tasks] = upload.add({
+          config,
+          file: {
+            file
+          },
+          request: {
+            completeFn,
+            uploadFn: (...args) => {
+              if(times < 3) {
+                times ++
+                throw new Error('retry test error')
+              }else {
+                return uploadFn(...args)
+              }
+            },
+            callback(error) {
+              try {
+                expect(!!error).toBeTruthy()
+                expect(count).toBe(1)
+                expect(times).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
+            }
+          },
+          config: {
+            retry: {
+              times: 3
+            },
+          },
+          lifecycle: {
+            retry() {
+              count ++
+              return false 
+            }
+          }
+        })
+
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
+
+      })
+
       test('error retry success and all the upload times all fail', (done) => {
 
         //错误自动重试
@@ -807,7 +857,7 @@ describe('config test', () => {
             },
             callback(error) {
               try {
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 done()
               }catch(err) {
                 done(err)
@@ -839,10 +889,11 @@ describe('config test', () => {
                 throw new Error('retry test all fail error')
               }
               count ++
+              return uploadFn(data)
             },
             callback(error) {
               try {
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(count).toBe(totalChunks + 1)
                 done()
               }catch(err) {
@@ -880,10 +931,11 @@ describe('config test', () => {
                 throw new Error('retry test all fail error')
               }
               count ++
+              return uploadFn(data)
             },
             callback(error) {
               try {
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(count).toBe(totalChunks + 1)
                 done()
               }catch(err) {
@@ -908,6 +960,7 @@ describe('config test', () => {
       test('error retry success and in retry lifecycle cancelAdd the performance', (done) => {
 
         let count = 0
+        let times = 0
 
         //错误自动重试
         const [tasks] = upload.add({
@@ -918,15 +971,17 @@ describe('config test', () => {
           request: {
             completeFn,
             uploadFn: (data) => {
-              if(count == 0) {
+              if(times < 3) {
+                times ++
                 throw new Error('retry test all fail error')
               }
-              count ++
+              return uploadFn(data)
             },
             callback(error) {
               try {
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeTruthy()
                 expect(count).toBe(1)
+                expect(times).toEqual(1)
                 done()
               }catch(err) {
                 done(err)
@@ -940,6 +995,54 @@ describe('config test', () => {
             }
           },
           config,
+        })
+
+        const result = upload.deal(tasks)
+        dealResultExpect(result)
+      })
+
+      test("error retry in the lifecycle throw error", (done) => {
+
+        let count = 0 
+        let times = 0 
+
+        const [tasks] = upload.add({
+          config,
+          file: {
+            file
+          },
+          request: {
+            completeFn,
+            uploadFn: (formData) => {
+              if(times < 3) {
+                times ++
+                throw new Error('retry test error')
+              }else {
+                return true
+              }
+            },
+            callback(error) {
+              try {
+                expect(!!error).toBeTruthy()
+                expect(count).toBe(1)
+                expect(times).toBe(1)
+                done()
+              }catch(err) {
+                done(err)
+              }
+            }
+          },
+          config: {
+            retry: {
+              times: 3
+            },
+          },
+          lifecycle: {
+            retry({ name }) {
+              count ++
+              throw new Error()
+            }
+          }
         })
 
         const result = upload.deal(tasks)
@@ -995,7 +1098,7 @@ describe('config test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
       task = upload.getTask(result[0])
 
     })
@@ -1035,7 +1138,7 @@ describe('config test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
       task = upload.getTask(result[0])
 
     })
@@ -1079,7 +1182,7 @@ describe('config test', () => {
 
       expect(result).toBeInstanceOf(Array)
     
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
       task = upload.getTask(result[0])
 
     })
@@ -1138,7 +1241,7 @@ describe('config test', () => {
 
       expect(result).toBeInstanceOf(Array)
       expect(result.length).toEqual(1)
-      result.forEach(name => expect(isSymbol(name)).toBeTruthy)
+      result.forEach(name => expect(isSymbol(name)).toBeTruthy())
 
     })
 

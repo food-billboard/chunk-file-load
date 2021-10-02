@@ -42,7 +42,7 @@ describe('task utils method test', () => {
       test('getTask api success', (done) => {
   
         const task = upload.getTask(name)
-        expect(!!task).toBeTruthy
+        expect(!!task).toBeTruthy()
         done()
   
       })
@@ -50,7 +50,7 @@ describe('task utils method test', () => {
       test('getTask api success but the task not found ', (done) => {
   
         const task = upload.getTask(null)
-        expect(!!task).toBeFalsy
+        expect(!!task).toBeFalsy()
         done()
   
       })
@@ -81,13 +81,13 @@ describe('task utils method test', () => {
   
       test('getOriginFile api success', (done) => {
         const task = upload.getOriginFile(name)
-        expect(!!task).toBeTruthy
+        expect(!!task).toBeTruthy()
         done()
       })
   
       test('getOriginFile api success but the task not found ', (done) => {
         const task = upload.getOriginFile(null)
-        expect(!!task).toBeFalsy
+        expect(!!task).toBeFalsy()
         done()
       })
   
@@ -169,7 +169,7 @@ describe('task utils method test', () => {
       test('getStatus api success but the task not found ', () => {
   
         const status = upload.getStatus(null)
-        expect(!!status).toBeFalsy
+        expect(!!status).toBeFalsy()
   
       })
   
@@ -234,7 +234,7 @@ describe('task utils method test', () => {
             callback(error) {
               try {
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(beforeCheck).toBe(1)
@@ -365,7 +365,7 @@ describe('task utils method test', () => {
             callback(error) {
               try {
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(beforeCheck).toBe(1)
@@ -495,7 +495,7 @@ describe('task utils method test', () => {
             callback(error) {
               try {
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(beforeCheck).toBe(1)
@@ -626,7 +626,7 @@ describe('task utils method test', () => {
             callback(error) {
               try {
                 emit()
-                expect(!!error).toBeFalsy
+                expect(!!error).toBeFalsy()
                 expect(beforeRead).toBe(1)
                 expect(reading).toBe(totalChunks)
                 expect(beforeCheck).toBe(1)
@@ -753,7 +753,7 @@ describe('task utils method test', () => {
             callback(error) {
               try {
                 emit()
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 expect(afterStop).toBe(1)
                 done()
               }catch(err) {
@@ -802,7 +802,7 @@ describe('task utils method test', () => {
             callback(error) {
               try {
                 emit()
-                expect(!!error).toBeTruthy
+                expect(!!error).toBeTruthy()
                 expect(afterCancel).toBe(1)
                 done()
               }catch(err) {
