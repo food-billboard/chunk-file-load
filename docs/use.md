@@ -40,7 +40,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -340,7 +340,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -468,7 +468,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -597,7 +597,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -831,7 +831,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片, ${new Date().toString()}`)
+        prev.push(`文件上传中: 第${index}片, ${new Date().toString()}`)
         return [
           ...prev
         ] 
@@ -949,7 +949,7 @@
         prev.push(`${message}, ${new Date().toString()}`)
         return prev 
       })
-      fileList([])
+      setFileList([])
       setLoading(false)
     }
 
@@ -1029,7 +1029,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片, ${new Date().toString()}`)
+        prev.push(`文件上传中: 第${index}片, ${new Date().toString()}`)
         return [
           ...prev
         ] 
@@ -1173,7 +1173,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -1303,7 +1303,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -1435,7 +1435,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -1566,7 +1566,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片, ${new Date().toString()}`)
+        prev.push(`文件上传中: 第${index}片, ${new Date().toString()}`)
         return [
           ...prev
         ] 
@@ -1720,7 +1720,7 @@
       const chunkSize = task.config.chunkSize 
       const nextOffset = chunkSize * Number(index)
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 
@@ -1853,7 +1853,7 @@
     const uploadFn = async (data, name) => {
       const index = data.get("index")
       setProcessMessageList(prev => {
-        prev.push(`文件解析中: 第${index}片`)
+        prev.push(`文件上传中: 第${index}片`)
         return [
           ...prev
         ] 

@@ -6,6 +6,7 @@
   "main": "./lib/index.js",
   "typings": "./lib/src/index.d.ts",
   "types": "./lib/src/index.d.ts",
+  "homepage": "https://food-billboard.github.io/chunk-file-upload/#/",
   "scripts": {
     "prepare": "husky install",
     "postinstall": "husky install",
@@ -56,11 +57,12 @@
     "registry": "https://registry.npmjs.org/"
   },
   "peerDependencies": {
-    "lodash": ">=4.17.19"
+    
   },
   "dependencies": {
     "@babel/runtime": "^7.15.4",
     "eventemitter3": "^4.0.7",
+    "lodash": "^4.17.21",
     "spark-md5": "^3.0.1"
   },
   "devDependencies": {
@@ -88,7 +90,6 @@
     "koa-cors": "^0.0.16",
     "koa2-multiparty": "^1.0.1",
     "lint-staged": "^10.0.7",
-    "lodash": "^4.17.21",
     "prettier": "^2.2.1",
     "react": "16.14.0",
     "react-dom": "16.14.0",
