@@ -6,7 +6,7 @@
 具体实例及测试请在[github](https://github.com/food-billboard/chunk-file-load)进行`fork`后运行以下命令  
 
 1. cmd分别命令执行查看相关示例
-`npm start`
+`npm run start`
 `npm run server`
 * 这里默认认为本机安装了node和nodemon
 
@@ -335,7 +335,7 @@ const upload = new Upload({
 
 ### start
 
-* 执行指定队列任务，与`deal`功能相同
+* 执行指定队列任务，与`deal`功能类似
 * 对于处于上传中的任务无效
 `upload.start(...names)` 
 
@@ -344,7 +344,7 @@ const upload = new Upload({
 * 暂停上传中的任务
 * 返回执行暂停操作的任务文件名称集合
 * 只对上传中的任务有效
-* 对于暂停的任务可以通过`deal`继续上传
+* 对于暂停的任务可以通过`start`继续上传
 
 ```js
 upload.stop(...names) //不传参数则暂停所有任务
@@ -403,18 +403,19 @@ upload.watch(...names) //不传则返回所有进度
 
 * 获取任务当前状态  
 
-### static isSupport
-
-* 当前环境是否支持  
-
 ## static API  
 
 ### install 
 
 * 插件注册(具体查看下方`Changelog 1.0.7`)  
 
+### isSupport
+
+* 当前环境是否支持  
+
 ## Changelog
 
+[1.0.9](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.9/changelog.md) 
 [1.0.7](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.7/changelog.md)  
 [1.0.6](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/index.md)  
 [1.0.5](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.5.md)
@@ -422,3 +423,6 @@ upload.watch(...names) //不传则返回所有进度
 ## 总结
 
 文件分片上传是为了能在后端限制上传文件大小的情况下，也为了能有更好的用户体验，将体积大的文件分成等体积的小文件进行分别上传，也保证了当用户在不明情况下中断上传可以继续上传。
+
+
+<!-- npx husky add .husky/pre-commit "npm run test" -->

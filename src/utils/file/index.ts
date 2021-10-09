@@ -1,5 +1,4 @@
-import merge from 'lodash/merge'
-import get from 'lodash/get'
+import { merge, get } from 'lodash'
 import { isMd5, isObject } from '../tool' 
 import { ECACHE_STATUS } from '../constant'
 import { TWrapperTask, TFile } from '../../upload/type'
@@ -133,6 +132,10 @@ export class FileTool {
   public isTaskDealing(task?: TWrapperTask) {
     const status = this.getStatus(task)
     return status > ECACHE_STATUS.pending && status < ECACHE_STATUS.fulfilled
+  }
+
+  public isTaskRequestCache(task?: TWrapperTask) {
+    return !!(task || this.file).config.requestCache
   }
 
 }

@@ -4,79 +4,101 @@
   "description": "文件分片上传",
   "private": false,
   "main": "./lib/index.js",
+  "typings": "./lib/src/index.d.ts",
+  "types": "./lib/src/index.d.ts",
+  "homepage": "https://food-billboard.github.io/chunk-file-upload/#/",
   "scripts": {
-    "test": "jest --config=jest.config.js --verbose",
-    "server": "nodemon ./src/test/index.js",
-    "start": "webpack-dev-server --progress --config ./webpack.dev.config.js",
-    "build": "webpack --progress --color --config ./webpack.prod.config.js",
+    "prepare": "husky install",
+    "postinstall": "husky install",
+    "prepublishOnly": "pinst --disable",
+    "postpublish": "pinst --enable",
+    "server": "node ./mock_data/server/index.js",
+    "start": "dumi dev",
+    "build": "npm run build:lib && npm run build:es && npm run build:umd",
+    "build:lib": "cross-env BUILD_TYPE=lib father-build",
+    "build:umd": "cross-env BUILD_TYPE=umd father-build",
+    "build:es": "cross-env BUILD_TYPE=es father-build",
+    "docs:build": "dumi build",
+    "docs:deploy": "gh-pages -d docs-dist",
+    "prettier": "prettier --write \"**/*.{js,jsx,tsx,ts,less,md,json}\"",
+    "test": "umi-test",
+    "test:coverage": "umi-test --coverage",
     "deploy": "np"
   },
+  "gitHooks": {
+    "pre-commit": "lint-staged"
+  },
   "files": [
-    "lib/"
+    "es/",
+    "lib/",
+    "dist/"
   ],
   "keywords": [
     "chunk",
-    "upload"
+    "upload",
+    "file",
+    "utils"
   ],
-  "typings": "./lib/src/index.d.ts",
-  "types": "./lib/src/index.d.ts",
   "author": "glf",
   "license": "ISC",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/food-billboard/chunk-file-load"
   },
+  "lint-staged": {
+    "*.{js,jsx,less,md,json}": [
+      "prettier --write"
+    ],
+    "*.ts?(x)": [
+      "prettier --parser=typescript --write"
+    ]
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
+  "peerDependencies": {
+    
+  },
   "dependencies": {
-    "@babel/runtime": "^7.9.6",
+    "@babel/runtime": "^7.15.4",
     "eventemitter3": "^4.0.7",
-    "lodash": "^4.17.20",
+    "lodash": "^4.17.21",
     "spark-md5": "^3.0.1"
   },
   "devDependencies": {
-    "@babel/cli": "^7.11.6",
-    "@babel/core": "^7.9.6",
-    "@babel/plugin-proposal-class-properties": "^7.8.3",
-    "@babel/plugin-transform-modules-commonjs": "^7.10.4",
-    "@babel/plugin-transform-runtime": "^7.9.6",
-    "@babel/preset-env": "^7.9.6",
-    "@babel/preset-react": "^7.10.4",
-    "@babel/preset-typescript": "^7.10.4",
-    "@koa/router": "^8.0.8",
+    "@ant-design/icons": "^4.6.4",
+    "@commitlint/cli": "^13.1.0",
+    "@commitlint/config-angular": "^13.1.0",
+    "@koa/router": "^10.1.1",
     "@types/jest": "^26.0.14",
     "@types/lodash": "^4.14.168",
     "@types/spark-md5": "^3.0.2",
-    "axios": "^0.21.3",
+    "@umijs/test": "^3.0.5",
+    "antd": "^4.16.13",
+    "axios": "^0.21.4",
     "babel-jest": "^26.3.0",
-    "babel-loader": "^8.1.0",
+    "babel-plugin-import": "^1.13.3",
     "clean-webpack-plugin": "^3.0.0",
-    "core-js": "^3.15.2",
-    "css-loader": "^3.5.3",
-    "extract-text-webpack-plugin": "^4.0.0-beta.0",
-    "file-loader": "^6.0.0",
-    "fork-ts-checker-webpack-plugin": "^6.2.0",
-    "html-webpack-plugin": "^4.3.0",
+    "cross-env": "^7.0.3",
+    "cz-conventional-changelog": "^3.3.0",
+    "dumi": "^1.0.16",
+    "father-build": "^1.17.2",
+    "gh-pages": "^3.2.3",
+    "husky": "^7.0.2",
     "jest": "^26.4.2",
-    "koa": "^2.13.1",
-    "koa-cors": "0.0.16",
+    "koa": "^2.13.3",
+    "koa-cors": "^0.0.16",
     "koa2-multiparty": "^1.0.1",
-    "mini-css-extract-plugin": "^0.11.2",
-    "nyc": "^15.1.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "style-loader": "^1.2.1",
-    "terser-webpack-plugin": "^4.2.3",
+    "lint-staged": "^10.0.7",
+    "prettier": "^2.2.1",
+    "react": "16.14.0",
+    "react-dom": "16.14.0",
     "ts-jest": "^26.4.0",
-    "ts-loader": "^8.0.3",
-    "typescript": "^4.0.2",
-    "webpack": "^4.43.0",
-    "webpack-bundle-analyzer": "^3.8.0",
-    "webpack-cli": "^3.3.11",
-    "webpack-dashboard": "^3.3.5",
-    "webpack-dev-server": "^3.10.3",
-    "webpack-merge": "^5.1.4"
+    "yorkie": "^2.0.0"
   },
-  "sideEffects": false
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
 }

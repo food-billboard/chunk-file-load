@@ -1,3 +1,5 @@
+import { merge } from 'lodash'
+
 const MAX_FILE_CHUNK = 1024 * 1024 * 5
 
 enum ECACHE_STATUS {
@@ -20,7 +22,20 @@ enum EActionType {
 
 const DEFAULT_CONFIG = {
   chunkSize: MAX_FILE_CHUNK,
-  parseIgnore: false 
+  parseIgnore: false,
+  requestCache: false 
+}
+
+function mergeConfig(config: any={}) {
+  const newConfig = merge({}, DEFAULT_CONFIG, config)
+  if(newConfig.requestCache === true) {
+    newConfig.requestCache = {
+      exitDataFn: true,
+      uploadFn: true,
+      completeFn: true 
+    }
+  }
+  return newConfig
 }
 
 Object.seal(DEFAULT_CONFIG)
@@ -28,6 +43,6 @@ Object.seal(DEFAULT_CONFIG)
 export {
   MAX_FILE_CHUNK,
   ECACHE_STATUS,
-  DEFAULT_CONFIG,
+  mergeConfig,
   EActionType
 }

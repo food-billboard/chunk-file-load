@@ -1,11 +1,9 @@
-import merge from 'lodash/merge'
-import mergeWith from 'lodash/mergeWith'
-import set from 'lodash/set'
+import { merge, mergeWith, set } from 'lodash'
 import { STATUS_MAP } from './status.map'
 import Upload from '../../upload/index'
 import FileTool from '../file'
 import { flat, base64Size } from '../tool'
-import { ECACHE_STATUS, EActionType } from '../constant'
+import { ECACHE_STATUS, EActionType, mergeConfig } from '../constant'
 import { Ttask, TWrapperTask, TWraperFile, TFile, SuperPartial, TLifecycle, TRequestType } from '../../upload/type'
 
 export default class Emitter {
@@ -45,7 +43,7 @@ export default class Emitter {
             current: 0
           },
           status: ECACHE_STATUS.pending
-        })
+        }, true)
       }else {
         console.warn("the task is not valid and be ignore: ", symbol)
       }
@@ -134,7 +132,7 @@ export default class Emitter {
 
   private generateTask(task: Ttask, name: symbol): TWrapperTask{
     const { config={}, file, lifecycle, request, ...nextTask } = task
-    const realConfig = merge({}, this.context.defaultConfig, config)
+    const realConfig = mergeConfig(merge({}, this.context.defaultConfig, config))
 
     return merge(nextTask, {
       request: this.requestBinding(request),
@@ -171,6 +169,11 @@ export default class Emitter {
           set(newTask, "file._cp_", true)
           set(newTask, "file.action", EActionType.MD5)
         }
+        set(newTask, "tool.requestCache", {
+          exitDataFn: null,
+          completeFn: null,
+          uploadFn: null 
+        })
         acc.push(newTask)
         names.push(newTask.symbol)
       }
@@ -227,7 +230,7 @@ export default class Emitter {
 
   public cancelAdd(...names: Symbol[]): Symbol[] {
     const tasks = this.tasks 
-    const dealTasks = tasks.filter(task => task.tool.file.isTaskCancelAdd() && names.includes(task.symbol))
+    const dealTasks = tasks.filter(task => task.tool.file.isTaskCancelAdd(task) && names.includes(task.symbol))
     if(!dealTasks.length) return []
     return this.off(...dealTasks.map(task => task.symbol))
   }
@@ -253,11 +256,16 @@ export default class Emitter {
     }
   }
 
-  public setState = (name: Symbol, value: SuperPartial<TWrapperTask>={}): TWrapperTask => {
+  public setState = (name: Symbol, value: SuperPartial<TWrapperTask>={}, forceUpdate:boolean=false): TWrapperTask => {
     const [ index, task ] = this.getTask(name)
     const nowStatus = task?.status
     const nextStatus = value.status
-    let status = typeof nextStatus === 'number' ? STATUS_MAP[nowStatus!](nextStatus, task) ?? nowStatus : nowStatus
+    let status
+    if(forceUpdate) {
+      status = typeof nextStatus === 'number' ? nextStatus : nowStatus
+    }else {
+      status = typeof nextStatus === 'number' ? STATUS_MAP[nowStatus!](nextStatus, task) ?? nowStatus : nowStatus
+    }
     this.tasks[index] = mergeWith(task, value, { status }, this.customerMergeMethod)
     return this.tasks[index]
   }

@@ -15,4 +15,7 @@ webpack.prod.config.js
 package-lock.json
 /.awcache
 /doc
+/docs 
+/coverage 
 yarn-error.log
+/mock 

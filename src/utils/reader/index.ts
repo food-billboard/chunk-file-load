@@ -1,4 +1,4 @@
-import uniqueId from 'lodash/uniqueId'
+import { uniqueId } from 'lodash'
 import FileParse from './parse'
 import Upload from '../../upload'
 import Proxy from '../proxy'

@@ -1,5 +1,4 @@
-import merge from 'lodash/merge'
-import omit from 'lodash/omit'
+import { merge, omit } from 'lodash'
 import { SuperPartial, TLifecycle, TProcessLifeCycle, TWrapperTask } from '../../upload/type'
 import { ECACHE_STATUS } from '../constant'
 
@@ -112,9 +111,9 @@ export default class LifeCycle {
       }catch(err) {
         state.error = true
       }finally {
-        const { error, ...nextState } = state
-        if(!!error) return Promise.reject(nextState)
-        return Promise.resolve(nextState)
+        const { error } = state
+        if(!!error) return Promise.reject(state)
+        return Promise.resolve(state)
       }
     }
   }
@@ -158,8 +157,8 @@ export default class LifeCycle {
 
   public emit: TProcessLifeCycle<Promise<SuperPartial<TWrapperTask>>> = async (event, params) => {
     let targetEventQueue = this.lifecycleMap[event]
-    let error = false
-    let response: SuperPartial<TWrapperTask> = {}
+    let error:any = false
+    let response: SuperPartial<TWrapperTask> | false = {}
     const { name } = params 
     for(let i = 0; i < targetEventQueue.length; i ++) {
       const { key, counter, action } = targetEventQueue[i]

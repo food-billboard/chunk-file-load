@@ -33,7 +33,7 @@ import { FileTool } from '../utils/file'
     [key: string]: any
   }
   
-  export type TUploadFn = (data: FormData | TUploadFormData, name: Symbol) => ReturnType<TExitDataFn>
+  export type TUploadFn = (data: FormData | TUploadFormData, name: Symbol, task: TWrapperTask) => ReturnType<TExitDataFn>
   
   type TLifeCycleParams = {
     name: Symbol
@@ -69,6 +69,11 @@ import { FileTool } from '../utils/file'
     }
     chunkSize?: number
     parseIgnore?: boolean 
+    requestCache?: boolean | Partial<{
+      exitDataFn: boolean 
+      uploadFn: boolean 
+      completeFn: boolean 
+    }>
   }
 
   export type TExitDataFnReturnValue = {
@@ -76,21 +81,14 @@ import { FileTool } from '../utils/file'
     [key: string]: any
   }
 
-  export type TExitDataFn = ({ 
-    filename,
-    md5,
-    suffix,
-    size,
-    chunkSize,
-    chunksLength
-  }: {
+  export type TExitDataFn = (params: {
     filename: string
     md5: string
     suffix: string
     size: number
     chunkSize: number
     chunksLength: number
-  }, name: Symbol) => Promise<TExitDataFnReturnValue>
+  }, name: Symbol, task: TWrapperTask) => Promise<TExitDataFnReturnValue>
 
   export type TFile<T=TFileType> = {
     md5?: string
@@ -121,13 +119,18 @@ import { FileTool } from '../utils/file'
     status: ECACHE_STATUS
     tool: {
       file: FileTool
+      requestCache: {
+        exitDataFn?: any
+        uploadFn?: any[]
+        completeFn?: any  
+      }
     }
   }
 
   export interface TRequestType {
     exitDataFn?: TExitDataFn
     uploadFn: TUploadFn
-    completeFn?: (params : { name: Symbol, md5: string }) => any
+    completeFn?: (params : { name: Symbol, md5: string }, name: Symbol, task: TWrapperTask) => any
     callback?: (err: {
       retry?: boolean
       error: any

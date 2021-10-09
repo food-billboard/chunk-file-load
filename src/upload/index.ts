@@ -1,5 +1,4 @@
-import merge from 'lodash/merge'
-import noop from 'lodash/noop'
+import { merge, noop } from 'lodash'
 import EventEmitter from 'eventemitter3'
 import { 
   Emitter, 
@@ -13,7 +12,7 @@ import {
   arrayBufferToBase64 as internalArrayBufferToBase64,
   isBase64,
   withTry,
-  DEFAULT_CONFIG
+  mergeConfig,
 } from '../utils'
 import { 
   TLifecycle, 
@@ -37,7 +36,18 @@ export default class Upload extends EventEmitter {
       Upload.plugins = {}
     }
     if(!Upload.plugins[name]) Upload.plugins[name] = []
-    Upload.plugins[name]?.push(descriptor as any)
+    const index = Upload.plugins[name]?.findIndex(item => item === descriptor) || -1
+    if(!!~index) {
+      Upload.plugins[name]?.splice(index, 1, descriptor)
+    }else {
+      Upload.plugins[name]?.push(descriptor as any)
+    }
+  }
+
+  public static uninstall(name: keyof TPlugins, descriptor?: TPluginsReader | TPluginsSlicer) {
+    if (!Upload.plugins || !Upload.plugins[name]) return 
+    if(!descriptor) Upload.plugins[name] = []
+    Upload.plugins[name] = (Upload.plugins[name]?.filter(item => item !== descriptor) || []) as any 
   }
 
   protected lifecycle: LifeCycle = new LifeCycle()
@@ -105,7 +115,7 @@ export default class Upload extends EventEmitter {
     return new File([buffer], fileName, options)
   }
 
-  protected _defaultConfig = merge({}, DEFAULT_CONFIG)
+  protected _defaultConfig = mergeConfig()
 
   public get defaultConfig() {
     return this._defaultConfig
@@ -128,13 +138,14 @@ export default class Upload extends EventEmitter {
     this.reader = new Reader(this)
     this.uploader = new Uploader(this)
     this.lifecycle.onWithObject(options?.lifecycle || {})
-    this.defaultConfig = merge({}, this.defaultConfig, options?.config || {}, { internal: true })
+    this.defaultConfig = mergeConfig(merge({}, this.defaultConfig, options?.config || {}, { internal: true }))
     this.workerPool = new WorkerPool()
     this.pluginsCall(options?.ignores)
   }
 
   //插件注册
-  private pluginsCall(ignores: string[]=[]) {
+  protected pluginsCall(ignores: string[]=[]) {
+    this.removeAllListeners()
     if (Upload.plugins) {
       const keys = Object.keys(Upload.plugins) as (keyof TPlugins)[]
       keys.forEach((name) => {
@@ -306,6 +317,12 @@ export default class Upload extends EventEmitter {
     return task?.status ?? null
   }
 
+  //获取请求缓存
+  public getRequestCache(name: Symbol): TWrapperTask["tool"]["requestCache"] | undefined {
+    const task = this.getTask(name)
+    return task?.tool.requestCache
+  }
+
   //继续执行任务
   private async dealNextTasks() {
     return this.workerPool.enqueue()
@@ -351,20 +368,16 @@ export default class Upload extends EventEmitter {
           response.retry = retry?.times > 0
           if(response.retry) {
             try {
-              await this.LIFECYCLE_EMIT('retry', {
+              const needStop = await this.LIFECYCLE_EMIT('retry', {
                 name: symbol,
                 status: ECACHE_STATUS.pending,
                 rest: retry.times - 1
               })
+              response.retry = needStop ?? true 
             }catch(err) {
               response.retry = false
             }finally {
               response.remove = !response.retry
-              const status = this.getStatus(symbol)
-              if(status === ECACHE_STATUS.stopping) {
-                response.retry = false
-                response.remove = false 
-              }
             }
           }
         }else {
@@ -372,7 +385,6 @@ export default class Upload extends EventEmitter {
             response.remove = false
           }
         }
-
         return response
       })
       .then(async (response) => {
@@ -460,7 +472,9 @@ export default class Upload extends EventEmitter {
 
       if(error) {
         return Promise.reject(error)
-      } 
+      }else if(response?.status === ECACHE_STATUS.stopping ) {
+        return false 
+      }
     }
   }
 
