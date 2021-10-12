@@ -1,20 +1,19 @@
 import { ArrayBuffer as SparkMD5ArrayBuffer } from 'spark-md5'
 // import { transfer } from 'comlink'
 import { noop, merge } from 'lodash'
-import Upload from '../../upload'
-import Proxy from '../proxy'
-import WorkerPool, { TProcess } from '../worker/worker.pool'
-import { TWrapperTask } from '../../upload/type'
-import { ECACHE_STATUS } from '../constant'
 import { BlobSlicer, ArrayBufferSlicer, FilesSlicer } from '../slicer'
+import CustomProxy from '../proxy'
+import WorkerPool, { TProcess } from '../worker/worker.pool'
+import { TWrapperTask, UploadContext } from '../../upload/type'
+import { ECACHE_STATUS } from '../constant'
 
 type TNext = () => Promise<void>
 type TDone = (value: string | PromiseLike<string>) => void
 type TError = (err: any) => void
 
-export default class extends Proxy {
+export default class extends CustomProxy {
 
-  constructor(context: Upload, worker_id: string) {
+  constructor(context: UploadContext, worker_id: string) {
     super(context)
     this.worker = WorkerPool.getProcess(worker_id)
   }
@@ -181,7 +180,7 @@ export default class extends Proxy {
 
   public async base64(task: TWrapperTask): Promise<string> {
     const { file } = task
-    const bufferFile = Upload.atob(file.file as string)
+    const bufferFile = this.context.atob(file.file as string)
     return this.arraybuffer(merge(task, { file: merge(file, { file: bufferFile }) }))
   }
 

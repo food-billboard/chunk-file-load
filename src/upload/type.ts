@@ -1,6 +1,8 @@
+import EventEmitter from 'eventemitter3'
 import { ECACHE_STATUS, EActionType } from '../utils/constant'
 import Upload from './index'
 import { FileTool } from '../utils/file'
+import Emitter from '../utils/emitter'
 
   export type TFailEmitReturnType = {
     reason: any
@@ -167,4 +169,15 @@ import { FileTool } from '../utils/file'
   export type TPlugins = {
     reader: TPluginsReader[]
     slicer: TPluginsSlicer[]
+  }
+
+  export type UploadContext = {
+    atob: any 
+    emit: <T extends EventEmitter.EventNames<string>>(
+      event: T,
+      ...args: EventEmitter.EventArgs<string, T>
+    ) => boolean
+    eventNames: Function
+    LIFECYCLE_EMIT: TProcessLifeCycle
+    emitter: Emitter 
   }

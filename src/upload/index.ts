@@ -24,7 +24,8 @@ import {
   TPlugins,
   TPluginsReader,
   TPluginsSlicer,
-  TConfig
+  TConfig,
+  UploadContext
 } from './type'
 
 export default class Upload extends EventEmitter {
@@ -135,12 +136,23 @@ export default class Upload extends EventEmitter {
   }) {
     super()
     if(!Upload.isSupport()) throw new Error('this tool must be support for the ArrayBuffer')
-    this.reader = new Reader(this)
-    this.uploader = new Uploader(this)
+    const context = this.initContext()
+    this.reader = new Reader(context)
+    this.uploader = new Uploader(context)
     this.lifecycle.onWithObject(options?.lifecycle || {})
     this.defaultConfig = mergeConfig(merge({}, this.defaultConfig, options?.config || {}, { internal: true }))
     this.workerPool = new WorkerPool()
     this.pluginsCall(options?.ignores)
+  }
+
+  private initContext(): any {
+    return {
+      atob: Upload.atob,
+      emit: this.emit.bind(this),
+      eventNames: this.eventNames.bind(this),
+      LIFECYCLE_EMIT: this.LIFECYCLE_EMIT.bind(this),
+      emitter: this.emitter
+    }
   }
 
   //插件注册

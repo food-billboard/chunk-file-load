@@ -1,14 +1,13 @@
 import { uniqueId } from 'lodash'
 import FileParse from './parse'
-import Upload from '../../upload'
-import Proxy from '../proxy'
+import CustomProxy from '../proxy'
 import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS, EActionType } from '../constant'
-import { TWrapperTask } from '../../upload/type'
+import { TWrapperTask, UploadContext } from '../../upload/type'
 
-class FileReader extends Proxy {
+class FileReader extends CustomProxy {
 
-  constructor(context: Upload) {
+  constructor(context: UploadContext) {
     super(context)
   }
 

@@ -1,21 +1,17 @@
 import EventEmitter from 'eventemitter3'
-import Upload from '../../upload'
-import { TProcessLifeCycle, TSetState, TGetState } from '../../upload/type'
+import { TProcessLifeCycle, TSetState, TGetState, UploadContext } from '../../upload/type'
 
 export default class {
 
-  constructor(context: Upload) {
+  constructor(context: UploadContext) {
     this.context = context
     this.init()
   }
 
   private init() {
-    this.emit = this.context.emit.bind(this.context)
-    //@ts-ignore
-    this.dealLifecycle = this.context.LIFECYCLE_EMIT.bind(this.context)
-    //@ts-ignore
+    this.emit = this.context.emit
+    this.dealLifecycle = this.context.LIFECYCLE_EMIT
     this.setState = this.context.emitter.setState.bind(this.context.emitter)
-    //@ts-ignore
     this.getState = this.context.emitter.getTask.bind(this.context.emitter)
   }
 

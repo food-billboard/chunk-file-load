@@ -4,9 +4,9 @@
   "description": "文件分片上传",
   "private": false,
   "main": "./lib/index.js",
-  "typings": "./lib/src/index.d.ts",
-  "types": "./lib/src/index.d.ts",
-  "homepage": "https://food-billboard.github.io/chunk-file-upload/#/",
+  "typings": "./lib/index.d.ts",
+  "types": "./lib/index.d.ts",
+  "homepage": "https://food-billboard.github.io/chunk-file-load/",
   "scripts": {
     "prepare": "husky install",
     "postinstall": "husky install",
@@ -55,9 +55,6 @@
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
-  },
-  "peerDependencies": {
-    
   },
   "dependencies": {
     "@babel/runtime": "^7.15.4",

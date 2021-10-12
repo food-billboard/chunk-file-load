@@ -1,12 +1,11 @@
-import Upload from '../../upload'
-import { TFileType, TWrapperTask } from '../../upload/type'
+import { TFileType, TWrapperTask, UploadContext } from '../../upload/type'
 import ArrayBufferSlicer from './arraybuffer'
 import Base64Slicer from './base64'
 import BlobSlicer from './blob'
 
 export default class {
 
-  constructor(context: Upload, task: TWrapperTask) {
+  constructor(context: UploadContext, task: TWrapperTask) {
     this.base64 = new Base64Slicer(context, task)
     this.blob = new BlobSlicer(context, task)
     this.arraybuffer = new ArrayBufferSlicer(context, task)
@@ -29,7 +28,6 @@ export default class {
       return this.blob.slice(start, end, file)
     }
 
-    console.log(file, 11111111)
     return Promise.reject('the file type is not support')
 
   }
