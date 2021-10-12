@@ -1,12 +1,11 @@
-import Upload from '../../upload'
-import { TWrapperTask } from '../../upload/type'
+import { TWrapperTask, UploadContext } from '../../upload/type'
 import Slicer, { TSlice } from './base'
 
 type TReaderResult = ProgressEvent<FileReader>
 
 export default class extends Slicer<File | Blob> {
 
-  constructor(context: Upload, task: TWrapperTask, file?: File | Blob, returnBlob: boolean = false) {
+  constructor(context: UploadContext, task: TWrapperTask, file?: File | Blob, returnBlob: boolean = false) {
     super(context, task, file)
     this.returnBlob = returnBlob
     this.slicer = Blob?.prototype.slice

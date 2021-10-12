@@ -2,13 +2,13 @@ import Upload from '../../upload'
 import Reader from '../reader'
 import WorkerPool from '../worker/worker.pool'
 import { ECACHE_STATUS } from '../constant'
-import { TWrapperTask, TExitDataFnReturnValue, TUploadFormData, TRequestType } from '../../upload/type'
+import { TWrapperTask, TExitDataFnReturnValue, TUploadFormData, TRequestType, UploadContext } from '../../upload/type'
 import { TProcess } from '../worker/worker.pool'
 import { FilesSlicer } from '../slicer'
 
 export default class Uploader extends Reader {
 
-  constructor(context: Upload) {
+  constructor(context: UploadContext) {
     super(context)
   }
 

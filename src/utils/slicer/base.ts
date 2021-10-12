@@ -1,12 +1,11 @@
-import Upload from '../../upload'
-import Proxy from '../proxy'
-import { TFileType, TWrapperTask } from '../../upload/type'
+import CustomProxy from '../proxy'
+import { TFileType, TWrapperTask, UploadContext } from '../../upload/type'
 
 export type TSlice<T=any> = (start: number, end?: number, file?: TFileType) => T
 
-export default class Slicer<T extends TFileType> extends Proxy {
+export default class Slicer<T extends TFileType> extends CustomProxy {
 
-  constructor(context: Upload, task: TWrapperTask, file?: T) {
+  constructor(context: UploadContext, task: TWrapperTask, file?: T) {
     super(context)
     this.task = task
     if(file) {
