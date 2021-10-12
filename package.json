@@ -87,6 +87,7 @@
     "koa-cors": "^0.0.16",
     "koa2-multiparty": "^1.0.1",
     "lint-staged": "^10.0.7",
+    "pinst": "^2.1.6",
     "prettier": "^2.2.1",
     "react": "16.14.0",
     "react-dom": "16.14.0",
