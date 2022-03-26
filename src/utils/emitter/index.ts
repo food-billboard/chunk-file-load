@@ -58,12 +58,7 @@ export default class Emitter {
     const { file, mime } = unWrapperFile
 
     let fileType = Object.prototype.toString.call(file);
-    try {
-      [ fileType ] = fileType.match(/(?<=\[object ).+(?=\])/) || []
-    }catch(err) {
-      fileType = fileType.replace("[object ", "").replace("]", "")
-    }
-    fileType = fileType.toLowerCase().trim()
+    fileType = fileType.replace("[object ", "").replace("]", "").toLowerCase().trim()
 
     let baseFileInfo: Partial<TWraperFile> = merge({
       size: 0,

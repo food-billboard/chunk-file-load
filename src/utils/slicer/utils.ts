@@ -4,16 +4,15 @@ import { base64Size } from '../tool'
 export function getChunkSize(chunk:TFileType): number {
   if(!chunk) return 0
   let fileType = Object.prototype.toString.call(chunk);
-  [ fileType ] = fileType.match(/(?<=\[object ).+(?=\])/) || []
 
-  switch(fileType.toLowerCase().trim()) {
-    case 'file':
+  switch(fileType) {
+    case '[object File]':
       return (chunk as File).size
-    case 'blob':
+    case '[object Blob]':
       return (chunk as Blob).size
-    case 'arraybuffer':
+    case '[object ArrayBuffer]':
       return (chunk as ArrayBuffer).byteLength
-    case 'string':
+    case '[object String]':
       return base64Size(chunk as string)
     default:
       return 0
