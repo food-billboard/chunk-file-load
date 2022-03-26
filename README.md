@@ -414,8 +414,8 @@ upload.watch(...names) //不传则返回所有进度
 * 当前环境是否支持  
 
 ## Changelog
-
-[1.0.9](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.9/changelog.md) 
+[1.0.10](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.10/changelog.md)  
+[1.0.9](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.9/changelog.md)  
 [1.0.7](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.7/changelog.md)  
 [1.0.6](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.6/index.md)  
 [1.0.5](https://github.com/food-billboard/chunk-file-load/tree/master/doc/1.0.5.md)
