@@ -79,7 +79,7 @@
     "cross-env": "^7.0.3",
     "cz-conventional-changelog": "^3.3.0",
     "dumi": "^1.0.16",
-    "father-build": "^1.17.2",
+    "father-build": "^1.21.2",
     "gh-pages": "^3.2.3",
     "husky": "^7.0.2",
     "jest": "^26.4.2",
